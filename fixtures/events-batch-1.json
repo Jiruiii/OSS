@@ -1,0 +1,117 @@
+{
+  "fixture_version": "events-batch-v0",
+  "fixture_id": "baseline-2026-09-01",
+  "description": "Initial official events. shelter:31 is intentionally expired at the replay clock used by expected-results-v0.json.",
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.tdx",
+      "event_id": "road:382",
+      "event_type": "ROAD_STATUS",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [121.599, 23.981],
+          [121.604, 23.982]
+        ]
+      },
+      "severity": "HIGH",
+      "source": "TDX",
+      "source_version": "135",
+      "event_version": 1,
+      "issued_at": "2026-09-01T06:32:00Z",
+      "expires_at": "2026-09-01T08:32:00Z",
+      "attributes": {
+        "status": "OPEN",
+        "road_name": "台9線",
+        "reason": null
+      },
+      "payload_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "signature": "Zml4dHVyZS10ZHgtdjE=",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "fixture-tdx-2026",
+      "provenance": {
+        "original_source": "tdx-fixture",
+        "received_at": "2026-09-01T06:33:00Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "fixture-ingest"
+        }
+      }
+    },
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.fire",
+      "event_id": "shelter:31",
+      "event_type": "SHELTER_STATUS",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.603, 23.985]
+      },
+      "severity": "HIGH",
+      "source": "FIRE_AGENCY",
+      "source_version": "2026-09-01T06:20Z",
+      "event_version": 1,
+      "issued_at": "2026-09-01T06:20:00Z",
+      "expires_at": "2026-09-01T07:00:00Z",
+      "attributes": {
+        "status": "OPEN",
+        "capacity": 300,
+        "available": 120
+      },
+      "payload_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "signature": "Zml4dHVyZS1maXJlLXYx",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "fixture-fire-2026",
+      "provenance": {
+        "original_source": "fire-agency-fixture",
+        "received_at": "2026-09-01T06:21:00Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "fixture-ingest"
+        }
+      }
+    },
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.cwa",
+      "event_id": "rain:0901-001",
+      "event_type": "HEAVY_RAIN",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [121.59, 23.97],
+            [121.62, 23.97],
+            [121.62, 24.0],
+            [121.59, 24.0],
+            [121.59, 23.97]
+          ]
+        ]
+      },
+      "severity": "CRITICAL",
+      "source": "CWA",
+      "source_version": "warn-20260901-01",
+      "event_version": 1,
+      "issued_at": "2026-09-01T06:00:00Z",
+      "expires_at": "2026-09-01T10:00:00Z",
+      "attributes": {
+        "alert_type": "HEAVY_RAIN",
+        "rainfall_mm_per_hour": 80,
+        "status": "ACTIVE"
+      },
+      "payload_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "signature": "Zml4dHVyZS1jd2EtdjE=",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "fixture-cwa-2026",
+      "provenance": {
+        "original_source": "cwa-fixture",
+        "received_at": "2026-09-01T06:01:00Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "fixture-ingest"
+        }
+      }
+    }
+  ]
+}

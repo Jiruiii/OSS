@@ -1,0 +1,7 @@
+# Local phase-2 key material and generated bundles.
+.stage2-keys/
+.stage2-bundle/
+
+# Python test/runtime artifacts.
+__pycache__/
+*.py[cod]

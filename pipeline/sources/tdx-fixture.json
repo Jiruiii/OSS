@@ -1,0 +1,31 @@
+{
+  "source": "TDX",
+  "source_version": "136",
+  "dataset_id": "resilientgeo-demo",
+  "dataset_version": 136,
+  "retrieved_at": "2026-09-01T07:10:05Z",
+  "issued_at": "2026-09-01T07:10:00Z",
+  "expires_at": "2026-09-01T09:10:00Z",
+  "records": [
+    {
+      "id": "382",
+      "event_type": "ROAD_STATUS",
+      "event_version": 2,
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [121.599, 23.981],
+          [121.604, 23.982]
+        ]
+      },
+      "severity": "CRITICAL",
+      "issued_at": "2026-09-01T07:10:00Z",
+      "expires_at": "2026-09-01T09:10:00Z",
+      "properties": {
+        "status": "CLOSED",
+        "road_name": "台9線",
+        "reason": "debris"
+      }
+    }
+  ]
+}

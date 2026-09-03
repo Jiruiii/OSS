@@ -1,0 +1,148 @@
+{
+  "fixture_version": "events-batch-v0",
+  "fixture_id": "delta-2026-09-01",
+  "description": "A valid update, one new event, a separate crowd namespace, and a signed but stale version rollback.",
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.tdx",
+      "event_id": "road:382",
+      "event_type": "ROAD_STATUS",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [121.599, 23.981],
+          [121.604, 23.982]
+        ]
+      },
+      "severity": "CRITICAL",
+      "source": "TDX",
+      "source_version": "136",
+      "event_version": 2,
+      "issued_at": "2026-09-01T07:10:00Z",
+      "expires_at": "2026-09-01T09:10:00Z",
+      "attributes": {
+        "status": "CLOSED",
+        "road_name": "台9線",
+        "reason": "debris"
+      },
+      "payload_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "signature": "Zml4dHVyZS10ZHgtdjI=",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "fixture-tdx-2026",
+      "provenance": {
+        "original_source": "tdx-fixture",
+        "received_at": "2026-09-01T07:11:00Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "fixture-ingest"
+        }
+      }
+    },
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.fire",
+      "event_id": "shelter:42",
+      "event_type": "SHELTER_STATUS",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.611, 23.989]
+      },
+      "severity": "HIGH",
+      "source": "FIRE_AGENCY",
+      "source_version": "2026-09-01T07:12Z",
+      "event_version": 1,
+      "issued_at": "2026-09-01T07:12:00Z",
+      "expires_at": "2026-09-01T10:00:00Z",
+      "attributes": {
+        "status": "OPEN",
+        "capacity": 500,
+        "available": 460
+      },
+      "payload_hash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "signature": "Zml4dHVyZS1maXJlLXYx",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "fixture-fire-2026",
+      "provenance": {
+        "original_source": "fire-agency-fixture",
+        "received_at": "2026-09-01T07:13:00Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "fixture-ingest"
+        }
+      }
+    },
+    {
+      "schema_version": "event-v0",
+      "namespace": "crowd.community",
+      "event_id": "road:382",
+      "event_type": "ROAD_STATUS",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [121.599, 23.981],
+          [121.604, 23.982]
+        ]
+      },
+      "severity": "MEDIUM",
+      "source": "COMMUNITY",
+      "source_version": "report-0007",
+      "event_version": 1,
+      "issued_at": "2026-09-01T07:14:00Z",
+      "expires_at": "2026-09-01T08:14:00Z",
+      "attributes": {
+        "status": "OPEN",
+        "report": "路段仍可通行",
+        "confidence": "UNVERIFIED"
+      },
+      "payload_hash": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+      "signature": "Zml4dHVyZS1jb21tdW5pdHk=",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "fixture-community-2026",
+      "provenance": {
+        "original_source": "community-fixture",
+        "received_at": "2026-09-01T07:15:00Z",
+        "transport_source": {
+          "kind": "peer",
+          "node_id": "node-community-01"
+        }
+      }
+    },
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.tdx",
+      "event_id": "road:382",
+      "event_type": "ROAD_STATUS",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [121.599, 23.981],
+          [121.604, 23.982]
+        ]
+      },
+      "severity": "HIGH",
+      "source": "TDX",
+      "source_version": "134",
+      "event_version": 1,
+      "issued_at": "2026-09-01T07:16:00Z",
+      "expires_at": "2026-09-01T09:16:00Z",
+      "attributes": {
+        "status": "OPEN",
+        "road_name": "台9線",
+        "reason": "stale replay"
+      },
+      "payload_hash": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+      "signature": "Zml4dHVyZS10ZHgtdjE=",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "fixture-tdx-2026",
+      "provenance": {
+        "original_source": "tdx-fixture",
+        "received_at": "2026-09-01T07:17:00Z",
+        "transport_source": {
+          "kind": "peer",
+          "node_id": "node-replay-01"
+        }
+      }
+    }
+  ]
+}

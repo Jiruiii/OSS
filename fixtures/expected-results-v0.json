@@ -1,0 +1,91 @@
+{
+  "fixture_version": "replay-expectations-v0",
+  "evaluation_time": "2026-09-01T08:00:00Z",
+  "initial_fixture": "events-batch-1.json",
+  "delta_fixture": "events-batch-2.json",
+  "identity_key": [
+    "namespace",
+    "event_id"
+  ],
+  "expected_decisions": [
+    {
+      "key": [
+        "official.tdx",
+        "road:382"
+      ],
+      "result": "updated",
+      "stored_version_before": 1,
+      "incoming_version": 2,
+      "stored_version_after": 2,
+      "reason": "newer_verified_version"
+    },
+    {
+      "key": [
+        "official.fire",
+        "shelter:42"
+      ],
+      "result": "inserted",
+      "incoming_version": 1,
+      "reason": "new_verified_event"
+    },
+    {
+      "key": [
+        "crowd.community",
+        "road:382"
+      ],
+      "result": "inserted_separate_namespace",
+      "incoming_version": 1,
+      "reason": "crowd_namespace_cannot_overwrite_official_namespace"
+    },
+    {
+      "key": [
+        "official.tdx",
+        "road:382"
+      ],
+      "result": "rejected",
+      "stored_version_before": 2,
+      "incoming_version": 1,
+      "reason": "version_rollback"
+    }
+  ],
+  "expected_state_evaluations": [
+    {
+      "key": [
+        "official.fire",
+        "shelter:31"
+      ],
+      "stored_version": 1,
+      "state": "expired",
+      "reason": "expires_at_before_evaluation_time"
+    }
+  ],
+  "current_events_after_replay": [
+    [
+      "official.tdx",
+      "road:382",
+      2
+    ],
+    [
+      "official.fire",
+      "shelter:31",
+      1,
+      "expired"
+    ],
+    [
+      "official.fire",
+      "shelter:42",
+      1
+    ],
+    [
+      "official.cwa",
+      "rain:0901-001",
+      1
+    ],
+    [
+      "crowd.community",
+      "road:382",
+      1,
+      "unverified"
+    ]
+  ]
+}

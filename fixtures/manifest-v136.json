@@ -1,0 +1,59 @@
+{
+  "schema_version": "manifest-v0",
+  "manifest_id": "demo:official:136",
+  "dataset_id": "resilientgeo-demo",
+  "namespace": "official",
+  "source": "MIXED_OFFICIAL_FIXTURE",
+  "source_version": "2026-09-01T07:15Z",
+  "dataset_version": 136,
+  "created_at": "2026-09-01T07:15:00Z",
+  "expires_at": "2026-09-01T09:15:00Z",
+  "chunking": {
+    "algorithm": "fixed-size",
+    "target_size_bytes": 4096,
+    "hash_algorithm": "SHA-256"
+  },
+  "total_event_count": 4,
+  "total_size_bytes": 2254,
+  "chunks": [
+    {
+      "chunk_id": "demo:chunk:road-v136",
+      "sequence": 0,
+      "chunk_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "size_bytes": 512,
+      "event_count": 1,
+      "priority": "CRITICAL",
+      "event_ids": [
+        "road:382"
+      ]
+    },
+    {
+      "chunk_id": "demo:chunk:shelters-v136",
+      "sequence": 1,
+      "chunk_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "size_bytes": 982,
+      "event_count": 2,
+      "priority": "HIGH",
+      "event_ids": [
+        "shelter:31",
+        "shelter:42"
+      ]
+    },
+    {
+      "chunk_id": "demo:chunk:weather-v136",
+      "sequence": 2,
+      "chunk_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "size_bytes": 760,
+      "event_count": 1,
+      "priority": "CRITICAL",
+      "event_ids": [
+        "rain:0901-001"
+      ]
+    }
+  ],
+  "previous_manifest_hash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+  "manifest_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "signature": "Zml4dHVyZS1tYW5pZmVzdC12MTM2",
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "fixture-manifest-2026"
+}

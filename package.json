@@ -1,0 +1,8 @@
+{
+  "name": "resilientgeo-mesh",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test pipeline/test/*.test.mjs"
+  }
+}

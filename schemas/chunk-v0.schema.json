@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://resilientgeo.mesh/schemas/chunk-v0.schema.json",
+  "title": "ResilientGeo Mesh Chunk v0",
+  "description": "A signed transfer unit containing a subset of Event v0 records.",
+  "$comment": "chunk_hash is the SHA-256 of the canonical chunk content (dataset metadata, priority, encoding and events), excluding manifest binding and signature envelope fields. It must match the hash advertised by the verified manifest. Events remain individually signed so a chunk cannot weaken event-level trust.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "chunk_id",
+    "manifest_id",
+    "manifest_hash",
+    "dataset_id",
+    "namespace",
+    "dataset_version",
+    "sequence",
+    "priority",
+    "created_at",
+    "content_type",
+    "content_encoding",
+    "event_count",
+    "byte_length",
+    "chunk_hash",
+    "events",
+    "signature",
+    "signature_algorithm",
+    "signing_key_id"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "chunk-v0"
+    },
+    "chunk_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,255}$"
+    },
+    "manifest_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,255}$"
+    },
+    "manifest_hash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "dataset_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,127}$"
+    },
+    "namespace": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{0,31}$"
+    },
+    "dataset_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "CRITICAL",
+        "HIGH",
+        "NORMAL",
+        "LOW"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "content_type": {
+      "const": "application/json"
+    },
+    "content_encoding": {
+      "type": "string",
+      "enum": [
+        "identity",
+        "gzip"
+      ]
+    },
+    "event_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "byte_length": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "chunk_hash": {
+      "$ref": "#/$defs/sha256"
+    },
+    "events": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "event-v0.schema.json"
+      }
+    },
+    "signature": {
+      "type": "string",
+      "minLength": 4,
+      "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+    },
+    "signature_algorithm": {
+      "const": "Ed25519"
+    },
+    "signing_key_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,127}$"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[A-Fa-f0-9]{64}$"
+    }
+  }
+}
