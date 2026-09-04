@@ -10,6 +10,7 @@ import {
   sha256Bytes,
 } from './canonical.mjs';
 import { signCanonical } from './crypto.mjs';
+import { bboxOfEvents } from './geo.mjs';
 
 const EVENT_REQUIRED = [
   'schema_version',
@@ -33,6 +34,16 @@ const EVENT_REQUIRED = [
 const SEVERITIES = new Set(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'UNKNOWN']);
 const PRIORITIES = new Set(['CRITICAL', 'HIGH', 'NORMAL', 'LOW']);
 const SHA256_RE = /^sha256:[0-9a-f]{64}$/i;
+const AREA_ID_RE = /^[a-z][a-z0-9._-]{0,63}$/;
+const THEME_RE = /^[a-z][a-z0-9_-]{0,31}$/;
+
+function bboxErrors(bbox, field) {
+  if (!Array.isArray(bbox) || bbox.length !== 4 || !bbox.every((value) => typeof value === 'number' && Number.isFinite(value))) {
+    return [`${field} must be [minLon, minLat, maxLon, maxLat]`];
+  }
+  if (bbox[0] > bbox[2] || bbox[1] > bbox[3]) return [`${field} min corner must not exceed max corner`];
+  return [];
+}
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -196,10 +207,13 @@ export function verifyManifest(manifest, publicKey, options = {}) {
 function validateChunkShape(chunk) {
   const errors = [];
   if (!isObject(chunk)) return ['chunk must be an object'];
-  for (const field of ['schema_version', 'chunk_id', 'manifest_id', 'manifest_hash', 'dataset_id', 'namespace', 'created_at', 'content_type', 'content_encoding', 'chunk_hash', 'events', 'signature', 'signature_algorithm', 'signing_key_id']) {
+  for (const field of ['schema_version', 'chunk_id', 'manifest_id', 'manifest_hash', 'dataset_id', 'namespace', 'created_at', 'area_id', 'theme', 'bbox', 'content_type', 'content_encoding', 'chunk_hash', 'events', 'signature', 'signature_algorithm', 'signing_key_id']) {
     if (!(field in chunk)) errors.push(`missing required field: ${field}`);
   }
   if (chunk.schema_version !== 'chunk-v0') errors.push('schema_version must be chunk-v0');
+  if (typeof chunk.area_id !== 'string' || !AREA_ID_RE.test(chunk.area_id)) errors.push('area_id is invalid');
+  if (typeof chunk.theme !== 'string' || !THEME_RE.test(chunk.theme)) errors.push('theme is invalid');
+  errors.push(...bboxErrors(chunk.bbox, 'bbox'));
   if (!Number.isInteger(chunk.dataset_version) || chunk.dataset_version < 1) errors.push('dataset_version must be positive');
   if (!Number.isInteger(chunk.sequence) || chunk.sequence < 0) errors.push('sequence must be non-negative');
   if (!PRIORITIES.has(chunk.priority)) errors.push('priority is invalid');
@@ -228,6 +242,15 @@ export function verifyChunk(chunk, manifest, publicKey, options = {}) {
     return { valid: false, stage: 'manifest', errors: ['chunk_metadata_mismatch'] };
   }
   if (!trustedKey(chunk, options.trustedKeyIds)) return { valid: false, stage: 'trust', errors: ['chunk signing_key_id is not trusted'] };
+  let expectedBbox;
+  try {
+    expectedBbox = bboxOfEvents(chunk.events);
+  } catch {
+    return { valid: false, stage: 'integrity', errors: ['chunk_bbox_uncomputable'] };
+  }
+  if (expectedBbox.length !== chunk.bbox.length || expectedBbox.some((value, index) => value !== chunk.bbox[index])) {
+    return { valid: false, stage: 'integrity', errors: ['chunk_bbox_mismatch'], expectedBbox };
+  }
   const payloadBytes = chunkPayloadBytes(chunk);
   const expectedHash = sha256Bytes(payloadBytes);
   if (expectedHash !== chunk.chunk_hash) return { valid: false, stage: 'integrity', errors: ['chunk_hash_mismatch'], expectedHash };

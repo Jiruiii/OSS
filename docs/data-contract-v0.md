@@ -23,6 +23,21 @@ Chunk 的 `chunk_hash` 覆蓋 canonical chunk content（dataset metadata、prior
 
 `provenance.original_source`、`provenance.received_at` 與 `provenance.transport_source` 是傳播稽核資料，不參與 payload hash，也不能被 peer 改寫成原始來源。
 
+## 地區與主題（area_id / theme）
+
+每筆事件用 `attributes.area_id`（生活圈，例 `neihu.donghu`）與 `attributes.theme`（`road`、`shelter`、`flood`、`landslide`、`medical`、`transit`）標記它屬於哪個地理與主題切片。這兩個欄位刻意放在 `attributes` 內，理由是：
+
+1. `attributes` 已在簽章的 canonical payload 內（`payload_hash` 涵蓋範圍），所以來源一旦簽了，就不能被 peer 改動 area/theme 而不被偵測。
+2. `event-v0.schema.json` 的 `attributes` 是 `additionalProperties: true`，不必動 schema。
+
+**Chunk 與 manifest 另外顯式帶一份 `area_id`／`theme`／`bbox`**（兩份 schema 為此新增必填欄位）：
+
+- `chunk_hash` 的 canonical content 納入 `area_id`、`theme`、`bbox`，所以竄改分片宣稱的區域會讓 chunk hash 對不上。
+- `manifest.chunks[]` 每個條目也帶這三欄，讓節點**不下載 chunk 就能判斷該片是否與自己所在區域相交**。
+- `bbox` 一律 `[minLon, minLat, maxLon, maxLat]`，由分片內所有事件幾何推導（不手填）。接收端 `verifyChunk()` 會重算並比對，不符時回 `stage: 'integrity'`、`chunk_bbox_mismatch`。
+
+事件層的 `area_id` 隨事件簽章移動；chunk 層的 `area_id` 隨 chunk hash 固定——兩者都不可由中繼節點改寫。
+
 本目錄的 fixture 使用穩定的測試 hash／signature token，供 schema 與狀態轉移測試使用；它們不是正式信任根。正式 pipeline 接上 Ed25519 後，必須以實際 hash 與簽章取代。
 
 ## 套用順序

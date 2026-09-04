@@ -25,7 +25,7 @@ class ReplayFixtureTests(unittest.TestCase):
         road = next(
             decision
             for decision in self.result["delta_decisions"]
-            if decision["key"] == ["official.tdx", "road:382"]
+            if decision["key"] == ["official.tdx", "road:chenggong-4"]
             and decision["result"] == "updated"
         )
         self.assertEqual(road["stored_version_before"], 1)
@@ -37,17 +37,17 @@ class ReplayFixtureTests(unittest.TestCase):
         road = next(
             row
             for row in self.result["current_events"]
-            if row[:2] == ["official.tdx", "road:382"]
+            if row[:2] == ["official.tdx", "road:chenggong-4"]
         )
         self.assertEqual(road[2], 2)
 
     def test_namespace_isolation_and_expiry_are_visible(self):
         self.assertIn(
-            ["crowd.community", "road:382", 1, "unverified"],
+            ["crowd.community", "road:chenggong-4", 1, "unverified"],
             self.result["current_events"],
         )
         self.assertIn(
-            ["official.fire", "shelter:31", 1, "expired"],
+            ["official.fire", "shelter:dahu-es", 1, "expired"],
             self.result["current_events"],
         )
 

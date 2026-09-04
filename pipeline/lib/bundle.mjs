@@ -1,6 +1,5 @@
 import {
   canonicalize,
-  chunkContent,
   chunkPayloadBytes,
   chunkSignatureInput,
   manifestHashInput,
@@ -9,6 +8,7 @@ import {
   sha256Bytes,
 } from './canonical.mjs';
 import { signCanonical } from './crypto.mjs';
+import { bboxOfEvents } from './geo.mjs';
 
 const PRIORITY_RANK = { LOW: 0, NORMAL: 1, HIGH: 2, CRITICAL: 3 };
 
@@ -19,30 +19,75 @@ function priorityFor(events) {
   );
 }
 
-function groupEvents(events, targetSizeBytes, datasetId, namespace, datasetVersion) {
-  const groups = [];
-  let current = [];
-  for (const event of events) {
-    const candidate = [...current, event];
-    const candidateContent = {
-      dataset_id: datasetId,
-      namespace,
-      dataset_version: datasetVersion,
-      sequence: groups.length,
-      priority: priorityFor(candidate),
-      content_type: 'application/json',
-      content_encoding: 'identity',
-      events: candidate,
-    };
-    if (current.length > 0 && Buffer.byteLength(canonicalize(candidateContent), 'utf8') > targetSizeBytes) {
-      groups.push(current);
-      current = [event];
-    } else {
-      current = candidate;
-    }
+function areaTheme(event) {
+  const areaId = event?.attributes?.area_id;
+  const theme = event?.attributes?.theme;
+  if (typeof areaId !== 'string' || areaId.length === 0 || typeof theme !== 'string' || theme.length === 0) {
+    throw new TypeError(`event ${event?.event_id ?? '<unknown>'} is missing attributes.area_id / attributes.theme`);
   }
-  if (current.length > 0) groups.push(current);
+  return { areaId, theme };
+}
+
+/**
+ * Two-phase grouping. First bucket events by (area_id, theme) so a chunk maps to
+ * one geographic + topical slice; then, within a bucket ordered by area_id then
+ * theme, fall back to the existing byte-size accumulation split. The stable
+ * bucket order is what makes the bundle replayable.
+ */
+function groupEvents(events, targetSizeBytes, datasetId, namespace, datasetVersion) {
+  const buckets = new Map();
+  for (const event of events) {
+    const { areaId, theme } = areaTheme(event);
+    const key = `${areaId}\u0000${theme}`;
+    if (!buckets.has(key)) buckets.set(key, { areaId, theme, events: [] });
+    buckets.get(key).events.push(event);
+  }
+
+  const orderedKeys = [...buckets.keys()].sort((left, right) =>
+    Buffer.from(left, 'utf8').compare(Buffer.from(right, 'utf8')),
+  );
+
+  const groups = [];
+  for (const key of orderedKeys) {
+    const { areaId, theme, events: bucketEvents } = buckets.get(key);
+    let current = [];
+    for (const event of bucketEvents) {
+      const candidate = [...current, event];
+      const candidateContent = {
+        dataset_id: datasetId,
+        namespace,
+        dataset_version: datasetVersion,
+        sequence: groups.length,
+        priority: priorityFor(candidate),
+        area_id: areaId,
+        theme,
+        bbox: bboxOfEvents(candidate),
+        content_type: 'application/json',
+        content_encoding: 'identity',
+        events: candidate,
+      };
+      if (current.length > 0 && Buffer.byteLength(canonicalize(candidateContent), 'utf8') > targetSizeBytes) {
+        groups.push({ areaId, theme, events: current, seq: 0 });
+        current = [event];
+      } else {
+        current = candidate;
+      }
+    }
+    if (current.length > 0) groups.push({ areaId, theme, events: current, seq: 0 });
+  }
+
+  const seqByBucket = new Map();
+  for (const group of groups) {
+    const bucketKey = `${group.areaId}\u0000${group.theme}`;
+    const seq = seqByBucket.get(bucketKey) ?? 0;
+    group.seq = seq;
+    seqByBucket.set(bucketKey, seq + 1);
+  }
   return groups;
+}
+
+function areaShort(areaId) {
+  return areaId.split('.').pop();
 }
 
 export function buildBundle(events, options) {
@@ -65,7 +110,8 @@ export function buildBundle(events, options) {
 
   const groups = groupEvents(events, targetSizeBytes, datasetId, namespace, datasetVersion);
   const unsignedChunks = groups.map((group, sequence) => {
-    const chunkId = `${datasetId}:chunk:${datasetVersion}:${String(sequence).padStart(3, '0')}`;
+    const { areaId, theme, events: groupEventsList, seq } = group;
+    const chunkId = `${datasetId}:chunk:${datasetVersion}:${areaShort(areaId)}:${theme}:${String(seq).padStart(3, '0')}`;
     const base = {
       schema_version: 'chunk-v0',
       chunk_id: chunkId,
@@ -74,12 +120,15 @@ export function buildBundle(events, options) {
       namespace,
       dataset_version: datasetVersion,
       sequence,
-      priority: priorityFor(group),
+      priority: priorityFor(groupEventsList),
+      area_id: areaId,
+      theme,
+      bbox: bboxOfEvents(groupEventsList),
       created_at: createdAt,
       content_type: 'application/json',
       content_encoding: 'identity',
-      event_count: group.length,
-      events: group,
+      event_count: groupEventsList.length,
+      events: groupEventsList,
       signature_algorithm: 'Ed25519',
       signing_key_id: signingKeyId,
     };
@@ -115,6 +164,9 @@ export function buildBundle(events, options) {
       size_bytes: chunk.byte_length,
       event_count: chunk.event_count,
       priority: chunk.priority,
+      area_id: chunk.area_id,
+      theme: chunk.theme,
+      bbox: chunk.bbox,
       event_ids: chunk.events.map((event) => event.event_id),
     })),
     ...(previousManifestHash ? { previous_manifest_hash: previousManifestHash } : {}),

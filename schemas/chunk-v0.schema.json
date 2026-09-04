@@ -16,6 +16,9 @@
     "dataset_version",
     "sequence",
     "priority",
+    "area_id",
+    "theme",
+    "bbox",
     "created_at",
     "content_type",
     "content_encoding",
@@ -63,6 +66,20 @@
     "sequence": {
       "type": "integer",
       "minimum": 0
+    },
+    "area_id": {
+      "type": "string",
+      "description": "Geographic slice this chunk belongs to; a stable local living-area id such as neihu.donghu.",
+      "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+    },
+    "theme": {
+      "type": "string",
+      "description": "Topical slice such as road, shelter, flood, landslide, medical or transit.",
+      "pattern": "^[a-z][a-z0-9_-]{0,31}$"
+    },
+    "bbox": {
+      "$ref": "#/$defs/bbox",
+      "description": "[minLon, minLat, maxLon, maxLat] covering every event geometry in the chunk. Derived, not hand-entered; a receiver can recompute it."
     },
     "priority": {
       "type": "string",
@@ -124,6 +141,14 @@
     "sha256": {
       "type": "string",
       "pattern": "^sha256:[A-Fa-f0-9]{64}$"
+    },
+    "bbox": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "number"
+      }
     }
   }
 }
