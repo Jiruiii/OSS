@@ -88,10 +88,12 @@ export function transferChunk(scenario, config, src, dst, chunkId, seed, round, 
   const failRoll = subStream(seed, 'xfer', round, src.index, dst.index, chunkSeq)();
   if (failRoll < config.transfer_failure_prob) {
     dst.failedRxBytes += size;
+    dst.p2pTransfersFailed += 1;
     return { outcome: 'failed' };
   }
   if (dst.heldChunks.has(chunkId)) {
     dst.duplicateRxBytes += size;
+    dst.p2pTransfersOk += 1;
     return { outcome: 'duplicate' };
   }
 
@@ -99,12 +101,14 @@ export function transferChunk(scenario, config, src, dst, chunkId, seed, round, 
   const verification = verifyDelivered(scenario, chunkId, chunk, simClock, deliverChunk !== undefined);
   if (!verification.valid) {
     dst.failedRxBytes += size;
+    dst.p2pTransfersFailed += 1;
     return { outcome: 'rejected', errors: verification.errors };
   }
 
   const { anyApplied, appliedEventBytes } = applyChunkEvents(scenario, dst, chunk, round);
   dst.heldChunks.add(chunkId);
   dst.chunksVerified += 1;
+  dst.p2pTransfersOk += 1;
   if (anyApplied) {
     dst.usefulRxBytes += size;
     dst.usefulEventBytes += appliedEventBytes;

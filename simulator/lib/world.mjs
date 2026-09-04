@@ -29,6 +29,8 @@ export function createNode(index, areaId, attentionWindow, areaSet, isGateway) {
     duplicateRxBytes: 0,
     failedRxBytes: 0,
     chunksVerified: 0,
+    p2pTransfersOk: 0,
+    p2pTransfersFailed: 0,
   };
 }
 
