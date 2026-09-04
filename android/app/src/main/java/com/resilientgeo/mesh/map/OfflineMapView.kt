@@ -26,7 +26,7 @@ class OfflineMapView @JvmOverloads constructor(
 ) : View(context, attrs) {
 
     // Taipei Neihu district (內湖區) — the demo area the team standardized
-    // on in fixtures/neihu/scenario.json, with a margin around its five
+    // on in data/fixtures/neihu/scenario.json, with a margin around its five
     // named areas (neihu.xihu/tech-park/wende/dahu/donghu).
     private val minLon = 121.55
     private val maxLon = 121.63

@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://resilientgeo.mesh/schemas/layer-manifest-v0.schema.json",
+  "title": "ResilientGeo Mesh Layer Manifest v0",
+  "description": "A signed index of chunks containing one version of a static vector layer.",
+  "$comment": "This contract is separate from manifest-v0 so static features are never represented as dynamic events.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "manifest_id",
+    "dataset_id",
+    "layer_id",
+    "namespace",
+    "source",
+    "source_version",
+    "dataset_version",
+    "created_at",
+    "expires_at",
+    "chunking",
+    "total_feature_count",
+    "total_size_bytes",
+    "bbox",
+    "content_hash",
+    "chunks",
+    "manifest_hash",
+    "signature",
+    "signature_algorithm",
+    "signing_key_id"
+  ],
+  "properties": {
+    "schema_version": {"const": "layer-manifest-v0"},
+    "manifest_id": {"$ref": "#/$defs/identifier256"},
+    "dataset_id": {"$ref": "#/$defs/identifier128"},
+    "layer_id": {"$ref": "#/$defs/identifier128"},
+    "namespace": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9._-]{0,31}$"
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "source_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "dataset_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "chunking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "target_size_bytes", "hash_algorithm"],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "enum": ["fixed-size", "content-defined"]
+        },
+        "target_size_bytes": {
+          "type": "integer",
+          "minimum": 256,
+          "maximum": 10485760
+        },
+        "hash_algorithm": {"const": "SHA-256"}
+      }
+    },
+    "total_feature_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "total_size_bytes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "bbox": {"$ref": "#/$defs/bbox"},
+    "content_hash": {"$ref": "#/$defs/sha256"},
+    "chunks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/chunk"}
+    },
+    "previous_manifest_hash": {"$ref": "#/$defs/sha256"},
+    "manifest_hash": {"$ref": "#/$defs/sha256"},
+    "signature": {"$ref": "#/$defs/signature"},
+    "signature_algorithm": {"const": "Ed25519"},
+    "signing_key_id": {"$ref": "#/$defs/identifier128"}
+  },
+  "$defs": {
+    "identifier128": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,127}$"
+    },
+    "identifier256": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[a-z0-9][a-z0-9._:-]{0,255}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[A-Fa-f0-9]{64}$"
+    },
+    "bbox": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {"type": "number"}
+    },
+    "signature": {
+      "type": "string",
+      "minLength": 4,
+      "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+    },
+    "chunk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chunk_id",
+        "sequence",
+        "chunk_hash",
+        "size_bytes",
+        "feature_count",
+        "priority",
+        "feature_ids"
+      ],
+      "properties": {
+        "chunk_id": {"$ref": "#/$defs/identifier256"},
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chunk_hash": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "feature_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["CRITICAL", "HIGH", "NORMAL", "LOW"]
+        },
+        "feature_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/identifier256"}
+        }
+      }
+    }
+  }
+}

@@ -118,7 +118,7 @@ flowchart LR
 ### 階段 0：證明關鍵假設（2–3 天）
 
 - [x] 定義 Event、Manifest、Chunk 與 Peer Summary 的 v0 格式。（`schemas/`）
-- [x] 準備 100–1,000 筆道路／避難所測試事件與更新序列。（`fixtures/neihu/scale-v136.json` ~500 筆，`demo-v136/137` 為更新序列；由 `tools/generate-neihu-fixtures.mjs` 從 OSM 快照決定性生成）
+- [x] 準備 100–1,000 筆道路／避難所測試事件與更新序列。（`data/fixtures/neihu/scale-v136.json` ~500 筆，`demo-v136/137` 為更新序列；由 `tools/generate-neihu-fixtures.mjs` 從 OSM 快照決定性生成）
 - [ ] 用兩台 Android 實機測 BLE 發現及一種高速 P2P 傳輸。
 - [ ] 紀錄 1 MB、10 MB 的連線時間、傳輸速度、斷線恢復結果。
 - [x] 寫出 ADR-001：MVP 傳輸層選擇與未選方案的原因。（目前狀態為 Proposed，待實機 Spike 定稿）

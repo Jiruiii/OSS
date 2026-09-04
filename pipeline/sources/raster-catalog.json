@@ -1,0 +1,136 @@
+{
+  "catalog_version": "raster-catalog-v0",
+  "scope": {
+    "country": "TW",
+    "county": "臺北市",
+    "district": "內湖區",
+    "bbox": [121.5519933, 25.0518603, 121.6286149, 25.1151519],
+    "bbox_crs": "EPSG:4326",
+    "boundary_reference": "pipeline/sources/boundaries/taipei-neihu.geojson"
+  },
+  "verified_at": "2026-09-04",
+  "entries": [
+    {
+      "source_id": "dem-dsm-neihu",
+      "category": "DEM / DSM",
+      "data_product": "static_raster",
+      "layer_id": "dem-neihu",
+      "integration_stage": "P2",
+      "source_owner": "內政部地政司",
+      "source_url": "https://data.gov.tw/dataset/176927",
+      "documentation_url": "https://data.gov.tw/dataset/176927",
+      "access_path": "資料集資源頁的 CSV 圖資目錄，再依圖號下載連結檔案",
+      "access_mode": "scheduled_download",
+      "artifact_status": "metadata_only",
+      "format": "CSV",
+      "asset_formats": ["DTM grid points"],
+      "crs": "EPSG:3826",
+      "spatial_extent": {
+        "kind": "target_intersection",
+        "bbox": [121.5519933, 25.0518603, 121.6286149, 25.1151519],
+        "crs": "EPSG:4326"
+      },
+      "temporal_extent": {
+        "kind": "source_edition",
+        "value": "2025 edition"
+      },
+      "update_mode": "irregular_source_edition",
+      "access_restriction": "public_open_data; inspect linked tile metadata before conversion",
+      "license": "政府資料開放授權條款第1版",
+      "file_hash": null,
+      "file_hash_algorithm": "SHA-256",
+      "raw_or_derived": "raw",
+      "intended_use": [
+        "provide elevation layer input for Neihu",
+        "support later terrain analysis"
+      ],
+      "derived_analysis_not_included": [
+        "slope",
+        "isolation risk",
+        "evacuation suitability"
+      ],
+      "limitation": "The checked-in record is metadata-only. The 2025 source is a 20-meter DTM catalogue; it is not a live hazard feed and does not by itself provide DSM, slope or isolation risk. A 100-meter DEM/DSM dataset 7507 is a fallback, not an interchangeable resolution."
+    },
+    {
+      "source_id": "network-neihu",
+      "category": "網路資料",
+      "data_product": "static_layer",
+      "layer_id": "network-infrastructure-neihu",
+      "integration_stage": "P2",
+      "source_owner": "國家通訊傳播委員會",
+      "source_url": "https://api.ncc.gov.tw/uploaddowndoc?file=datagov%2F%E8%A1%8C%E5%8B%95%E9%80%9A%E4%BF%A1%E6%A5%AD%E5%8B%99%E5%9F%BA%E5%9C%B0%E8%87%BA%E7%B5%B1%E8%A8%88%E6%95%B8%28%E5%8D%80%E5%88%86%E9%84%89%E9%8E%AE%29.csv&filedisplay=%E8%A1%8C%E5%8B%95%E9%80%9A%E4%BF%A1%E6%A5%AD%E5%8B%99%E5%9F%BA%E5%9C%B0%E8%87%BA%E7%B5%B1%E8%A8%88%E6%95%B8%28%E5%8D%80%E5%88%86%E9%84%89%E9%8E%AE%29.csv&flag=doc",
+      "documentation_url": "https://data.gov.tw/dataset/41256",
+      "access_path": "CSV resource; filter 縣市=臺北市 and 鄉鎮區=臺北市內湖區",
+      "access_mode": "scheduled_download",
+      "artifact_status": "metadata_only",
+      "format": "CSV",
+      "crs": "NONE",
+      "spatial_extent": {
+        "kind": "district_aggregate_applicability",
+        "bbox": [121.5519933, 25.0518603, 121.6286149, 25.1151519],
+        "crs": "EPSG:4326"
+      },
+      "temporal_extent": {
+        "kind": "statistical_period",
+        "value": "1150831"
+      },
+      "update_mode": "irregular_statistical_release",
+      "access_restriction": "public_open_data; no point geometry or outage telemetry",
+      "license": "政府資料開放授權條款第1版",
+      "file_hash": null,
+      "file_hash_algorithm": "SHA-256",
+      "raw_or_derived": "raw",
+      "intended_use": [
+        "retain 4G/5G infrastructure counts applicable to Neihu",
+        "provide an infrastructure-density context layer"
+      ],
+      "derived_analysis_not_included": [
+        "signal coverage",
+        "network outage probability",
+        "communications vulnerability score"
+      ],
+      "limitation": "This is a district aggregate of licensed base-station counts, not a point map, radio-signal measurement, outage feed or emergency communication guarantee. Any vulnerability indicator must be computed later and labelled as a proxy."
+    },
+    {
+      "source_id": "sar-optical-neihu",
+      "category": "SAR / 光學影像",
+      "data_product": "static_raster",
+      "layer_id": "earth-observation-neihu",
+      "integration_stage": "P3",
+      "source_owner": "Copernicus Data Space Ecosystem",
+      "source_url": "https://stac.dataspace.copernicus.eu/v1/search",
+      "documentation_url": "https://documentation.dataspace.copernicus.eu/APIs/STAC.html",
+      "access_path": "POST /v1/search with Neihu bbox, datetime and collections sentinel-1-grd or sentinel-2-l2a",
+      "access_mode": "scheduled_download",
+      "artifact_status": "metadata_only",
+      "format": "STAC JSON",
+      "asset_formats": ["Sentinel-1 GRD", "Sentinel-2 L2A"],
+      "crs": "EPSG:4326",
+      "spatial_extent": {
+        "kind": "search_bbox",
+        "bbox": [121.5519933, 25.0518603, 121.6286149, 25.1151519],
+        "crs": "EPSG:4326"
+      },
+      "temporal_extent": {
+        "start": "2026-08-01T00:00:00Z",
+        "end": "2026-09-04T23:59:59Z"
+      },
+      "update_mode": "satellite_acquisition_schedule",
+      "access_restriction": "public catalogue; selected asset download and quotas follow Copernicus Data Space terms",
+      "license": "Copernicus Data Space Ecosystem data terms",
+      "file_hash": null,
+      "file_hash_algorithm": "SHA-256",
+      "raw_or_derived": "raw",
+      "intended_use": [
+        "discover scenes intersecting Neihu",
+        "preserve STAC item and asset provenance for later processing"
+      ],
+      "derived_analysis_not_included": [
+        "flood extent extraction",
+        "landslide detection",
+        "damage classification"
+      ],
+      "limitation": "The checked-in record is catalogue metadata only; it is not a current image or a disaster classification. Image interpretation, cloud/noise handling, clipping and hazard polygons require a later processing task and must retain the selected scene identifiers and asset checksums."
+    }
+  ]
+}

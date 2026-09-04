@@ -7,9 +7,9 @@
  *   node tools/generate-neihu-fixtures.mjs [--check]
  *
  * Outputs (TDX-shaped source files consumed by `pipeline/cli.mjs build`):
- *   fixtures/neihu/demo-v136.json   ~30 curated events, 5 areas x 6 themes
- *   fixtures/neihu/demo-v137.json   the v137 delta of demo-v136
- *   fixtures/neihu/scale-v136.json  ~500 events for multi-chunk + simulation
+ *   data/fixtures/neihu/demo-v136.json   ~30 curated events, 5 areas x 6 themes
+ *   data/fixtures/neihu/demo-v137.json   the v137 delta of demo-v136
+ *   data/fixtures/neihu/scale-v136.json  ~500 events for multi-chunk + simulation
  *
  * Real OSM geometry, synthetic incident content. The generator is fully
  * deterministic: a fixed seed produces byte-identical output. `--check` writes
@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const NEIHU_DIR = path.join(ROOT, 'fixtures', 'neihu');
+const NEIHU_DIR = path.join(ROOT, 'data', 'fixtures', 'neihu');
 
 const SEVERITY_BY_INDEX = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const CATEGORY_THEME = {
@@ -376,7 +376,7 @@ async function main() {
       const expected = await readFile(path.join(NEIHU_DIR, name), 'utf8').catch(() => null);
       if (expected !== stableStringify(value)) {
         mismatch = true;
-        console.error(`MISMATCH: fixtures/neihu/${name} is stale; re-run without --check`);
+        console.error(`MISMATCH: data/fixtures/neihu/${name} is stale; re-run without --check`);
       }
     }
     if (mismatch) process.exitCode = 1;

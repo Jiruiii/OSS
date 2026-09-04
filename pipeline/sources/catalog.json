@@ -1,0 +1,345 @@
+{
+  "catalog_version": "source-catalog-v0",
+  "scope": {
+    "country": "TW",
+    "county": "臺北市",
+    "district": "內湖區",
+    "target_coordinate_system": "EPSG:4326",
+    "boundary_source": {
+      "name": "臺北市區界圖",
+      "dataset_url": "https://data.taipei/dataset/detail?id=1601ef3a-c253-4988-b047-943d9e786143",
+      "resource_url": "https://data.taipei/api/frontstage/tpeod/dataset/resource.download?rid=d8b7eb29-136f-49fc-b14b-3489d3656122",
+      "source_coordinate_system": "TWD97",
+      "district_filter": "TNAME=內湖區",
+      "normalization_required": "Convert the selected district geometry to EPSG:4326 before spatial filtering."
+    },
+    "osm_boundary_reference": {
+      "relation_id": 2905065,
+      "name": "內湖區",
+      "admin_level": "7",
+      "bounds": [121.5519933, 25.0518603, 121.6286149, 25.1151519]
+    }
+  },
+  "verified_at": "2026-09-04",
+  "entries": [
+    {
+      "source_id": "gnss-gps",
+      "category": "GNSS / GPS",
+      "data_product": "local_context",
+      "access_mode": "device_local",
+      "endpoint_or_url": null,
+      "format": "device runtime coordinates",
+      "coverage": "current device location",
+      "update_frequency": "device runtime",
+      "auth_required": false,
+      "license": "not an external dataset",
+      "coordinate_system": "latitude/longitude supplied by the Android location provider",
+      "ttl_policy": "runtime_only; do not include personal location in shared source snapshots",
+      "integration_stage": "B",
+      "neihu_filter": "B checks whether the local device position intersects the Neihu boundary.",
+      "verification": {
+        "status": "excluded_from_external_collectors",
+        "note": "GNSS is produced by the phone and is not an online source for A."
+      }
+    },
+    {
+      "source_id": "osm-neihu",
+      "category": "OpenStreetMap",
+      "data_product": "static_feature",
+      "access_mode": "scheduled_download",
+      "endpoint_or_url": "https://overpass-api.de/api/interpreter",
+      "documentation_url": "https://wiki.openstreetmap.org/wiki/Overpass_API/Overpass_QL",
+      "format": "OSM JSON or XML",
+      "coverage": "roads and selected POIs within the Neihu administrative area",
+      "update_frequency": "community-maintained continuously; store versioned scheduled snapshots",
+      "auth_required": false,
+      "license": "Open Data Commons Open Database License (ODbL); attribution required",
+      "coordinate_system": "EPSG:4326",
+      "ttl_policy": "versioned_snapshot; refresh before each demo release",
+      "integration_stage": "P1",
+      "neihu_filter": "Use OSM relation 2905065 (admin_level=7) for collection, then validate geometries against the official Taipei Neihu boundary.",
+      "verification": {
+        "status": "live_query_verified",
+        "verified_at": "2026-09-04",
+        "result": "The Neihu relation was found and an Overpass count query returned 5775 highway ways. This is a point-in-time count, not a completeness guarantee."
+      }
+    },
+    {
+      "source_id": "tdx-road-events",
+      "category": "TDX",
+      "data_product": "dynamic_event",
+      "access_mode": "live_api",
+      "endpoint_or_url": "https://tdx.transportdata.tw/api/basic/v1/Traffic/RoadEvent/LiveEvent/City/Taipei?$format=JSON",
+      "documentation_url": "https://tdx.transportdata.tw/api-service/swagger/basic/60abfa19-ffe3-4eef-a4b1-0539435dfca9",
+      "format": "JSON or XML",
+      "coverage": "Taipei City live traffic accidents, construction, congestion, control, weather, disaster and abnormal events",
+      "update_frequency": "event-driven live API",
+      "auth_required": true,
+      "license": "TDX terms of service and data licensing terms",
+      "coordinate_system": "event Positions or Geometry; normalize and validate as EPSG:4326",
+      "ttl_policy": "use ExpireTime when supplied; otherwise apply a source-specific freshness policy",
+      "integration_stage": "P1",
+      "neihu_filter": "Request City/Taipei, retain records whose Location.Address.Town or Location.CityRoad.Roadways[].Town is 內湖區, and use geometry intersection as the final check.",
+      "verification": {
+        "status": "oas_verified_credentials_required",
+        "verified_at": "2026-09-04",
+        "result": "The official OAS confirms the endpoint, Taipei city code, Town fields and OAuth2 client-credentials flow. An unauthenticated minimal request returned HTTP 401."
+      }
+    },
+    {
+      "source_id": "cwa-earthquake",
+      "category": "CWA",
+      "data_product": "dynamic_event",
+      "access_mode": "live_api",
+      "endpoint_or_url": "https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001",
+      "documentation_url": "https://opendata.cwa.gov.tw/dataset/earthquake/E-A0015-001",
+      "format": "JSON or XML",
+      "coverage": "nationwide significant felt-earthquake reports and observed intensity areas",
+      "update_frequency": "event-driven and irregular",
+      "auth_required": true,
+      "license": "CWA Open Weather Data Platform terms",
+      "coordinate_system": "EPSG:4326 for epicenter and station coordinates",
+      "ttl_policy": "retain as an immutable event report; version by EarthquakeNo and IssueTime",
+      "integration_stage": "P1",
+      "neihu_filter": "Keep reports that contain a Taipei City intensity area or an observation point intersecting Neihu. If only city-level intensity exists, label coverage_level=city and do not claim district precision.",
+      "verification": {
+        "status": "official_metadata_and_preview_verified",
+        "verified_at": "2026-09-04",
+        "result": "The official dataset exposes earthquake number, origin time, epicenter, magnitude and county or station intensity fields."
+      }
+    },
+    {
+      "source_id": "cwa-weather-warning",
+      "category": "CWA",
+      "data_product": "dynamic_event",
+      "access_mode": "live_api",
+      "endpoint_or_url": "https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0033-001",
+      "documentation_url": "https://opendata.cwa.gov.tw/dataset/warning/W-C0033-001",
+      "format": "JSON or XML",
+      "coverage": "current weather warnings organized mainly by county or city",
+      "update_frequency": "event-driven and irregular",
+      "auth_required": true,
+      "license": "CWA Open Weather Data Platform terms",
+      "coordinate_system": "administrative-area warning; no point coordinate required",
+      "ttl_policy": "use warning effective and end times; replace or cancel by message update",
+      "integration_stage": "P1",
+      "neihu_filter": "Select 臺北市 warnings. Treat them as city-scope warnings applicable to Neihu, not as Neihu-specific observations.",
+      "verification": {
+        "status": "official_metadata_and_preview_verified",
+        "verified_at": "2026-09-04",
+        "result": "W-C0033-001 is explicitly designed around county or city areas. W-C0033-002 can supplement event content and affected areas."
+      },
+      "related_resources": [
+        {
+          "purpose": "warning content and affected areas",
+          "url": "https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0033-002"
+        },
+        {
+          "purpose": "typhoon CAP warning",
+          "url": "https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0034-001"
+        }
+      ]
+    },
+    {
+      "source_id": "ncdr-hazard-events",
+      "category": "NCDR",
+      "data_product": "dynamic_event",
+      "access_mode": "live_api",
+      "endpoint_or_url": "https://alerts.ncdr.nat.gov.tw/api/datastore",
+      "documentation_url": "https://datahub.ncdr.nat.gov.tw/paradigm",
+      "format": "JSON",
+      "coverage": "nationwide multi-agency warnings, including flood, rainfall, debris-flow and large-landslide alerts",
+      "update_frequency": "depends on the selected NCDR datastore; retain retrieved_at and source update fields",
+      "auth_required": true,
+      "license": "NCDR platform terms or source-agency license; record per resource",
+      "coordinate_system": "CAP polygon or point; normalize to EPSG:4326",
+      "ttl_policy": "use CAP sent, effective, onset and expires fields; preserve cancel and update messages",
+      "integration_stage": "P1",
+      "neihu_filter": "Prefer CAP polygons or district geocodes intersecting Neihu. If a warning only names 臺北市, label coverage_level=city. Keep citizen reports in an unverified namespace.",
+      "verification": {
+        "status": "official_api_contract_verified_access_setup_required",
+        "verified_at": "2026-09-04",
+        "result": "The official NCDR API documentation confirms HTTP GET, JSON or XML responses and Token or Authorization authentication. The concrete datastore route and permitted datasets are account-configured, so NCDR_API_ENDPOINT remains required at runtime."
+      },
+      "demo_policy": {
+        "status": "optional_for_demo",
+        "fallback": "data/fixtures/neihu/manifest.json",
+        "simulation_sources": [
+          "data/fixtures/neihu/scenario.json",
+          "data/fixtures/neihu/update-sequence.json",
+          "pipeline/lib/neihu-replay.mjs"
+        ],
+        "disclaimer": "Replay disaster events are fictional and must not be presented as current NCDR alerts."
+      },
+      "related_resources": [
+        {
+          "purpose": "API documentation",
+          "url": "https://datahub.ncdr.nat.gov.tw/paradigm",
+          "auth": "API key required"
+        },
+        {
+          "purpose": "Taipei plain-area 24-hour flood forecast description",
+          "url": "https://datahub.ncdr.nat.gov.tw/incorporation/flood",
+          "auth": "The page describes an open KMZ API, but the concrete endpoint still needs onboarding confirmation."
+        },
+        {
+          "purpose": "historical flood points",
+          "url": "https://datahub.ncdr.nat.gov.tw/dataset/detail?pid=b73c525a-df95-4385-b895-99ba61354a56",
+          "auth": "login or application required"
+        },
+        {
+          "purpose": "debris-flow potential streams",
+          "url": "https://datahub.ncdr.nat.gov.tw/dataset/detail?pid=1f636f3a-b4fb-41c0-8354-4d57d07eb5ff",
+          "auth": "login required"
+        },
+        {
+          "purpose": "citizen disaster reports with county, town, village and coordinates",
+          "url": "https://datahub.ncdr.nat.gov.tw/dataset/detail?pid=e67b2058-005e-4af3-9646-b87038e5f553",
+          "trust": "unverified"
+        }
+      ]
+    },
+    {
+      "source_id": "taipei-shelter",
+      "category": "消防署避難所",
+      "data_product": "static_feature",
+      "access_mode": "scheduled_download",
+      "endpoint_or_url": "https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/ED6CF735-6C03-4573-A882-72C1BEC799CB/resource/54550E2F-4567-4C8F-BD2E-E54E9D0386B8/download",
+      "documentation_url": "https://data.gov.tw/dataset/73242",
+      "format": "CSV",
+      "coverage": "nationwide shelter points with coordinates, capacity and supported disaster types",
+      "update_frequency": "irregular scheduled download",
+      "auth_required": false,
+      "license": "政府資料開放授權條款第1版",
+      "coordinate_system": "longitude and latitude; validate as EPSG:4326",
+      "ttl_policy": "versioned_snapshot; retain retrieval and source modification timestamps",
+      "integration_stage": "P1",
+      "neihu_filter": "Filter 縣市及鄉鎮市區=臺北市內湖區 and validate coordinates against the Neihu polygon.",
+      "verification": {
+        "status": "live_download_verified",
+        "verified_at": "2026-09-04",
+        "result": "The national point CSV contains multiple Neihu shelters with coordinates. The Taipei 114 list separately returned 38 Neihu rows, but that list lacks coordinates and must not be treated as live opening status."
+      },
+      "related_resources": [
+        {
+          "purpose": "Taipei annual shelter catalogue and capacity cross-check",
+          "url": "https://data.taipei/api/v1/dataset/3f20cc14-91a9-41de-8d03-6e019ec4d82c?scope=resourceAquire",
+          "access_mode": "scheduled_download"
+        },
+        {
+          "purpose": "national shelter opening status",
+          "url": "https://portal2.emic.gov.tw/Pub/EEA2/OpenData/Shelter.xml",
+          "access_mode": "event_feed"
+        },
+        {
+          "purpose": "Taipei EOC shelter opening statistics when EOC level 2 or above is active",
+          "url": "https://data.taipei/dataset/detail?id=ef1813fb-6685-4841-a5c0-6e2acb2c0650",
+          "access_mode": "conditional_live_api"
+        }
+      ]
+    },
+    {
+      "source_id": "taipei-medical",
+      "category": "醫療資料",
+      "data_product": "static_feature",
+      "access_mode": "scheduled_download",
+      "endpoint_or_url": "https://data.taipei/api/v1/dataset/04a3d195-ee97-467a-b066-e471ff99d15d?scope=resourceAquire",
+      "documentation_url": "https://data.taipei/dataset/detail?id=ffdd5753-30db-4c38-b65f-b77892773d60",
+      "format": "JSON or CSV",
+      "coverage": "Taipei hospitals with name, address and coordinates",
+      "update_frequency": "yearly",
+      "auth_required": false,
+      "license": "Taipei City open data license",
+      "coordinate_system": "EPSG:4326",
+      "ttl_policy": "versioned_snapshot; refresh when the source publishes a new list",
+      "integration_stage": "P1",
+      "neihu_filter": "Filter addresses containing 臺北市內湖區, then validate coordinates against the Neihu polygon.",
+      "verification": {
+        "status": "live_api_verified",
+        "verified_at": "2026-09-04",
+        "result": "The current hospital resource returned 4 records whose addresses contain 內湖區."
+      }
+    },
+    {
+      "source_id": "dem-dsm-neihu",
+      "category": "DEM / DSM",
+      "data_product": "static_raster",
+      "access_mode": "scheduled_download",
+      "endpoint_or_url": "https://data.gov.tw/dataset/176927",
+      "documentation_url": "https://data.gov.tw/dataset/176927",
+      "format": "CSV tile catalogue and linked DTM files",
+      "coverage": "Taiwan 20-meter DTM; select tiles intersecting Neihu",
+      "update_frequency": "irregular",
+      "auth_required": false,
+      "license": "政府資料開放授權條款第1版",
+      "coordinate_system": "source-specific projected coordinates; inspect tile metadata before conversion",
+      "ttl_policy": "immutable versioned raster snapshot",
+      "integration_stage": "P2",
+      "raster_catalog_ref": "pipeline/sources/raster-catalog.json#dem-dsm-neihu",
+      "artifact_status": "metadata_only",
+      "raw_or_derived": "raw",
+      "neihu_filter": "Select tiles intersecting the official Neihu boundary and clip after coordinate conversion. A 100-meter DEM/DSM source is available as a fallback when DSM is required.",
+      "verification": {
+        "status": "official_metadata_verified",
+        "verified_at": "2026-09-04",
+        "result": "The 2025 catalogue provides 20-meter DTM elevation data; it is not a live API and does not itself provide slope or isolation risk."
+      },
+      "related_resources": [
+        {
+          "purpose": "100-meter DEM and DSM fallback",
+          "url": "https://data.gov.tw/dataset/7507"
+        }
+      ]
+    },
+    {
+      "source_id": "network-neihu",
+      "category": "網路資料",
+      "data_product": "static_layer",
+      "access_mode": "scheduled_download",
+      "endpoint_or_url": "https://api.ncc.gov.tw/uploaddowndoc?file=datagov%2F%E8%A1%8C%E5%8B%95%E9%80%9A%E4%BF%A1%E6%A5%AD%E5%8B%99%E5%9F%BA%E5%9C%B0%E8%87%BA%E7%B5%B1%E8%A8%88%E6%95%B8%28%E5%8D%80%E5%88%86%E9%84%89%E9%8E%AE%29.csv&filedisplay=%E8%A1%8C%E5%8B%95%E9%80%9A%E4%BF%A1%E6%A5%AD%E5%8B%99%E5%9F%BA%E5%9C%B0%E8%87%BA%E7%B5%B1%E8%A8%88%E6%95%B8%28%E5%8D%80%E5%88%86%E9%84%89%E9%8E%AE%29.csv&flag=doc",
+      "documentation_url": "https://data.gov.tw/dataset/41256",
+      "format": "CSV",
+      "coverage": "4G and 5G base-station licence counts by township or district",
+      "update_frequency": "irregular",
+      "auth_required": false,
+      "license": "政府資料開放授權條款第1版",
+      "coordinate_system": "none; district aggregate table",
+      "ttl_policy": "retain latest statistical period and historical snapshots",
+      "integration_stage": "P2",
+      "raster_catalog_ref": "pipeline/sources/raster-catalog.json#network-neihu",
+      "artifact_status": "metadata_only",
+      "raw_or_derived": "raw",
+      "neihu_filter": "Filter 縣市=臺北市 and 鄉鎮區=臺北市內湖區.",
+      "verification": {
+        "status": "live_download_verified",
+        "verified_at": "2026-09-04",
+        "result": "The latest verified period 1150831 contains Neihu values for 4G and 5G. This source is only an infrastructure-count proxy, not a coverage or outage map."
+      }
+    },
+    {
+      "source_id": "sar-optical-neihu",
+      "category": "SAR / 光學影像",
+      "data_product": "static_raster",
+      "access_mode": "scheduled_download",
+      "endpoint_or_url": "https://stac.dataspace.copernicus.eu/v1/search",
+      "documentation_url": "https://documentation.dataspace.copernicus.eu/APIs/STAC.html",
+      "format": "STAC JSON metadata and linked Sentinel assets",
+      "coverage": "Sentinel-1 GRD SAR and Sentinel-2 L2A optical scenes intersecting Neihu",
+      "update_frequency": "satellite acquisition schedule",
+      "auth_required": false,
+      "license": "Copernicus Data Space Ecosystem data terms; preserve product attribution",
+      "coordinate_system": "EPSG:4326 bbox or GeoJSON geometry for catalogue search",
+      "ttl_policy": "immutable scene metadata and asset checksum; create new snapshots for new acquisitions",
+      "integration_stage": "P3",
+      "raster_catalog_ref": "pipeline/sources/raster-catalog.json#sar-optical-neihu",
+      "artifact_status": "metadata_only",
+      "raw_or_derived": "raw",
+      "neihu_filter": "Search by Neihu bbox [121.5519933,25.0518603,121.6286149,25.1151519], date range and collection; clip or mask assets to the official polygon after download.",
+      "verification": {
+        "status": "live_catalog_verified",
+        "verified_at": "2026-09-04",
+        "result": "The official STAC search returned Sentinel-1 GRD and Sentinel-2 L2A scenes intersecting the Neihu bbox for the tested 2026-08-01 to 2026-09-04 interval. Imagery classification is not part of A's collector."
+      }
+    }
+  ]
+}

@@ -25,7 +25,7 @@ const KEY_ID = 'android-demo-2026';
 const { privateKey, publicKey } = generateEd25519KeyPair();
 
 // Demo area: Taipei Neihu district (內湖區) — matches the geography the
-// rest of the team standardized on in fixtures/neihu/scenario.json, not
+// rest of the team standardized on in data/fixtures/neihu/scenario.json, not
 // this generator's original placeholder (Hualien-area coordinates). Seeds
 // below are lifted from that scenario file's neihu.dahu / neihu.wende
 // areas; road_name and status are still synthetic incident content, same

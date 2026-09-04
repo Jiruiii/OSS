@@ -13,7 +13,7 @@
 | 回合 × 每回合秒數 | 24 × 30s（模擬 12 分鐘） |
 | 發布模型 | round 0 一次性發布 |
 | rarity_scope | `global` |
-| 來源 fixture | `fixtures/neihu/scale-v136.json`（生成器 seed 20260901） |
+| 來源 fixture | `data/fixtures/neihu/scale-v136.json`（生成器 seed 20260901） |
 | 執行時 bundle | `resilientgeo-demo:manifest:136`，83 chunk，538 KiB |
 | 事件識別數 \|E\| | 500 |
 
@@ -156,4 +156,3 @@ baseline = 節點最終持有的每個 byte 都當作向 server 下載。所以 
 失敗率是工程估計值，尚未由實機 spike 校準（見 `simulator/fixtures/sim-config.json` 的
 `transport_params_source`）。**Energy Cost 未建模** —— 依 system.md §7 需指定機型實機量測。
 災情事件為虛構（真實 OSM 地物 + 合成事件），不代表任何真實災況。
-

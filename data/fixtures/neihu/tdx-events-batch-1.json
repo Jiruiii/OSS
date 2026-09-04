@@ -1,0 +1,66 @@
+{
+  "schema_version": "event-batch-v0",
+  "source_id": "tdx-road-events",
+  "mode": "local_fixture",
+  "source_version": "2026-09-04T00:00:00Z",
+  "retrieved_at": "2026-09-04T00:05:00Z",
+  "raw_file": "tdx-raw-batch-1.json",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.tdx",
+      "event_id": "tdx:tdx-neihu-001",
+      "event_type": "ROAD_ACCIDENT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.58,
+          25.08
+        ]
+      },
+      "severity": "HIGH",
+      "source": "TDX",
+      "source_version": "2026-09-04T00:00:00Z",
+      "event_version": 1,
+      "issued_at": "2026-09-04T00:00:00Z",
+      "expires_at": "2026-09-04T02:00:00Z",
+      "attributes": {
+        "source_record": {
+          "EventID": "TDX-NEIHU-001",
+          "EventType": 1,
+          "Description": "瑞光路交通事故",
+          "EffectiveTime": "2026-09-04T00:00:00Z",
+          "ExpireTime": "2026-09-04T02:00:00Z",
+          "Severity": 3,
+          "Positions": "POINT (121.58 25.08)",
+          "Location": {
+            "Address": {
+              "City": "臺北市",
+              "Town": "內湖區"
+            },
+            "CityRoad": {
+              "Roadways": [
+                {
+                  "Town": "內湖區",
+                  "RoadName": "瑞光路"
+                }
+              ]
+            }
+          },
+          "ExtraSourceField": "preserve-me"
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "tdx-source-2026",
+      "provenance": {
+        "original_source": "https://tdx.transportdata.tw/api/basic/v1/Traffic/RoadEvent/LiveEvent/City/Taipei?%24format=JSON",
+        "received_at": "2026-09-04T00:05:00Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "tdx-collector"
+        }
+      }
+    }
+  ]
+}

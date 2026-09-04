@@ -1,0 +1,41 @@
+{
+  "schema_version": "raw-snapshot-v0",
+  "source_id": "taipei-medical",
+  "request": {
+    "method": "GET",
+    "url": "https://data.taipei/api/v1/dataset/04a3d195-ee97-467a-b066-e471ff99d15d?scope=resourceAquire",
+    "query": {
+      "scope": "resourceAquire"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "etag": "\"fixture-medical-1\"",
+      "content_type": "application/json"
+    }
+  },
+  "retrieved_at": "2026-09-04T04:00:00Z",
+  "payload": {
+    "records": [
+      {
+        "機構代碼": "H001",
+        "機構名稱": "內湖醫院",
+        "行政區": "內湖區",
+        "地址": "臺北市內湖區成功路1號",
+        "經度": "121.58",
+        "緯度": "25.08",
+        "分類": "醫院"
+      },
+      {
+        "機構代碼": "H002",
+        "機構名稱": "外部醫院",
+        "行政區": "信義區",
+        "地址": "臺北市信義區信義路1號",
+        "經度": "121.56",
+        "緯度": "25.03",
+        "分類": "醫院"
+      }
+    ]
+  }
+}

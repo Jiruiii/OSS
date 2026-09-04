@@ -56,7 +56,7 @@ export function renderReport(results, scenario, config) {
   push(`| 回合 × 每回合秒數 | ${rounds} × ${secondsPerRound}s（模擬 ${windowMinutes} 分鐘） |`);
   push(`| 發布模型 | round 0 一次性發布 |`);
   push(`| rarity_scope | \`${results[0]?.params.rarity_scope}\` |`);
-  push(`| 來源 fixture | \`fixtures/neihu/${scenario.fixture}\`（生成器 seed ${scenario.generatorSeed}） |`);
+  push(`| 來源 fixture | \`data/fixtures/neihu/${scenario.fixture}\`（生成器 seed ${scenario.generatorSeed}） |`);
   push(`| 執行時 bundle | \`${scenario.manifest.manifest_id}\`，${scenario.chunkCount} chunk，${kib(scenario.totalSizeBytes)} |`);
   push(`| 事件識別數 \\|E\\| | ${eventCount} |`);
   push('');

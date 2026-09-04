@@ -1,0 +1,58 @@
+{
+  "schema_version": "raw-snapshot-v0",
+  "source_id": "ncdr-hazard-events",
+  "request": {
+    "method": "GET",
+    "url": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+    "query": {
+      "format": "JSON"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "etag": "\"local-ncdr-20260904-1\"",
+      "content_type": "application/json"
+    }
+  },
+  "retrieved_at": "2026-09-04T04:00:00Z",
+  "payload": {
+    "data": [
+      {
+        "CAPID": "NCDR-NEIHU-FLOOD-001",
+        "event": "淹水警戒",
+        "sent": "2026-09-04T02:00:00+08:00",
+        "effective": "2026-09-04T02:00:00+08:00",
+        "expires": "2026-09-04T03:00:00+08:00",
+        "polygon": "25.0700,121.5700 25.0700,121.5900 25.0900,121.5900 25.0900,121.5700 25.0700,121.5700",
+        "areaDesc": "臺北市內湖區",
+        "severity": "Severe",
+        "description": "內湖區淹水示警測試資料"
+      },
+      {
+        "CAPID": "NCDR-OUTSIDE-001",
+        "event": "土石流警戒",
+        "sent": "2026-09-04T02:00:00+08:00",
+        "effective": "2026-09-04T02:00:00+08:00",
+        "expires": "2026-09-04T03:00:00+08:00",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [121.5, 25]
+        },
+        "areaDesc": "新北市"
+      },
+      {
+        "CAPID": "NCDR-EXPIRED-001",
+        "event": "雨量警戒",
+        "sent": "2026-09-03T02:00:00+08:00",
+        "effective": "2026-09-03T02:00:00+08:00",
+        "expires": "2026-09-03T03:00:00+08:00",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [121.58, 25.08]
+        },
+        "areaDesc": "臺北市內湖區"
+      }
+    ]
+  }
+}

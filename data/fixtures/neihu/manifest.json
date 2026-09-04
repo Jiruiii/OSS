@@ -1,0 +1,12 @@
+{
+  "schema_version": "neihu-replay-manifest-v0",
+  "fixture_id": "neihu-replay-20260904",
+  "dataset_id": "resilientgeo-neihu",
+  "district": "臺北市內湖區",
+  "evaluation_time": "2026-09-04T08:00:00Z",
+  "update_sequence": "update-sequence.json",
+  "expected_results": "expected-results.json",
+  "target_event_record_count": 100,
+  "target_feature_count": 1,
+  "description": "固定時間與固定 ID 的內湖 replay 情境；真實地理範圍內的 demo 幾何搭配虛構事件內容。"
+}

@@ -5,16 +5,16 @@
 ## 設定
 
 梅雨鋒面滯留台北，基隆河水位偏高，行動網路在內湖部分地區斷續。一批災情資料
-（`fixtures/neihu/scale-v136.json`，~500 筆事件，涵蓋道路 / 避難所 / 醫療 / 捷運 / 淹水 /
+（`data/fixtures/neihu/scale-v136.json`，~500 筆事件，涵蓋道路 / 避難所 / 醫療 / 捷運 / 淹水 /
 土石流六個主題、五個生活圈）已在斷訊前由伺服器發布。手機使用者開啟 Emergency Mode，
 靠 peer sync 補齊彼此缺少的分片。
 
 - **真實 OSM 地物 + 虛構災情。** 幾何（道路線形、學校 / 醫院輪廓、文湖線車站、基隆河 /
-  內溝溪）取自 `fixtures/neihu/osm-snapshot.json`；災情事件（哪條路封閉、哪個避難所開設、
+  內溝溪）取自 `data/fixtures/neihu/osm-snapshot.json`；災情事件（哪條路封閉、哪個避難所開設、
   哪段邊坡警戒）是合成的，不代表任何真實災況。
 - **一次性發布。** 預設矩陣把全部事件的 `issued_at` 設在 round 0，所以 Freshness Lag
   量到的是純傳播時間，coverage 乾淨單調。真正的更新序列（版本遞增）在
-  `fixtures/neihu/demo-v137.json`，之後的 `--waves` 模式會用到，不納入可重現矩陣。
+  `data/fixtures/neihu/demo-v137.json`，之後的 `--waves` 模式會用到，不納入可重現矩陣。
 
 ## 節點與拓撲
 
