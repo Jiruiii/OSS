@@ -10,12 +10,13 @@ function nodeId(index) {
   return `sim-node-${String(index + 1).padStart(3, '0')}`;
 }
 
-export function createNode(index, areaId, attentionWindow, isGateway) {
+export function createNode(index, areaId, attentionWindow, areaSet, isGateway) {
   return {
     id: nodeId(index),
     index,
     areaId,
     attentionWindow,
+    areaSet,
     isGateway,
     store: new Map(),
     heldChunks: new Set(),
@@ -90,8 +91,9 @@ export function placeNodes(scenario, config, nodeCount, { allGateways = false } 
   let index = 0;
   for (const areaId of areas) {
     const window = attentionWindow(areaId, scenario.areaBbox, config.adjacency);
+    const areaSet = new Set([areaId, ...(config.adjacency[areaId] ?? [])]);
     for (let k = 0; k < counts[areaId]; k += 1) {
-      nodes.push(createNode(index, areaId, window, allGateways));
+      nodes.push(createNode(index, areaId, window, areaSet, allGateways));
       index += 1;
     }
   }
