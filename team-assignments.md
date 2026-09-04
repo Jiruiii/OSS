@@ -58,9 +58,9 @@
 **現況**：尚未開始，是階段 0 的關鍵路徑，需優先完成。
 
 **待辦**
-- [ ] 兩台 Android 實機比較 BLE 發現、Nearby Connections、Wi-Fi Direct
-- [ ] 記錄 1 MB、10 MB 的連線時間、傳輸速度、斷線恢復結果
-- [ ] 定稿 ADR-001（傳輸層選擇與未選方案原因）
+- [x] 兩台 Android 實機（Pixel 7 + Pixel 8a）驗證 BLE 雙向 discovery — 過程中修正了 `BleDiscovery` 掃描未過濾 `SERVICE_UUID` 的 bug（原本量到的是環境雜訊，不是彼此廣播）；修正後 discovery latency p50/p95 已記錄於 ADR-001。**尚缺**：Nearby Connections／Wi-Fi Direct 比較未開始，且兩台測試機都是 Pixel／同 API 版本，未滿足「至少兩個品牌」
+- [ ] 記錄 1 MB、10 MB 的連線時間、傳輸速度、斷線恢復結果（需要 `NearbyConnectionsTransport` 實作，尚未開始）
+- [ ] 定稿 ADR-001（傳輸層選擇與未選方案原因）— discovery 部分數據已補上，狀態仍是 `Proposed`，等 connect/transfer/resume 數據到齊才能定稿
 - [ ] 實作 Peer Sync 協定：HELLO → DIFF → REQUEST → TRANSFER → VERIFY/APPLY
 - [ ] 階段 3：斷線續傳、Peer 上限、critical-first 排程、三機 Store-Carry-Forward 驗證
 

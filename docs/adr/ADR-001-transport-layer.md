@@ -40,6 +40,21 @@ close(connection)
 | Energy | 固定掃描頻率與傳輸量下的額外耗電 |
 | Background behavior | 前景服務、鎖屏、切換 App 後能否完成最小同步 |
 
+## 實測記錄（2026-09-04，BLE discovery 部分）
+
+裝置：Pixel 7（`2A221FDH2004RL`，API 37）與 Pixel 8a（`41051JEKB12762`，API 37），同房間近距離，皆透過 USB 接同一台電腦以 `adb` 驅動（非手動操作 UI）；螢幕亮起情境跑 5 次，另跑 1 次鎖屏情境。
+
+**重要發現並已修正的 bug**：`BleDiscovery.startScanning()` 原本以 `scanner.startScan(null, ...)` 掃描，未過濾 `SERVICE_UUID`，導致第一輪測試量到的是環境中任意 BLE 裝置（耳機、手錶等），不是彼此的廣播——Pixel 7 那輪甚至換了兩個不同 MAC，latency 高達 85–133 秒，明顯是雜訊。已加上 `ScanFilter.setServiceUuid(SERVICE_UUID)`（`transport/BleDiscovery.kt`）修正後重測，兩台裝置各自穩定只看到對方那一個 MAC。
+
+- **Discovery latency（亮屏，5 次，ms）**
+  - Pixel 7：246, 419, 531, 536, 540 → p50 = 531ms，p95 ≈ 540ms
+  - Pixel 8a：99, 104, 114, 142, 283 → p50 = 114ms，p95 ≈ 283ms
+- **裝置相容性**：目前只有兩台裝置，皆為 Pixel 品牌、同一 API 37 — 尚未滿足「至少兩個品牌、兩個 Android 版本」，這點還沒過關，需要再借一支非 Pixel 或不同 API 版本的機器。
+- **Background / 鎖屏行為（初步）**：Pixel 7 於掃描中以電源鍵鎖屏（確認 `dumpsys power` 顯示 `mWakefulness=Dozing`），鎖屏後 15 秒內兩台裝置仍持續收到彼此的 BLE 廣播（logcat 持續有 `saw device` 紀錄），沒有立即被系統殺掉。**只驗證了 15 秒內**，尚未驗證數分鐘後進入 Doze 模式或背景多久之後是否會被系統掛起。
+- **尚未測試**：Connection success rate（尚無 `connect()` 實作）、Throughput（1MB/10MB，需要 `NearbyConnectionsTransport`）、Resume（斷線續傳）、Energy（耗電）。
+
+結論：BLE discovery 本身在受控環境下運作正常且延遲低（多在 1 秒內），但**通過條件尚未達成**——缺 bulk transfer 實作、缺第二個品牌/版本的裝置、缺長時間背景行為驗證。狀態維持 `Proposed`，下一步是實作 `NearbyConnectionsTransport`（見任務清單）。
+
 ## 未選方案與原因
 
 - 純 BLE：保留給 discovery 與控制訊息；吞吐量與 MTU／背景限制不適合作為主要 chunk 傳輸。

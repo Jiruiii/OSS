@@ -5,6 +5,7 @@ import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.os.ParcelUuid
@@ -86,7 +87,14 @@ class BleDiscovery(private val adapter: BluetoothAdapter) {
         val settings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build()
-        scanner?.startScan(null, settings, callback)
+        // Without this filter, startScan(null, ...) reports every nearby BLE
+        // advertiser (earbuds, watches, unrelated phones), not just peers
+        // running this app — which silently corrupts discovery-latency
+        // measurements with unrelated ambient devices.
+        val filter = ScanFilter.Builder()
+            .setServiceUuid(ParcelUuid(SERVICE_UUID))
+            .build()
+        scanner?.startScan(listOf(filter), settings, callback)
             ?: Log.e(TAG, "no BLE scanner available on this device")
     }
 
