@@ -1,6 +1,47 @@
 # Stage 2 trusted data pipeline
 
-This directory implements the `system.md` phase-2 path with only Node.js built-ins:
+This directory implements the `system.md` phase-2 path with only Node.js built-ins.
+
+## Task 3: TDX road events
+
+`pipeline/sources/tdx.mjs` separates the complete TDX response from the curated
+Neihu events:
+
+1. `collect` obtains the Taipei City Road Events response with OAuth2 client credentials and writes a secret-free `raw-snapshot-v0`.
+2. `normalize` adapts the TDX `Events` envelope into unsigned `event-v0` records, preserves the original source record in `attributes.source_record`, and keeps only records whose town and WGS84 geometry match the official Neihu boundary.
+3. `build` signs the curated events and creates the existing Manifest v0 and Chunk v0 bundle.
+
+The Raw snapshot keeps out-of-Neihu events for audit and later re-curation. The
+collector does not calculate route cost, congestion indices, or district
+statistics. TDX credentials are read only from `TDX_CLIENT_ID` and
+`TDX_CLIENT_SECRET`; they are never written to Raw, fixtures, logs, or the
+Android bundle.
+
+Live collection:
+
+```bash
+# Fill TDX_CLIENT_ID and TDX_CLIENT_SECRET in the local, gitignored .env first.
+node --env-file=.env pipeline/cli.mjs collect --source tdx-road-events --out-dir .stage3-tdx-raw
+```
+
+This creates `tdx-road-events.raw.json`, `tdx-road-events.events.json`, and
+`collection-metadata.json`. Without both credentials, the command exits with a
+clear missing-credential error before making a network request.
+
+Fixture mode does not require credentials:
+
+```bash
+node pipeline/cli.mjs normalize \
+  --source tdx-road-events \
+  --input fixtures/neihu/tdx-raw-batch-1.json \
+  --out /tmp/tdx-events.json
+```
+
+`fixtures/neihu/tdx-raw-batch-1.json` is a sanitized response-shaped local
+fixture, not a live TDX capture. It is explicitly marked `local_fixture` until
+an authenticated response can be recorded.
+
+## Existing signed bundle flow
 
 1. `sources/tdx-fixture.json` is a TDX-shaped input record (a real 內湖區 road).
    `fixtures/neihu/demo-v136.json` and `scale-v136.json` are larger multi-source
