@@ -61,16 +61,21 @@
 
 ## D：Experiment Harness & 量測（模擬與報告）
 
-**現況**：尚未開始，對應階段 4；前期可協助階段 3 記錄工作。
+**現況**：模擬器骨架與四指標報告已完成（`simulator/` + `experiments/`），對應階段 4；
+Energy Cost 與傳輸參數實機校準未完成。
 
 **待辦**
-- [ ] 建立 10、20、50、100 節點可重播模擬情境
-- [ ] 實作 Coverage、Freshness Lag、Cellular Savings、Transfer Efficiency、Energy Cost 量測腳本
-- [ ] 比較無協作／一般 replication／rarest-first 三種擴散策略
-- [ ] 產出 Demo 腳本、限制說明與結果圖表
+- [x] 建立 10、20、50、100 節點可重播模擬情境（`simulator/`，固定 seed ⇒ 位元相同，`matrix --check`）
+- [x] 實作 Coverage、Freshness Lag、Cellular Savings、Transfer Efficiency 量測腳本（`simulator/lib/metrics.mjs`）
+- [ ] Energy Cost 量測腳本 —— 需組員 C／B 的裝置電力 log（`elapsed_s,power_mw` CSV），純模擬做不到真值
+- [x] 比較無協作／一般 replication／rarest-first 三種擴散策略（外加地理相關性過濾開關）
+- [x] 產出 Demo 腳本、限制說明與結果圖表（`experiments/{demo,limitations}.md`、`results/report.md`、`analysis/*.csv`）
+- [ ] 用組員 C 的兩台實機 spike 數據校準 `simulator/fixtures/sim-config.json` 後重跑
 - [ ] （前期協助）階段 3 多機同步時記錄重複傳輸與同步完成時間
 
 **通過條件**：報告可重現，不宣稱固定時間覆蓋全城；所有成果附測試條件與樣本數。
+—— `report.md` 已符合（`matrix --check` PASS、每區塊帶樣本數 + Limitations），唯 Energy
+Cost 一欄與實機校準待補。
 
 ---
 
@@ -82,4 +87,4 @@
 | 第 1 週 | 階段 1 通過（單機離線可讀） | B |
 | 第 2 週 | 階段 2 App-level 驗證完成（Android 驗簽 adapter 接上） | A + B |
 | 第 3–4 週 | 階段 3 通過（3 機 Store-Carry-Forward） | C（D 協助記錄） |
-| 第 5 週 | 階段 4 通過（模擬與報告完成） | D |
+| 第 5 週 | 階段 4 通過（模擬與報告完成） | D（模擬器 + 四指標報告已完成；Energy Cost 與實機參數校準待補） |
