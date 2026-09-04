@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">ResilientGeoMesh</string>
+
+    <!-- Module B: offline-GIS screen strings. -->
+    <string name="emergency_mode_on">Emergency Mode: ON (offline)</string>
+    <string name="load_fixture_bundle">Load bundled test events</string>
+    <string name="event_list_title">Events (local database)</string>
+    <string name="open_ble_spike">BLE Spike (Stage 0)</string>
 </resources>

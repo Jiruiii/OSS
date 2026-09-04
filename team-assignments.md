@@ -32,15 +32,24 @@
 
 ## B：Android GIS & 本機資料庫（單機系統）
 
-**現況**：尚未開始，對應階段 1 全部項目。
+**現況**：階段 1 四項待辦均已實作完成，並已與 C 的專案骨架整合（分支
+`merge/android-b-into-c-skeleton`），單元測試、實機 instrumented test、
+手動離線驗收（強制關閉＋飛航模式＋重開）皆已在真實裝置上跑過並通過。細節見
+`android/README.md`（Build status / Reconciliation notes / Known gaps）。
 
-**待辦**
-- [ ] 顯示測試區域離線底圖（道路、避難所圖層）
-- [ ] 建立本機資料庫，保存事件、版本、到期時間
-- [ ] 實作事件套用規則：新版覆蓋舊版、過期標示、namespace 隔離
-- [ ] 建立 Android 端簽章驗證 adapter（銜接 A 的 platform-neutral verifier）
+**待辦**（已完成 4/4，實作細節）
+- [x] 顯示測試區域離線底圖（道路、避難所圖層）— `map/OfflineMapView.kt`（自繪向量圖，無需網路/底圖圖磚）
+- [x] 建立本機資料庫，保存事件、版本、到期時間 — `data/EventEntity.kt` + Room
+- [x] 實作事件套用規則：新版覆蓋舊版、過期標示、namespace 隔離 — `ingest/EventIngestor.kt`
+- [x] 建立 Android 端簽章驗證 adapter（銜接 A 的 platform-neutral verifier）— `trust/Canonical.kt`、`trust/EventVerifier.kt` 等，Ed25519（Bouncy Castle）
 
-**通過條件**：關閉網路後重啟 App，地圖與最後資料仍可讀；舊事件不能覆蓋新事件。
+**通過條件**：關閉網路後重啟 App，地圖與最後資料仍可讀；舊事件不能覆蓋新事件。**已在 Pixel 8a 實機驗證通過。**
+
+**剩餘待辦（合併/整合相關，非階段 1 核心功能）**
+- [x] 確認「BLE Spike (Stage 0)」按鈕導向 `BleSpikeActivity` 後行為仍正常 — 已在 Pixel 8a 實測，權限請求正常、`advertise started ok`，符合 `C_BLEbroadcast.md` 預期
+- [x] Launcher activity 判斷：維持 `MainActivity` 為 launcher（`BleSpikeActivity` 是 Stage 0 的臨時測試用途，非最終產品畫面，見 `android/README.md` 的 Reconciliation notes 說明理由）
+- [x] `merge/android-b-into-c-skeleton` 已通過所有驗證，準備合併回 `main` / push
+- [ ] 階段 2：Android 驗簽 adapter 已建立，待與 A 確認是否需要進一步對接（見里程碑表）
 
 ---
 
