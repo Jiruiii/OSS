@@ -1,13 +1,13 @@
 # ResilientGeo Mesh — 系統實作計畫
 
-> 進度更新（2026-09-02）：v0 資料契約與本機可信資料管線已完成；下一步先完成「階段 0」的 Android 實機傳輸 Spike，再進入單機 App。`pipeline/sources/tdx-fixture.json` 仍是 TDX-shaped 模擬輸入，不是即時 API 資料。
+> 進度更新（2026-09-04）：v0 資料契約與本機可信資料管線已完成；Demo 場域定為**台北市內湖區**，已導入真實 OSM 地理的可重播資料集與 `(area_id, theme)` 地理分片。下一步先完成「階段 0」的 Android 實機傳輸 Spike，再進入單機 App。資料源仍是可重播快照（OSM snapshot ＋ TDX-shaped 輸入），不是即時 API 資料。
 
 ## 目前進度總覽
 
 | 工作項目 | 狀態 | 已完成／尚缺 |
 | --- | --- | --- |
 | Event、Manifest、Chunk、Peer Summary v0 | 已完成 | `schemas/` 四份 JSON Schema 與 phase-0 fixture 已建立 |
-| Phase-0 小型 replay | 已完成 | 可重播新增、更新、過期、namespace 隔離與版本倒退；尚未擴到 100–1,000 筆 |
+| Phase-0 replay 與測試資料集 | 已完成 | 可重播新增、更新、過期、namespace 隔離與版本倒退；內湖 curated（~27）與 scale（~500）資料集已生成 |
 | 階段 2：資料正規化 | 已完成 | `pipeline/lib/normalize.mjs` 可將 TDX-shaped input 轉為 unsigned Event v0 |
 | 階段 2：hash、Ed25519、Manifest、Chunk | 已完成 | `pipeline/` 可簽署與驗證完整 bundle，私鑰只由 server-side CLI 使用 |
 | 階段 2：安全測試 | 已完成 | Node 測試涵蓋竄改、版本 replay、TTL、incomplete chunk |
@@ -16,7 +16,7 @@
 | Android 實機傳輸 Spike | 尚未開始 | 尚未比較兩台實機上的 BLE、Nearby Connections、Wi-Fi Direct |
 | Simulator／實驗報告 | 尚未開始 | 尚未建立 10／20／50／100 節點情境與耗電、延遲、流量報告 |
 
-狀態證據：`npm.cmd test` 的 Node 測試 6 項通過，`python -m unittest discover -s tests -v` 的 Python 測試 4 項通過；CLI 也已完成 keygen → build → verify 端到端測試。正式 Android 驗簽、實機傳輸與真實來源接入仍不能視為完成。
+狀態證據：`npm test` 的 Node 測試 16 項通過（含地理分片、bbox 竄改偵測、生成器決定性），`python -m unittest discover -s tests -v` 的 Python 測試 4 項通過；CLI 也已完成 keygen → build → verify 端到端測試（`demo-v136` 產生 22 個帶 area／theme 的已驗證分片）。正式 Android 驗簽、實機傳輸與真實來源接入仍不能視為完成。
 
 ## 1. 專案目標
 
@@ -118,7 +118,7 @@ flowchart LR
 ### 階段 0：證明關鍵假設（2–3 天）
 
 - [x] 定義 Event、Manifest、Chunk 與 Peer Summary 的 v0 格式。（`schemas/`）
-- [ ] 準備 100–1,000 筆道路／避難所測試事件與更新序列。
+- [x] 準備 100–1,000 筆道路／避難所測試事件與更新序列。（`fixtures/neihu/scale-v136.json` ~500 筆，`demo-v136/137` 為更新序列；由 `tools/generate-neihu-fixtures.mjs` 從 OSM 快照決定性生成）
 - [ ] 用兩台 Android 實機測 BLE 發現及一種高速 P2P 傳輸。
 - [ ] 紀錄 1 MB、10 MB 的連線時間、傳輸速度、斷線恢復結果。
 - [x] 寫出 ADR-001：MVP 傳輸層選擇與未選方案的原因。（目前狀態為 Proposed，待實機 Spike 定稿）
