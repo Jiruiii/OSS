@@ -14,9 +14,9 @@
 | 真實資料源 | 尚未開始 | 目前沒有呼叫 TDX／CWA／NCDR 即時 API |
 | Android 驗證器與 App | 尚未開始 | 目前是 platform-neutral Node verifier，尚無 Android project、離線 DB 或地圖 UI |
 | Android 實機傳輸 Spike | 尚未開始 | 尚未比較兩台實機上的 BLE、Nearby Connections、Wi-Fi Direct |
-| Simulator／實驗報告 | 尚未開始 | 尚未建立 10／20／50／100 節點情境與耗電、延遲、流量報告 |
+| Simulator／實驗報告 | 進行中 | `simulator/` 決定性模擬 10／20／50／100 節點 × 三策略 × 地理過濾；`experiments/` 有可重現的四指標報告（Coverage／Freshness／Cellular Savings／Transfer Efficiency）。傳輸參數待實機校準；Energy Cost 未建模 |
 
-狀態證據：`npm test` 的 Node 測試 16 項通過（含地理分片、bbox 竄改偵測、生成器決定性），`python -m unittest discover -s tests -v` 的 Python 測試 4 項通過；CLI 也已完成 keygen → build → verify 端到端測試（`demo-v136` 產生 22 個帶 area／theme 的已驗證分片）。正式 Android 驗簽、實機傳輸與真實來源接入仍不能視為完成。
+狀態證據：`npm test` 的 Node 測試 48 項通過（pipeline + simulator，含地理分片、bbox 竄改偵測、生成器與模擬器決定性、`matrix --check` 位元比對），`python -m unittest discover -s tests -v` 的 Python 測試 4 項通過；CLI 也已完成 keygen → build → verify 端到端測試（`demo-v136` 產生 22 個帶 area／theme 的已驗證分片）。正式 Android 驗簽、實機傳輸、真實來源接入與 Emergency Mode 實機耗電量測仍不能視為完成。
 
 ## 1. 專案目標
 
@@ -156,12 +156,14 @@ flowchart LR
 
 ### 階段 4：實驗與展示（第 5 週）
 
-- [ ] 建立 10、20、50、100 節點的可重播模擬情境。
-- [ ] 比較無協作、一般 replication、rarest-first 三種策略。
-- [ ] 實機量測 Emergency Mode 的耗電與傳輸量。
-- [ ] 產生 Demo 腳本、限制說明與結果圖表。
+- [x] 建立 10、20、50、100 節點的可重播模擬情境。（`simulator/`，固定 seed ＋ `sim-config.json` ⇒ 位元相同，`matrix --check` 守住）
+- [x] 比較無協作、一般 replication、rarest-first 三種策略。（外加正交的地理相關性過濾開關）
+- [ ] 實機量測 Emergency Mode 的耗電與傳輸量。（Energy Cost 尚未建模，需指定機型實機量測）
+- [x] 產生 Demo 腳本、限制說明與結果圖表。（`experiments/{demo,limitations}.md`、`results/report.md` 含 ASCII 曲線、`analysis/*.csv`）
 
 **通過條件**：報告可重現，不宣稱固定時間覆蓋全城；所有成果都附測試條件與樣本數。
+
+**目前狀態**：四個指標（Data Coverage、Freshness Lag、Cellular Savings、Transfer Efficiency）已在 `experiments/results/report.md` 產出且可重現（`matrix --check` PASS），每個區塊帶樣本數與 Limitations。接觸機率與 P2P 傳輸參數是工程估計值，待組員 C 的兩台實機 spike 校準（改 `simulator/fixtures/sim-config.json` 一檔即可重跑）。Energy Cost 因需實機量測，本階段尚未宣告完成。
 
 ## 7. 必須量測的指標
 
@@ -189,9 +191,9 @@ flowchart LR
 docs/                 決策紀錄、協定、實驗設計
 schemas/              Event、Manifest、Chunk schema
 pipeline/             資料擷取、正規化、分片、簽章
-android/              Android App、離線 GIS、Peer Sync
-simulator/            DTN／擴散模擬與情境設定
-experiments/          原始結果、分析腳本與圖表
+android/              Android App、離線 GIS、Peer Sync（尚未建立）
+simulator/            DTN／擴散模擬與情境設定（已建立）
+experiments/          原始結果、分析腳本與圖表（已建立）
 fixtures/             可重播的測試資料，不放正式私鑰
 ```
 

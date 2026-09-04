@@ -1,0 +1,445 @@
+{
+  "scenario_id": "neihu-meiyu-front-v1",
+  "seed": 20260904,
+  "config_sha256": "sha256:03d33b4729466f89330ab40e6ad910e1015d1b5c31493db117addbf13aefe76e",
+  "fixture": "scale-v136.json",
+  "generator_seed": 20260901,
+  "manifest_id": "resilientgeo-demo:manifest:136",
+  "chunk_count": 83,
+  "total_size_bytes": 550742,
+  "event_count": 500,
+  "runs": [
+    {
+      "key": "10-no-coop",
+      "coverage_final": 0.6496,
+      "coverage_relevant_final": 0.6496,
+      "coverage_curve": [
+        0.082,
+        0.188,
+        0.2978,
+        0.5688
+      ],
+      "freshness_p50_seconds": 330,
+      "freshness_p95_seconds": 660,
+      "cellular_savings": 0,
+      "cellular_total_vs_full": 0.3639,
+      "transfer_efficiency": null,
+      "transfer_duplicate_ratio": null,
+      "transfer_failure_ratio": null
+    },
+    {
+      "key": "10-no-coop-geo",
+      "coverage_final": 0.5194,
+      "coverage_relevant_final": 0.899,
+      "coverage_curve": [
+        0.082,
+        0.195,
+        0.301,
+        0.4836
+      ],
+      "freshness_p50_seconds": 270,
+      "freshness_p95_seconds": 630,
+      "cellular_savings": 0,
+      "cellular_total_vs_full": 0.4927,
+      "transfer_efficiency": null,
+      "transfer_duplicate_ratio": null,
+      "transfer_failure_ratio": null
+    },
+    {
+      "key": "10-replication",
+      "coverage_final": 0.9846,
+      "coverage_relevant_final": 0.9846,
+      "coverage_curve": [
+        0.0648,
+        0.2362,
+        0.5792,
+        0.9382
+      ],
+      "freshness_p50_seconds": 270,
+      "freshness_p95_seconds": 600,
+      "cellular_savings": 0.7176,
+      "cellular_total_vs_full": 0.7217,
+      "transfer_efficiency": 0.7239,
+      "transfer_duplicate_ratio": 0.2149,
+      "transfer_failure_ratio": 0.0612
+    },
+    {
+      "key": "10-replication-geo",
+      "coverage_final": 0.5926,
+      "coverage_relevant_final": 0.9917,
+      "coverage_curve": [
+        0.0454,
+        0.1796,
+        0.437,
+        0.5734
+      ],
+      "freshness_p50_seconds": 240,
+      "freshness_p95_seconds": 570,
+      "cellular_savings": 0.6543,
+      "cellular_total_vs_full": 0.797,
+      "transfer_efficiency": 0.753,
+      "transfer_duplicate_ratio": 0.1893,
+      "transfer_failure_ratio": 0.0578
+    },
+    {
+      "key": "10-rarest-first",
+      "coverage_final": 0.9878,
+      "coverage_relevant_final": 0.9878,
+      "coverage_curve": [
+        0.0662,
+        0.2436,
+        0.6148,
+        0.9424
+      ],
+      "freshness_p50_seconds": 270,
+      "freshness_p95_seconds": 600,
+      "cellular_savings": 0.7406,
+      "cellular_total_vs_full": 0.7449,
+      "transfer_efficiency": 0.7911,
+      "transfer_duplicate_ratio": 0.1482,
+      "transfer_failure_ratio": 0.0607
+    },
+    {
+      "key": "10-rarest-first-geo",
+      "coverage_final": 0.5916,
+      "coverage_relevant_final": 0.9898,
+      "coverage_curve": [
+        0.0454,
+        0.1826,
+        0.448,
+        0.572
+      ],
+      "freshness_p50_seconds": 240,
+      "freshness_p95_seconds": 600,
+      "cellular_savings": 0.687,
+      "cellular_total_vs_full": 0.8165,
+      "transfer_efficiency": 0.7884,
+      "transfer_duplicate_ratio": 0.1621,
+      "transfer_failure_ratio": 0.0494
+    },
+    {
+      "key": "20-no-coop",
+      "coverage_final": 0.6505,
+      "coverage_relevant_final": 0.6505,
+      "coverage_curve": [
+        0.0816,
+        0.1896,
+        0.2943,
+        0.5678
+      ],
+      "freshness_p50_seconds": 360,
+      "freshness_p95_seconds": 660,
+      "cellular_savings": 0,
+      "cellular_total_vs_full": 0.363,
+      "transfer_efficiency": null,
+      "transfer_duplicate_ratio": null,
+      "transfer_failure_ratio": null
+    },
+    {
+      "key": "20-no-coop-geo",
+      "coverage_final": 0.5328,
+      "coverage_relevant_final": 0.8898,
+      "coverage_curve": [
+        0.0822,
+        0.1912,
+        0.2995,
+        0.4893
+      ],
+      "freshness_p50_seconds": 270,
+      "freshness_p95_seconds": 630,
+      "cellular_savings": 0,
+      "cellular_total_vs_full": 0.4792,
+      "transfer_efficiency": null,
+      "transfer_duplicate_ratio": null,
+      "transfer_failure_ratio": null
+    },
+    {
+      "key": "20-replication",
+      "coverage_final": 0.9962,
+      "coverage_relevant_final": 0.9962,
+      "coverage_curve": [
+        0.1162,
+        0.3665,
+        0.6916,
+        0.9905
+      ],
+      "freshness_p50_seconds": 240,
+      "freshness_p95_seconds": 510,
+      "cellular_savings": 0.7706,
+      "cellular_total_vs_full": 0.7715,
+      "transfer_efficiency": 0.6171,
+      "transfer_duplicate_ratio": 0.3177,
+      "transfer_failure_ratio": 0.0653
+    },
+    {
+      "key": "20-replication-geo",
+      "coverage_final": 0.6173,
+      "coverage_relevant_final": 1,
+      "coverage_curve": [
+        0.0923,
+        0.2915,
+        0.5068,
+        0.6173
+      ],
+      "freshness_p50_seconds": 210,
+      "freshness_p95_seconds": 420,
+      "cellular_savings": 0.7444,
+      "cellular_total_vs_full": 0.8434,
+      "transfer_efficiency": 0.6447,
+      "transfer_duplicate_ratio": 0.2857,
+      "transfer_failure_ratio": 0.0696
+    },
+    {
+      "key": "20-rarest-first",
+      "coverage_final": 1,
+      "coverage_relevant_final": 1,
+      "coverage_curve": [
+        0.125,
+        0.4375,
+        0.751,
+        1
+      ],
+      "freshness_p50_seconds": 210,
+      "freshness_p95_seconds": 480,
+      "cellular_savings": 0.7938,
+      "cellular_total_vs_full": 0.7938,
+      "transfer_efficiency": 0.6883,
+      "transfer_duplicate_ratio": 0.2456,
+      "transfer_failure_ratio": 0.0661
+    },
+    {
+      "key": "20-rarest-first-geo",
+      "coverage_final": 0.6173,
+      "coverage_relevant_final": 1,
+      "coverage_curve": [
+        0.0999,
+        0.3418,
+        0.5252,
+        0.6173
+      ],
+      "freshness_p50_seconds": 180,
+      "freshness_p95_seconds": 390,
+      "cellular_savings": 0.7686,
+      "cellular_total_vs_full": 0.8582,
+      "transfer_efficiency": 0.68,
+      "transfer_duplicate_ratio": 0.2524,
+      "transfer_failure_ratio": 0.0676
+    },
+    {
+      "key": "50-no-coop",
+      "coverage_final": 0.6508,
+      "coverage_relevant_final": 0.6508,
+      "coverage_curve": [
+        0.0816,
+        0.1886,
+        0.2957,
+        0.5682
+      ],
+      "freshness_p50_seconds": 360,
+      "freshness_p95_seconds": 660,
+      "cellular_savings": 0,
+      "cellular_total_vs_full": 0.3629,
+      "transfer_efficiency": null,
+      "transfer_duplicate_ratio": null,
+      "transfer_failure_ratio": null
+    },
+    {
+      "key": "50-no-coop-geo",
+      "coverage_final": 0.5311,
+      "coverage_relevant_final": 0.8928,
+      "coverage_curve": [
+        0.0838,
+        0.1935,
+        0.3018,
+        0.4894
+      ],
+      "freshness_p50_seconds": 270,
+      "freshness_p95_seconds": 660,
+      "cellular_savings": 0,
+      "cellular_total_vs_full": 0.4812,
+      "transfer_efficiency": null,
+      "transfer_duplicate_ratio": null,
+      "transfer_failure_ratio": null
+    },
+    {
+      "key": "50-replication",
+      "coverage_final": 1,
+      "coverage_relevant_final": 1,
+      "coverage_curve": [
+        0.1493,
+        0.4671,
+        0.7736,
+        0.9991
+      ],
+      "freshness_p50_seconds": 210,
+      "freshness_p95_seconds": 450,
+      "cellular_savings": 0.8008,
+      "cellular_total_vs_full": 0.8008,
+      "transfer_efficiency": 0.6112,
+      "transfer_duplicate_ratio": 0.3275,
+      "transfer_failure_ratio": 0.0613
+    },
+    {
+      "key": "50-replication-geo",
+      "coverage_final": 0.6134,
+      "coverage_relevant_final": 1,
+      "coverage_curve": [
+        0.1222,
+        0.3759,
+        0.538,
+        0.6134
+      ],
+      "freshness_p50_seconds": 180,
+      "freshness_p95_seconds": 390,
+      "cellular_savings": 0.8084,
+      "cellular_total_vs_full": 0.8834,
+      "transfer_efficiency": 0.6391,
+      "transfer_duplicate_ratio": 0.3002,
+      "transfer_failure_ratio": 0.0607
+    },
+    {
+      "key": "50-rarest-first",
+      "coverage_final": 1,
+      "coverage_relevant_final": 1,
+      "coverage_curve": [
+        0.1588,
+        0.541,
+        0.8132,
+        1
+      ],
+      "freshness_p50_seconds": 180,
+      "freshness_p95_seconds": 420,
+      "cellular_savings": 0.8226,
+      "cellular_total_vs_full": 0.8226,
+      "transfer_efficiency": 0.6513,
+      "transfer_duplicate_ratio": 0.2895,
+      "transfer_failure_ratio": 0.0592
+    },
+    {
+      "key": "50-rarest-first-geo",
+      "coverage_final": 0.6134,
+      "coverage_relevant_final": 1,
+      "coverage_curve": [
+        0.1299,
+        0.422,
+        0.5521,
+        0.6134
+      ],
+      "freshness_p50_seconds": 150,
+      "freshness_p95_seconds": 360,
+      "cellular_savings": 0.8394,
+      "cellular_total_vs_full": 0.9022,
+      "transfer_efficiency": 0.6751,
+      "transfer_duplicate_ratio": 0.2645,
+      "transfer_failure_ratio": 0.0604
+    },
+    {
+      "key": "100-no-coop",
+      "coverage_final": 0.6514,
+      "coverage_relevant_final": 0.6514,
+      "coverage_curve": [
+        0.0817,
+        0.189,
+        0.2966,
+        0.5688
+      ],
+      "freshness_p50_seconds": 360,
+      "freshness_p95_seconds": 660,
+      "cellular_savings": 0,
+      "cellular_total_vs_full": 0.3627,
+      "transfer_efficiency": null,
+      "transfer_duplicate_ratio": null,
+      "transfer_failure_ratio": null
+    },
+    {
+      "key": "100-no-coop-geo",
+      "coverage_final": 0.5325,
+      "coverage_relevant_final": 0.8946,
+      "coverage_curve": [
+        0.0838,
+        0.1939,
+        0.3016,
+        0.4893
+      ],
+      "freshness_p50_seconds": 270,
+      "freshness_p95_seconds": 660,
+      "cellular_savings": 0,
+      "cellular_total_vs_full": 0.4802,
+      "transfer_efficiency": null,
+      "transfer_duplicate_ratio": null,
+      "transfer_failure_ratio": null
+    },
+    {
+      "key": "100-replication",
+      "coverage_final": 1,
+      "coverage_relevant_final": 1,
+      "coverage_curve": [
+        0.1614,
+        0.4773,
+        0.7711,
+        0.9979
+      ],
+      "freshness_p50_seconds": 210,
+      "freshness_p95_seconds": 450,
+      "cellular_savings": 0.8109,
+      "cellular_total_vs_full": 0.8109,
+      "transfer_efficiency": 0.599,
+      "transfer_duplicate_ratio": 0.3437,
+      "transfer_failure_ratio": 0.0573
+    },
+    {
+      "key": "100-replication-geo",
+      "coverage_final": 0.6134,
+      "coverage_relevant_final": 1,
+      "coverage_curve": [
+        0.1385,
+        0.3959,
+        0.5514,
+        0.6134
+      ],
+      "freshness_p50_seconds": 150,
+      "freshness_p95_seconds": 360,
+      "cellular_savings": 0.8207,
+      "cellular_total_vs_full": 0.8909,
+      "transfer_efficiency": 0.6365,
+      "transfer_duplicate_ratio": 0.3056,
+      "transfer_failure_ratio": 0.0579
+    },
+    {
+      "key": "100-rarest-first",
+      "coverage_final": 1,
+      "coverage_relevant_final": 1,
+      "coverage_curve": [
+        0.1685,
+        0.5435,
+        0.8101,
+        1
+      ],
+      "freshness_p50_seconds": 180,
+      "freshness_p95_seconds": 420,
+      "cellular_savings": 0.8283,
+      "cellular_total_vs_full": 0.8283,
+      "transfer_efficiency": 0.6502,
+      "transfer_duplicate_ratio": 0.2901,
+      "transfer_failure_ratio": 0.0596
+    },
+    {
+      "key": "100-rarest-first-geo",
+      "coverage_final": 0.6134,
+      "coverage_relevant_final": 1,
+      "coverage_curve": [
+        0.1464,
+        0.4283,
+        0.5702,
+        0.6134
+      ],
+      "freshness_p50_seconds": 150,
+      "freshness_p95_seconds": 330,
+      "cellular_savings": 0.8442,
+      "cellular_total_vs_full": 0.9052,
+      "transfer_efficiency": 0.6749,
+      "transfer_duplicate_ratio": 0.2669,
+      "transfer_failure_ratio": 0.0582
+    }
+  ]
+}

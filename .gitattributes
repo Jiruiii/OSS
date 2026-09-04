@@ -1,0 +1,6 @@
+# The pipeline canonicalises on bytes and tools/generate-neihu-fixtures.mjs
+# compares fixture output byte-for-byte, so every text file is LF in the
+# working tree regardless of platform.
+* text=auto eol=lf
+
+*.png binary
