@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.kapt)
 }
 
 android {
@@ -26,30 +27,65 @@ android {
             }
         }
     }
+
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+        // minSdk 26 ships java.time natively, so unlike module B's original
+        // standalone project (minSdk 24), no core library desugaring is
+        // needed for the trust adapter's Instant-based timestamp parsing.
     }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
     buildFeatures {
-        compose = true
+        // Views + ViewBinding for the offline-GIS screen (module B). Compose
+        // was dropped: the only place it was used was the placeholder
+        // "Hello Android" MainActivity this replaces — BleSpikeActivity
+        // (module C's Stage 0 spike) was always a plain ComponentActivity
+        // with no Compose UI. Re-add compose = true and the Compose BOM
+        // dependencies if a future screen genuinely wants Compose.
+        viewBinding = true
+    }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
     }
 }
 
 dependencies {
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.graphics)
-    implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.material)
+    implementation(libs.androidx.recyclerview)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.kotlinx.coroutines.android)
+
+    // Local database (module B): events, versions, expiry.
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    kapt(libs.androidx.room.compiler)
+
+    // Ed25519 verification adapter (module B): Android's own java.security
+    // provider only gained EdDSA support in API 33, so the trust adapter
+    // uses Bouncy Castle directly instead of relying on the platform
+    // provider (see android/README.md).
+    implementation(libs.bouncycastle.bcprov)
+
     testImplementation(libs.junit)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.androidx.espresso.core)
+    // The stub org.json shipped in android.jar throws on every call under
+    // plain JUnit; pull in the real implementation for the trust-adapter
+    // and apply-rule unit tests, which don't need a device.
+    testImplementation(libs.json.org)
+
     androidTestImplementation(libs.androidx.junit)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
-    debugImplementation(libs.androidx.compose.ui.tooling)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.room.testing)
 }

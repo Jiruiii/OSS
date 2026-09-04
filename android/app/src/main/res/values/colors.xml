@@ -7,4 +7,18 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Module B: offline map + event-status colors (OfflineMapView, EventListAdapter). -->
+    <color name="map_background">#0F1A24</color>
+    <color name="map_grid">#1E3040</color>
+    <color name="road_current">#4FC3F7</color>
+    <color name="road_expired">#5C6B73</color>
+    <color name="shelter_current">#66BB6A</color>
+    <color name="shelter_expired">#78716C</color>
+    <color name="hazard_critical">#EF5350</color>
+    <color name="hazard_high">#FFA726</color>
+    <color name="crowd_unverified">#AB47BC</color>
+    <color name="badge_current">#2E7D32</color>
+    <color name="badge_expired">#616161</color>
+    <color name="badge_unverified">#6A1B9A</color>
 </resources>

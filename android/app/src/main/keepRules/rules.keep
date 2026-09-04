@@ -10,3 +10,7 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+
+# Module B: release optimization is currently off (see app/build.gradle.kts),
+# but keep Room's generated schema classes if/when it's turned on.
+-keep class com.resilientgeo.mesh.data.** { *; }

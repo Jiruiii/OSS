@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Needed by module C's Stage 0 BLE spike (transport/BleSpikeActivity).
+         Module B's offline-GIS screen (MainActivity) needs none: phase 1 is
+         single-device and makes no network calls of any kind. -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
@@ -16,14 +19,29 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ResilientGeoMesh">
+
+        <!--
+          Launcher choice (a judgment call made while reconciling B's and
+          C's separately-created Android projects — confirm with the team):
+          MainActivity (module B's offline-GIS screen) is phase 1's actual
+          product surface, so it is the launcher. BleSpikeActivity (module
+          C's Stage 0 transport spike) stays reachable via a button on
+          MainActivity instead of being the app's entry point.
+        -->
         <activity
-            android:name=".transport.BleSpikeActivity"
-            android:exported="true">
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.ResilientGeoMesh.OfflineGis">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".transport.BleSpikeActivity"
+            android:exported="true" />
     </application>
 
 </manifest>
