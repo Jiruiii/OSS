@@ -28,7 +28,7 @@ export function normalizeSource(raw, options = {}) {
   }
 
   const allowedSources = options.allowedSources ?? DEFAULT_ALLOWED_SOURCES;
-  const namespace = options.namespace ?? 'official.tdx';
+  const defaultNamespace = options.namespace ?? 'official.tdx';
   const keyId = options.signingKeyId ?? 'fixture-stage2-2026';
   const receivedAt = options.receivedAt ?? raw.retrieved_at;
   const transportSource = options.transportSource ?? {
@@ -36,11 +36,14 @@ export function normalizeSource(raw, options = {}) {
     node_id: 'source-normalizer',
   };
 
-  if (!raw.source || !allowedSources.includes(raw.source)) {
-    throw new TypeError(`source ${raw.source ?? '<missing>'} is not in the allowed list: ${allowedSources.join(', ')}`);
+  if (raw.source && !allowedSources.includes(raw.source)) {
+    throw new TypeError(`source ${raw.source} is not in the allowed list: ${allowedSources.join(', ')}`);
   }
-  if (!raw.source_version) {
-    throw new TypeError('source input must contain source_version');
+  if (!raw.source && !raw.records.every((record) => record.source)) {
+    throw new TypeError('source input needs a top-level source or a source on every record');
+  }
+  if (!raw.source_version && !raw.records.every((record) => record.source_version)) {
+    throw new TypeError('source input needs a top-level source_version or one on every record');
   }
   if (!receivedAt) {
     throw new TypeError('source input must contain retrieved_at or receivedAt');
@@ -56,6 +59,10 @@ export function normalizeSource(raw, options = {}) {
     const areaId = record.area_id ?? baseAttributes.area_id;
     const theme = record.theme ?? baseAttributes.theme;
 
+    const source = record.source ?? raw.source;
+    if (!allowedSources.includes(source)) {
+      throw new TypeError(`record ${eventId} source ${source ?? '<missing>'} is not allowed`);
+    }
     if (!eventType || !Number.isInteger(eventVersion) || eventVersion < 1) {
       throw new TypeError(`invalid event type/version for ${eventId}`);
     }
@@ -70,12 +77,12 @@ export function normalizeSource(raw, options = {}) {
 
     return {
       schema_version: 'event-v0',
-      namespace,
+      namespace: record.namespace ?? defaultNamespace,
       event_id: eventId,
       event_type: eventType,
       geometry: record.geometry,
       severity: record.severity ?? 'UNKNOWN',
-      source: raw.source,
+      source,
       source_version: String(record.source_version ?? raw.source_version),
       event_version: eventVersion,
       issued_at: issuedAt,
@@ -84,9 +91,10 @@ export function normalizeSource(raw, options = {}) {
       signature_algorithm: 'Ed25519',
       signing_key_id: keyId,
       provenance: {
-        original_source: options.originalSource ?? raw.original_source ?? raw.source,
+        original_source:
+          record.original_source ?? options.originalSource ?? raw.original_source ?? source,
         received_at: receivedAt,
-        transport_source: transportSource,
+        transport_source: record.transport_source ?? transportSource,
       },
     };
   });
