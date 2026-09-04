@@ -67,3 +67,36 @@
 - ⚠️ Nearby Connections connect/send/resume、1MB/10MB 吞吐量仍未開始
 
 詳細數據與方法論見 `docs/adr/ADR-001-transport-layer.md` 的「實測記錄」段落。下一步：實作 `NearbyConnectionsTransport.kt`（見該檔案待辦），並找一台非 Pixel 或不同 Android 版本的裝置補相容性測試。
+
+---
+
+## Stage 0 定案：三個候選實機比較，採用 BLE GATT（2026-09-05）
+
+同一晚把 ADR-001 列出的候選全部在 Pixel 7 + Pixel 8a 上實測過一輪，過程濃縮記錄在這裡，完整數據跟否決理由在 ADR-001。
+
+### Nearby Connections — 否決
+
+`NearbyConnectionsTransport.kt` 寫完、能編譯，但兩台裝置的 `startAdvertising()`/`startDiscovery()` 執行期都立即回傳 `ApiException: 8: INTERNAL_ERROR`。換了兩個 client library 版本（19.0.0、19.3.0）結果一樣——後來發現 stack trace 裡實際執行的是 GMS 自己動態載入的模組（版本跟我們宣告的不同），代表問題完全在 Google 的 on-device 模組內，不是我們能修的。症狀跟 2023 年一次已知的 Google 側 regression 完全一致（見 ADR-001 附的 issue 連結）。
+
+### 原生 Wi-Fi Direct — 否決
+
+`WifiDirectTransport.kt` 用平台原生 API，過程修好兩個真 bug（GO 端不會透過自己的 discovery 看到已連線的 client；`ServerSocket` 預設 IPv6 wildcard bind 沒對準實際 IPv4 位址）。修完後用系統原生設定手動連線成功、ping 通、`netstat` 確認 socket 正確監聽中——但 TCP 連線持續 timeout。這個組合（ICMP 通、socket 確認監聽、TCP 就是進不去）不像應用層能修的問題，懷疑是 Android 對多網路情境下 App socket 路由的限制，需要 root 權限才能進一步確認，時間壓力下沒有繼續排查。
+
+### BLE GATT — 採用
+
+重用已經驗證穩定的 BLE advertise/scan，加一組自訂 GATT service（WRITE characteristic 傳資料、NOTIFY characteristic 回 ACK），兩台裝置同時身兼 Peripheral（接收）與 Central（發送）。自動化測試序列（10KB → 100KB → 中斷於 ~1020 bytes → 續傳）**兩台裝置互傳全部成功**：
+
+- 10KB：Pixel 7 3181ms（3.2 KB/s）、Pixel 8a 2130ms（4.8 KB/s）
+- 100KB：Pixel 7 25331ms（4.0 KB/s）、Pixel 8a 17422ms（5.9 KB/s）
+- 中斷續傳：兩台都在 1020 bytes 處中斷，續傳成功，且確認是真的位元組級續傳（不是重傳整包）
+
+過程修好一個協定層 bug：ATT_MTU 協商到 517 後算出的 payload room（514 bytes）超過 BLE 規格對單一 attribute value 的 512 bytes 硬上限，導致 `writeCharacteristic()` 丟例外；改成 `coerceIn(20, 512)` 修正。
+
+**結論**：discovery、連線、傳輸、斷點續傳全部驗證通過，不依賴 Wi-Fi 也不依賴 Google Play Services。ADR-001 狀態定案為 `Accepted（BLE GATT）`。吞吐量（3–6 KB/s）遠低於 Wi-Fi 類方案，但本專案實際酬載是 KB 級事件記錄，不是 MB 級檔案，這個吞吐量是夠用的。
+
+### 給下一位接手者的待辦
+
+1. 裝置相容性：目前只測過兩台 Pixel、同一 API 版本，還缺至少一個非 Pixel 或不同 Android 版本的裝置
+2. Connection success rate（20 次連線，分亮屏／鎖屏）、Energy 量測都還沒做
+3. 把 HELLO/DIFF/REQUEST 協定接到 `BleGattTransport` 上——目前 `send`/`resume` 走的是 Stage 0 spike 用的隨機測試 payload，還沒接上真正的 chunk 資料與 `EventIngestor`
+4. 階段 3：Peer 上限、critical-first 排程、三機 Store-Carry-Forward

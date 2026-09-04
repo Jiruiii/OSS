@@ -13,7 +13,7 @@
 | 階段 2：安全測試 | 已完成 | Node 測試涵蓋竄改、版本 replay、TTL、incomplete chunk |
 | 真實資料源 | 尚未開始 | 目前沒有呼叫 TDX／CWA／NCDR 即時 API |
 | Android 驗證器與 App | 尚未開始 | 目前是 platform-neutral Node verifier，尚無 Android project、離線 DB 或地圖 UI |
-| Android 實機傳輸 Spike | 尚未開始 | 尚未比較兩台實機上的 BLE、Nearby Connections、Wi-Fi Direct |
+| Android 實機傳輸 Spike | 已完成 | 兩台實機（Pixel 7 + Pixel 8a）比較 Nearby Connections（已否決，Google 側 INTERNAL_ERROR）、Wi-Fi Direct（已否決，TCP 傳輸層卡住）、BLE GATT（採用，discovery/連線/傳輸/斷點續傳皆驗證通過）。ADR-001 已定案，見 `docs/adr/ADR-001-transport-layer.md` |
 | Simulator／實驗報告 | 尚未開始 | 尚未建立 10／20／50／100 節點情境與耗電、延遲、流量報告 |
 
 狀態證據：`npm test` 的 Node 測試 16 項通過（含地理分片、bbox 竄改偵測、生成器決定性），`python -m unittest discover -s tests -v` 的 Python 測試 4 項通過；CLI 也已完成 keygen → build → verify 端到端測試（`demo-v136` 產生 22 個帶 area／theme 的已驗證分片）。正式 Android 驗簽、實機傳輸與真實來源接入仍不能視為完成。
@@ -119,11 +119,11 @@ flowchart LR
 
 - [x] 定義 Event、Manifest、Chunk 與 Peer Summary 的 v0 格式。（`schemas/`）
 - [x] 準備 100–1,000 筆道路／避難所測試事件與更新序列。（`fixtures/neihu/scale-v136.json` ~500 筆，`demo-v136/137` 為更新序列；由 `tools/generate-neihu-fixtures.mjs` 從 OSM 快照決定性生成）
-- [ ] 用兩台 Android 實機測 BLE 發現及一種高速 P2P 傳輸。
-- [ ] 紀錄 1 MB、10 MB 的連線時間、傳輸速度、斷線恢復結果。
-- [x] 寫出 ADR-001：MVP 傳輸層選擇與未選方案的原因。（目前狀態為 Proposed，待實機 Spike 定稿）
+- [x] 用兩台 Android 實機測 BLE 發現及傳輸。（BLE GATT，見下方說明——非原規劃的「高速 P2P」方案，實測後 Nearby Connections／Wi-Fi Direct 皆否決，改採 BLE GATT）
+- [x] 紀錄連線時間、傳輸速度、斷線恢復結果。（KB 級酬載：10KB/100KB 傳輸與位元組級斷點續傳皆成功，吞吐量 3–6 KB/s；原規劃的 1MB/10MB 是壓力測試數字，非實際酬載大小，見 ADR-001）
+- [x] 寫出 ADR-001：MVP 傳輸層選擇與未選方案的原因。（狀態已定案為 Accepted，BLE GATT）
 
-**通過條件**：兩台指定測試機可重複完成發現、連線、傳輸、斷線重試；否則先調整傳輸方案，不進入 UI 開發。
+**通過條件**：兩台指定測試機可重複完成發現、連線、傳輸、斷線重試——**已達成**（BLE GATT，2026-09-05）。
 
 ### 階段 1：單機離線系統（第 1 週）
 

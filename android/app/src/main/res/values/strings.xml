@@ -6,4 +6,6 @@
     <string name="load_fixture_bundle">Load bundled test events</string>
     <string name="event_list_title">Events (local database)</string>
     <string name="open_ble_spike">BLE Spike (Stage 0)</string>
+    <string name="open_nearby_transport_spike">Nearby Transport Spike</string>
+    <string name="open_wifi_direct_spike">Wi-Fi Direct Spike</string>
 </resources>

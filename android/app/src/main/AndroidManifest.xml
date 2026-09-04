@@ -10,6 +10,27 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
+    <!-- Nearby Connections (module C) additionally needs Wi-Fi state access
+         (it can use a Wi-Fi-based medium under the hood, even for a BLE/WiFi
+         P2P strategy) and, on API 33+, NEARBY_WIFI_DEVICES in place of the
+         location permission above — matches Google's own connectivity-samples
+         ConnectionsActivity permission list. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" />
+
+    <!-- Wi-Fi Direct transfer (module C's ADR-001 fallback, used instead of
+         Nearby Connections after that candidate hit a real Google-side
+         INTERNAL_ERROR on both Stage 0 test devices — see ADR-001) opens
+         plain TCP sockets over the P2P group's local link. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- LocalNetworkTransport's NSD-based discovery (regular Wi-Fi fallback,
+         used after WifiDirectTransport's P2P sockets hit an unresolved
+         platform-level TCP block — see ADR-001). Multicast is needed for
+         mDNS to actually receive replies, not just send them. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -41,6 +62,22 @@
 
         <activity
             android:name=".transport.BleSpikeActivity"
+            android:exported="true" />
+
+        <activity
+            android:name=".transport.NearbyTransportSpikeActivity"
+            android:exported="true" />
+
+        <activity
+            android:name=".transport.WifiDirectTransportSpikeActivity"
+            android:exported="true" />
+
+        <activity
+            android:name=".transport.LocalNetworkTransportSpikeActivity"
+            android:exported="true" />
+
+        <activity
+            android:name=".transport.BleGattTransportSpikeActivity"
             android:exported="true" />
     </application>
 
