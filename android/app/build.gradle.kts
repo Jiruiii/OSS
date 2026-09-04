@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.kapt)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -36,9 +35,12 @@ android {
         // needed for the trust adapter's Instant-based timestamp parsing.
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    // No separate `kotlinOptions { jvmTarget = ... }` block: that DSL came
+    // from the org.jetbrains.kotlin.android plugin, which this project
+    // doesn't apply (see build.gradle.kts). Built-in Kotlin derives the
+    // Kotlin compile target from compileOptions above instead — confirmed
+    // by actually running ./gradlew here ("Unresolved reference
+    // 'kotlinOptions'" once kotlin.android was removed).
 
     buildFeatures {
         // Views + ViewBinding for the offline-GIS screen (module B). Compose
@@ -70,7 +72,7 @@ dependencies {
     // Local database (module B): events, versions, expiry.
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    kapt(libs.androidx.room.compiler)
+    ksp(libs.androidx.room.compiler)
 
     // Ed25519 verification adapter (module B): Android's own java.security
     // provider only gained EdDSA support in API 33, so the trust adapter

@@ -16,37 +16,102 @@ resource conventions as the base and ported B's code into it — see
 "Reconciliation notes" below for exactly what that involved and which
 decisions still need a second pair of eyes.
 
-## Current limitation: this has not been built or run
+## Build status
 
-Neither side of this merge was verified by actually compiling it. B's
-half was written in an environment with no JDK/Gradle/Android SDK at all.
-C's half **was** built and run on a real device (see `C_BLEbroadcast.md`),
-but that was before this reconciliation rewired the Gradle files, dropped
-Compose, added Room/kapt, and rewrote the manifest — none of which has
-been re-verified since. Before treating any of this as working:
+`./gradlew testDebugUnitTest` **passes** (15 tests: `CanonicalTest`,
+`EventVerifierTest`, `EventIngestorTest` — 0 failures). This was actually
+run, not assumed — see "What actually broke on first build" below for
+the real errors that had to be fixed to get there, since AGP 9.3.2 turned
+out to have several behaviors nobody involved in the original merge could
+have predicted from reading the build files alone.
 
-1. Open `android/` in Android Studio, or run `./gradlew assembleDebug`
-   from a shell (the Gradle wrapper — including the jar — is already
-   checked in, unlike B's original standalone project).
-2. Run `./gradlew testDebugUnitTest` — covers `trust/` and `ingest/`
-   without a device.
-3. Run `./gradlew connectedDebugAndroidTest` on a device/emulator —
-   covers `RoomEventStoreInstrumentedTest`.
-4. Manually confirm: launch the app (MainActivity), tap "Load bundled
-   test events", force-stop, enable Airplane Mode, relaunch — map and
-   event list should show the same data. Separately, tap "BLE Spike
-   (Stage 0)" and confirm it still behaves like `C_BLEbroadcast.md`
-   describes (permission prompts, `ResilientGeoBle` logcat output).
+**Not yet run**: `./gradlew connectedDebugAndroidTest` (needs a
+device/emulator) and the manual offline-restart check. Before treating
+phase 1's acceptance check as passed:
+
+1. Start an emulator or connect a device (API 26+; API 37 is what's
+   installed in the SDK this was tested against).
+2. `./gradlew connectedDebugAndroidTest` — covers `RoomEventStoreInstrumentedTest`.
+3. Launch the app, tap "Load bundled test events", force-stop, enable
+   Airplane Mode, relaunch — map and event list should show the same
+   data. Separately, tap "BLE Spike (Stage 0)" and confirm it still
+   behaves like `C_BLEbroadcast.md` describes (permission prompts,
+   `ResilientGeoBle` logcat output).
+
+### Local setup that isn't part of the repo (per-machine)
+
+- `JAVA_HOME` must point at a real JDK 17+. Android Studio bundles one —
+  on this machine that was `<Android Studio install dir>/jbr` (find the
+  real install dir via `%LOCALAPPDATA%\Google\AndroidStudio*\.home` if
+  Android Studio itself was installed somewhere other than
+  `Program Files`). `gradle-daemon-jvm.properties` requests JDK 25
+  specifically; Android Studio's bundled JBR happened to already be 25.
+- `android/local.properties` (gitignored, not committed) needs
+  `sdk.dir=<path to Android SDK>`. Default location is
+  `%LOCALAPPDATA%\Android\Sdk`; Android Studio's own SDK Manager creates
+  and manages this.
+
+### What actually broke on first build (and why the fixes are what they are)
+
+Reading the Gradle files was not enough to predict these — they only
+showed up by actually running `./gradlew` against this exact AGP/Kotlin
+combination:
+
+1. **`org.jetbrains.kotlin.android` conflicts with AGP's own Kotlin
+   support.** This project's AGP version (9.3.2) has a feature called
+   "built-in Kotlin": `com.android.application` sets up Kotlin
+   compilation itself. Explicitly applying `org.jetbrains.kotlin.android`
+   on top of it crashes with `Cannot add extension with name 'kotlin', as
+   there is an extension already registered with that name.` An earlier
+   pass at this reconciliation had added that plugin, reasoning that C's
+   original project was missing it and would therefore fail to compile
+   `.kt` files — that reasoning was **wrong**: C's project built and ran
+   fine without it (see `C_BLEbroadcast.md`), which in hindsight was the
+   evidence that AGP was already handling Kotlin on its own. Fixed by not
+   applying `kotlin.android` at all, and dropping the `kotlinOptions { jvmTarget
+   = ... }` block from `app/build.gradle.kts` (that DSL comes from the
+   Kotlin Android plugin; built-in Kotlin derives its target from
+   `compileOptions` instead — confirmed by the `Unresolved reference
+   'kotlinOptions'` error once the plugin was removed).
+2. **kapt doesn't work with built-in Kotlin either.** AGP's own error is
+   explicit: `The 'org.jetbrains.kotlin.kapt' plugin is not compatible
+   with built-in Kotlin support... [Recommended] Migrate this project to
+   built-in Kotlin.` So Room's annotation processing uses **KSP**
+   (`com.google.devtools.ksp` version `2.2.10-2.0.2`, confirmed compatible
+   via https://developer.android.com/r/tools/built-in-kotlin), not kapt.
+3. **KSP's generated-sources wiring needed a compatibility flag.** With
+   KSP applied, AGP still failed: `Using kotlin.sourceSets DSL to add
+   Kotlin sources is not allowed with built-in Kotlin... To suppress this
+   error, set android.disallowKotlinSourceSets=false in
+   gradle.properties.` This is AGP's own documented escape hatch for
+   plugins (like this KSP version) that haven't been updated to the new
+   `android.sourceSets` model yet — added to `android/gradle.properties`
+   with that context in a comment.
+4. **A real Canonical.kt bug: `org.json`'s real implementation parses
+   decimal numbers as `BigDecimal`, not `Double`.** `Canonical.canonicalize()`
+   only handled `Double`/`Float`/`Int`/`Long`, so every event with a
+   non-integer coordinate (i.e. all of them) threw
+   `IllegalArgumentException: unsupported canonical JSON value: class
+   java.math.BigDecimal` the moment a real signature check tried to
+   canonicalize it — this is why `EventVerifierTest`/`EventIngestorTest`
+   (which load fixtures via `JSONObject(text)`) failed while `CanonicalTest`
+   (which mostly canonicalized Kotlin literals directly) mostly didn't.
+   Fixed by converting `BigDecimal`/`BigInteger` to `Double`/exact integer
+   string respectively before formatting — JSON/JS has no arbitrary-precision
+   decimal type, so this matches what the Node signer/verifier does when
+   it parses the same JSON text. Covered by a new
+   `CanonicalTest` case that parses real JSON text instead of only testing
+   Kotlin double literals, so this can't silently regress again.
 
 ## Reconciliation notes (read before trusting this build)
 
-- **Kotlin Android plugin was missing.** C's original `app/build.gradle.kts`
-  applied `com.android.application` and the Compose compiler plugin
-  (`org.jetbrains.kotlin.plugin.compose`) but never applied
-  `org.jetbrains.kotlin.android`. Without it, `.kt` files under `src/`
-  would not compile at all — this looks like a pre-existing gap in C's
-  project, independent of this merge, and is now fixed in
-  `gradle/libs.versions.toml` / `build.gradle.kts`.
+- **C's original project never applied `org.jetbrains.kotlin.android` —
+  and that was correct, not a gap.** An earlier pass at this
+  reconciliation assumed it was a missing plugin (Kotlin files "should"
+  need it) and added it back; actually running the build proved that
+  wrong (see "What actually broke on first build" above) — this AGP
+  version's built-in Kotlin support means C's original file was already
+  right, and re-applying the plugin is what broke it.
 - **Compose was removed.** The only place it was used was the placeholder
   "Hello Android" `MainActivity.kt` that Android Studio's wizard generates
   and that this merge replaces with B's real screen;
@@ -60,20 +125,21 @@ been re-verified since. Before treating any of this as working:
   future screen, it's a small, additive change** (re-add the plugin,
   BOM, and `compose = true`) — nothing here structurally depends on its
   absence.
-- **Room now uses kapt, not KSP.** B's original standalone project used
-  KSP, but KSP's version string is tied to a specific Kotlin release in a
-  way this environment had no way to verify for Kotlin 2.2.10. kapt's
-  plugin version is just the Kotlin version already pinned in
-  `libs.versions.toml`, which removes one axis of "did I guess a real
-  version number" risk. It's slower than KSP at compile time; switching
-  later is a small, isolated change if that starts to matter.
+- **Room uses KSP, not kapt — this flipped once, see above.** B's
+  original standalone project used KSP; an earlier pass at this
+  reconciliation switched to kapt to avoid guessing a KSP-for-Kotlin-2.2.10
+  version string. That guess was avoidable, not necessary: kapt turned
+  out to be flatly incompatible with this AGP's built-in Kotlin support
+  (confirmed by actually running it — AGP's own error names KSP as the
+  replacement), and a real compatible KSP version
+  (`2.2.10-2.0.2`) was confirmed via Google's own built-in-Kotlin docs.
 - **minSdk moved from 24 (B) to 26 (C, kept).** This actually simplified
   B's code: `java.time.Instant` (used throughout `trust/`) ships natively
   from API 26, so the `coreLibraryDesugaring` dependency B's standalone
   project needed for API 24/25 was dropped entirely.
-- **compileSdk/targetSdk moved from 34 (B) to 37 (C, kept).**
-  Unverifiable from this environment (no SDK Manager access) — confirm
-  API 37 platform is actually installed/available before syncing.
+- **compileSdk/targetSdk moved from 34 (B) to 37 (C, kept).** Confirmed
+  installed and buildable against (`android-37.0` platform, build-tools
+  36.0.0) — this actually built, not just "should work."
 - **Two `MainActivity.kt` / two theme files / two Gradle skeletons.**
   Both projects generated a file at these exact paths independently. C's
   versions were discarded in favor of B's (`MainActivity.kt`) or deleted

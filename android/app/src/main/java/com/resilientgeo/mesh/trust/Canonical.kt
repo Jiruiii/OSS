@@ -33,6 +33,15 @@ object Canonical {
             is Long -> value.toString()
             is Double -> encodeNumber(value)
             is Float -> encodeNumber(value.toDouble())
+            // org.json's real implementation (used at runtime and by these
+            // unit tests) parses JSON decimal literals as BigDecimal, not
+            // Double — confirmed by actually running these tests, which
+            // failed with "unsupported canonical JSON value: BigDecimal"
+            // until this branch was added. JSON/JS has no arbitrary-precision
+            // decimal type, so converting to Double here matches what the
+            // Node signer/verifier does when it parses the same JSON text.
+            is java.math.BigDecimal -> encodeNumber(value.toDouble())
+            is java.math.BigInteger -> value.toString()
             is JSONArray -> encodeArray(value)
             is JSONObject -> encodeObject(value)
             is List<*> -> encodeArray(JSONArray(value))
