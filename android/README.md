@@ -18,25 +18,31 @@ decisions still need a second pair of eyes.
 
 ## Build status
 
-`./gradlew testDebugUnitTest` **passes** (15 tests: `CanonicalTest`,
-`EventVerifierTest`, `EventIngestorTest` — 0 failures). This was actually
-run, not assumed — see "What actually broke on first build" below for
-the real errors that had to be fixed to get there, since AGP 9.3.2 turned
-out to have several behaviors nobody involved in the original merge could
-have predicted from reading the build files alone.
+All three verification layers have actually been run against this
+branch, on a real device (Pixel 8a, API 36, connected over USB) — not
+just assumed from reading the build files:
 
-**Not yet run**: `./gradlew connectedDebugAndroidTest` (needs a
-device/emulator) and the manual offline-restart check. Before treating
-phase 1's acceptance check as passed:
+1. **`./gradlew testDebugUnitTest`** — passes (15 tests: `CanonicalTest`,
+   `EventVerifierTest`, `EventIngestorTest` — 0 failures). See "What
+   actually broke on first build" below for the real errors fixed to get
+   here, since AGP 9.3.2 turned out to have several behaviors nobody
+   involved in the original merge could have predicted from reading the
+   build files alone.
+2. **`./gradlew connectedDebugAndroidTest`** — passes (2 tests,
+   `RoomEventStoreInstrumentedTest`, run on the Pixel 8a above).
+3. **Manual offline-restart check** — installed via `installDebug`,
+   launched, tapped "Load bundled test events"
+   (`inserted=4 updated=1 rejected=1`, matching the fixture generator's
+   expected outcome exactly), force-stopped, disabled Wi-Fi/mobile data,
+   relaunched: map and event list showed the same data **without**
+   re-tapping the load button, confirming it's read from Room and not
+   re-derived. This is phase 1's actual acceptance criterion
+   (`team-assignments.md`) and it holds.
 
-1. Start an emulator or connect a device (API 26+; API 37 is what's
-   installed in the SDK this was tested against).
-2. `./gradlew connectedDebugAndroidTest` — covers `RoomEventStoreInstrumentedTest`.
-3. Launch the app, tap "Load bundled test events", force-stop, enable
-   Airplane Mode, relaunch — map and event list should show the same
-   data. Separately, tap "BLE Spike (Stage 0)" and confirm it still
-   behaves like `C_BLEbroadcast.md` describes (permission prompts,
-   `ResilientGeoBle` logcat output).
+**Not yet verified**: the "BLE Spike (Stage 0)" button's navigation into
+`BleSpikeActivity` on this merged manifest/theme setup — tap it and
+confirm it still behaves like `C_BLEbroadcast.md` describes (permission
+prompts, `ResilientGeoBle` logcat output).
 
 ### Local setup that isn't part of the repo (per-machine)
 
@@ -258,6 +264,17 @@ SQLite.
 
 ## Known gaps / next steps
 
+**Blocking a merge-back to `main`:**
+- [ ] Verify the "BLE Spike (Stage 0)" button still navigates into
+  `BleSpikeActivity` correctly and its permission/logcat behavior
+  matches `C_BLEbroadcast.md` on this merged manifest/theme setup.
+- [ ] Get C to confirm the launcher-activity swap (`MainActivity` instead
+  of `BleSpikeActivity`) is acceptable — see "Reconciliation notes"
+  above; it's a one-line manifest revert if not.
+- [ ] Decide whether/when to merge `merge/android-b-into-c-skeleton` into
+  `main` and push — currently just a local trial branch.
+
+**Not blocking, but not done either:**
 - No launcher icon work needed from B — C's project already ships real
   adaptive icons at all densities.
 - `GeoJson.kt` only parses Point/LineString/Polygon (what the bundled
@@ -271,3 +288,7 @@ SQLite.
   real `NearbyConnectionsTransport`/similar are done. `EventStore`'s
   interface boundary (see above) is what will make that plug in without
   touching the apply rules.
+- `system.md`/`team-assignments.md` progress notes from B's original
+  standalone branch (`b/android-standalone-wip`) still need to be
+  reapplied here — `team-assignments.md`'s module B section has now been
+  updated to reflect this branch's actual state, but `system.md` has not.

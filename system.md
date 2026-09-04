@@ -127,18 +127,18 @@ flowchart LR
 
 ### 階段 1：單機離線系統（第 1 週）
 
-- [ ] 顯示一個測試區域的離線底圖。
-- [ ] 用本機資料庫保存事件、版本與到期時間。
-- [ ] 將測試事件套到地圖，清楚標示有效、過期與未驗證。
-- [x] 完成 delta 套用及新版本覆蓋規則的單元測試。（目前為 pipeline／Python replay 測試，尚未接 Android DB）
+- [x] 顯示一個測試區域的離線底圖。（`android/app/.../map/OfflineMapView.kt`，自繪向量圖，內湖區 bbox）
+- [x] 用本機資料庫保存事件、版本與到期時間。（Room：`data/EventEntity.kt`、`data/EventDao.kt`）
+- [x] 將測試事件套到地圖，清楚標示有效、過期與未驗證。（CURRENT/EXPIRED/UNVERIFIED 依 apply rules 上色）
+- [x] 完成 delta 套用及新版本覆蓋規則的單元測試。（Node pipeline 測試 + Android `EventIngestorTest`/`RoomEventStoreInstrumentedTest`，已對接 Android DB）
 
-**通過條件**：關閉網路後重啟 App，地圖與最後資料仍可讀；舊事件不能覆蓋新事件。
+**通過條件**：關閉網路後重啟 App，地圖與最後資料仍可讀；舊事件不能覆蓋新事件。**已在 Pixel 8a 實機驗證（強制關閉 + 飛航模式 + 重開，資料無需重新載入）。** 細節見 `android/README.md`。
 
 ### 階段 2：可信資料管線（第 2 週）
 
 - [x] 將一個資料源正規化為 v0 Event。（TDX-shaped 模擬輸入；尚非即時 API）
 - [x] 產生 manifest 與固定大小或內容導向的 chunk。
-- [ ] 在伺服器端簽署，在 Android 端驗證；私鑰不進 App。（已完成 server-side Node signing 與 platform-neutral verifier，Android adapter 尚未建立）
+- [x] 在伺服器端簽署，在 Android 端驗證；私鑰不進 App。（server-side Node signing 完成；Android 端 Ed25519 驗簽 adapter 已建立於 `android/app/.../trust/`，使用 Bouncy Castle，私鑰只存在於 fixture 產生腳本執行當下，從未寫入 App）
 - [x] 測試竄改、重播、過期與不完整封包。（Node pipeline tests）
 
 **通過條件**：合法資料可寫入；任一位元遭修改、版本倒退或 TTL 到期時，App 都不把它顯示為目前有效資料。
