@@ -11,7 +11,7 @@
     {
       "key": [
         "official.tdx",
-        "road:382"
+        "road:chenggong-4"
       ],
       "result": "updated",
       "stored_version_before": 1,
@@ -22,7 +22,7 @@
     {
       "key": [
         "official.fire",
-        "shelter:42"
+        "shelter:donghu-es"
       ],
       "result": "inserted",
       "incoming_version": 1,
@@ -31,7 +31,7 @@
     {
       "key": [
         "crowd.community",
-        "road:382"
+        "road:chenggong-4"
       ],
       "result": "inserted_separate_namespace",
       "incoming_version": 1,
@@ -40,7 +40,7 @@
     {
       "key": [
         "official.tdx",
-        "road:382"
+        "road:chenggong-4"
       ],
       "result": "rejected",
       "stored_version_before": 2,
@@ -52,7 +52,7 @@
     {
       "key": [
         "official.fire",
-        "shelter:31"
+        "shelter:dahu-es"
       ],
       "stored_version": 1,
       "state": "expired",
@@ -62,28 +62,28 @@
   "current_events_after_replay": [
     [
       "official.tdx",
-      "road:382",
+      "road:chenggong-4",
       2
     ],
     [
       "official.fire",
-      "shelter:31",
+      "shelter:dahu-es",
       1,
       "expired"
     ],
     [
       "official.fire",
-      "shelter:42",
+      "shelter:donghu-es",
       1
     ],
     [
       "official.cwa",
-      "rain:0901-001",
+      "flood:keelung-xihu",
       1
     ],
     [
       "crowd.community",
-      "road:382",
+      "road:chenggong-4",
       1,
       "unverified"
     ]

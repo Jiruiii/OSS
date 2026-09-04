@@ -1,18 +1,19 @@
 {
   "fixture_version": "events-batch-v0",
   "fixture_id": "delta-2026-09-01",
-  "description": "A valid update, one new event, a separate crowd namespace, and a signed but stale version rollback.",
+  "description": "A valid update, one new event, a separate crowd namespace, and a signed but stale version rollback. Real OSM geometry, synthetic incident content.",
   "events": [
     {
       "schema_version": "event-v0",
       "namespace": "official.tdx",
-      "event_id": "road:382",
+      "event_id": "road:chenggong-4",
       "event_type": "ROAD_STATUS",
       "geometry": {
         "type": "LineString",
         "coordinates": [
-          [121.599, 23.981],
-          [121.604, 23.982]
+          [121.5952185, 25.0841055],
+          [121.5972202, 25.0845303],
+          [121.6005135, 25.0845461]
         ]
       },
       "severity": "CRITICAL",
@@ -22,8 +23,10 @@
       "issued_at": "2026-09-01T07:10:00Z",
       "expires_at": "2026-09-01T09:10:00Z",
       "attributes": {
+        "area_id": "neihu.dahu",
+        "theme": "road",
         "status": "CLOSED",
-        "road_name": "台9線",
+        "road_name": "成功路四段",
         "reason": "debris"
       },
       "payload_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
@@ -42,11 +45,11 @@
     {
       "schema_version": "event-v0",
       "namespace": "official.fire",
-      "event_id": "shelter:42",
+      "event_id": "shelter:donghu-es",
       "event_type": "SHELTER_STATUS",
       "geometry": {
         "type": "Point",
-        "coordinates": [121.611, 23.989]
+        "coordinates": [121.616144, 25.069232]
       },
       "severity": "HIGH",
       "source": "FIRE_AGENCY",
@@ -55,7 +58,10 @@
       "issued_at": "2026-09-01T07:12:00Z",
       "expires_at": "2026-09-01T10:00:00Z",
       "attributes": {
+        "area_id": "neihu.donghu",
+        "theme": "shelter",
         "status": "OPEN",
+        "site_name": "東湖國小",
         "capacity": 500,
         "available": 460
       },
@@ -75,13 +81,14 @@
     {
       "schema_version": "event-v0",
       "namespace": "crowd.community",
-      "event_id": "road:382",
+      "event_id": "road:chenggong-4",
       "event_type": "ROAD_STATUS",
       "geometry": {
         "type": "LineString",
         "coordinates": [
-          [121.599, 23.981],
-          [121.604, 23.982]
+          [121.5952185, 25.0841055],
+          [121.5972202, 25.0845303],
+          [121.6005135, 25.0845461]
         ]
       },
       "severity": "MEDIUM",
@@ -91,6 +98,8 @@
       "issued_at": "2026-09-01T07:14:00Z",
       "expires_at": "2026-09-01T08:14:00Z",
       "attributes": {
+        "area_id": "neihu.dahu",
+        "theme": "road",
         "status": "OPEN",
         "report": "路段仍可通行",
         "confidence": "UNVERIFIED"
@@ -111,13 +120,14 @@
     {
       "schema_version": "event-v0",
       "namespace": "official.tdx",
-      "event_id": "road:382",
+      "event_id": "road:chenggong-4",
       "event_type": "ROAD_STATUS",
       "geometry": {
         "type": "LineString",
         "coordinates": [
-          [121.599, 23.981],
-          [121.604, 23.982]
+          [121.5952185, 25.0841055],
+          [121.5972202, 25.0845303],
+          [121.6005135, 25.0845461]
         ]
       },
       "severity": "HIGH",
@@ -127,8 +137,10 @@
       "issued_at": "2026-09-01T07:16:00Z",
       "expires_at": "2026-09-01T09:16:00Z",
       "attributes": {
+        "area_id": "neihu.dahu",
+        "theme": "road",
         "status": "OPEN",
-        "road_name": "台9線",
+        "road_name": "成功路四段",
         "reason": "stale replay"
       },
       "payload_hash": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
