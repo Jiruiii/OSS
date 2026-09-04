@@ -45,8 +45,10 @@ const validEvent = makeEvent(1);
 
 test('normalizes one TDX record and signs a verifiable Event v0', () => {
   assert.equal(validEvent.schema_version, 'event-v0');
-  assert.equal(validEvent.event_id, 'road:382');
+  assert.equal(validEvent.event_id, 'road:chenggong-4');
   assert.equal(validEvent.source, 'TDX');
+  assert.equal(validEvent.attributes.area_id, 'neihu.dahu');
+  assert.equal(validEvent.attributes.theme, 'road');
   assert.match(validEvent.payload_hash, /^sha256:[0-9a-f]{64}$/);
   const verification = verifyEvent(validEvent, publicKey, {
     trustedKeyIds: [KEY_ID],
@@ -108,7 +110,7 @@ test('rejects a signed rollback and keeps the newer version', () => {
   assert.equal(update.result, 'updated');
   assert.equal(rollback.result, 'rejected');
   assert.equal(rollback.reason, 'version_rollback');
-  assert.equal(store.get('official.tdx\u0000road:382').event_version, 2);
+  assert.equal(store.get('official.tdx\u0000road:chenggong-4').event_version, 2);
 });
 
 test('accepts an expired signed event into cache but not current state', () => {

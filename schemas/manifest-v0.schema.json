@@ -134,6 +134,14 @@
       "type": "string",
       "pattern": "^sha256:[A-Fa-f0-9]{64}$"
     },
+    "bbox": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "number"
+      }
+    },
     "chunk": {
       "type": "object",
       "additionalProperties": false,
@@ -144,6 +152,9 @@
         "size_bytes",
         "event_count",
         "priority",
+        "area_id",
+        "theme",
+        "bbox",
         "event_ids"
       ],
       "properties": {
@@ -156,6 +167,18 @@
         "sequence": {
           "type": "integer",
           "minimum": 0
+        },
+        "area_id": {
+          "type": "string",
+          "description": "Geographic slice this chunk belongs to. Lets a node decide whether the chunk intersects its area without downloading it.",
+          "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+        },
+        "theme": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{0,31}$"
+        },
+        "bbox": {
+          "$ref": "#/$defs/bbox"
         },
         "chunk_hash": {
           "$ref": "#/$defs/sha256"

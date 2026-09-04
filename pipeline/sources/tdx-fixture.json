@@ -8,14 +8,18 @@
   "expires_at": "2026-09-01T09:10:00Z",
   "records": [
     {
-      "id": "382",
+      "id": "chenggong-4",
+      "event_id": "road:chenggong-4",
       "event_type": "ROAD_STATUS",
       "event_version": 2,
+      "area_id": "neihu.dahu",
+      "theme": "road",
       "geometry": {
         "type": "LineString",
         "coordinates": [
-          [121.599, 23.981],
-          [121.604, 23.982]
+          [121.5952185, 25.0841055],
+          [121.5972202, 25.0845303],
+          [121.6005135, 25.0845461]
         ]
       },
       "severity": "CRITICAL",
@@ -23,7 +27,7 @@
       "expires_at": "2026-09-01T09:10:00Z",
       "properties": {
         "status": "CLOSED",
-        "road_name": "台9線",
+        "road_name": "成功路四段",
         "reason": "debris"
       }
     }

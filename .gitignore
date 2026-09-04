@@ -1,6 +1,8 @@
-# Local phase-2 key material and generated bundles.
+# Local key material and generated bundles.
 .stage2-keys/
 .stage2-bundle/
+.neihu-bundle/
+.neihu-scale/
 
 # Python test/runtime artifacts.
 __pycache__/

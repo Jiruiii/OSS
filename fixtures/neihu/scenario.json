@@ -1,0 +1,41 @@
+{
+  "description": "內湖區梅雨鋒面滯留情境。真實 OSM 地物 + 虛構災情；災情事件本身不代表真實災況。",
+  "dataset_id": "resilientgeo-demo",
+  "clock": {
+    "retrieved_at": "2026-09-01T07:00:00Z",
+    "issued_at": "2026-09-01T07:00:00Z",
+    "v136_expires_at": "2026-09-01T13:00:00Z",
+    "v137_retrieved_at": "2026-09-01T09:00:00Z",
+    "v137_issued_at": "2026-09-01T09:00:00Z",
+    "v137_expires_at": "2026-09-01T15:00:00Z"
+  },
+  "areas": {
+    "neihu.xihu": { "seed": [121.5673156, 25.0821916], "label": "西湖", "hazards": ["flood"] },
+    "neihu.tech-park": { "seed": [121.5752034, 25.0800727], "label": "內湖科技園區", "hazards": ["flood"] },
+    "neihu.wende": { "seed": [121.5849416, 25.0785562], "label": "文德", "hazards": ["landslide"] },
+    "neihu.dahu": { "seed": [121.602341, 25.0837613], "label": "大湖", "hazards": ["landslide"] },
+    "neihu.donghu": { "seed": [121.6116099, 25.0674198], "label": "東湖", "hazards": ["flood"] }
+  },
+  "themes": {
+    "road": { "event_type": "ROAD_STATUS", "source": "TDX", "namespace": "official.tdx" },
+    "shelter": { "event_type": "SHELTER_STATUS", "source": "FIRE_AGENCY", "namespace": "official.fire" },
+    "medical": { "event_type": "MEDICAL_FACILITY", "source": "NCDR", "namespace": "official.ncdr" },
+    "transit": { "event_type": "TRANSIT_STATUS", "source": "TDX", "namespace": "official.tdx" },
+    "flood": { "event_type": "FLOOD_WARNING", "source": "CWA", "namespace": "official.cwa" },
+    "landslide": { "event_type": "LANDSLIDE_RISK", "source": "NCDR", "namespace": "official.ncdr" }
+  },
+  "curated": {
+    "per_area": { "road": 2, "shelter": 1, "medical": 1, "transit": 1 },
+    "hazard_per_area": 1,
+    "v137": {
+      "version_bump_ratio": 0.34,
+      "new_events": 2
+    }
+  },
+  "scale": {
+    "seed": 20260901,
+    "target_event_count": 500,
+    "version_bump_ratio": 0.22,
+    "max_event_version": 3
+  }
+}
