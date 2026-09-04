@@ -5,3 +5,13 @@
 # Python test/runtime artifacts.
 __pycache__/
 *.py[cod]
+
+# Android
+/android/.gradle/
+/android/.idea/
+/android/local.properties
+/android/build/
+/android/*/build/
+/android/*/*/build/
+*.iml
+.DS_Store
