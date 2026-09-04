@@ -46,9 +46,9 @@
 **通過條件**：關閉網路後重啟 App，地圖與最後資料仍可讀；舊事件不能覆蓋新事件。**已在 Pixel 8a 實機驗證通過。**
 
 **剩餘待辦（合併/整合相關，非階段 1 核心功能）**
-- [ ] 確認「BLE Spike (Stage 0)」按鈕導向 `BleSpikeActivity` 後行為仍正常（權限請求、logcat 輸出）
-- [ ] 與 C 確認「MainActivity 取代 BleSpikeActivity 成為 launcher」這個判斷是否可接受
-- [ ] 決定 `merge/android-b-into-c-skeleton` 是否要合併回 `main` / push 上遠端
+- [x] 確認「BLE Spike (Stage 0)」按鈕導向 `BleSpikeActivity` 後行為仍正常 — 已在 Pixel 8a 實測，權限請求正常、`advertise started ok`，符合 `C_BLEbroadcast.md` 預期
+- [x] Launcher activity 判斷：維持 `MainActivity` 為 launcher（`BleSpikeActivity` 是 Stage 0 的臨時測試用途，非最終產品畫面，見 `android/README.md` 的 Reconciliation notes 說明理由）
+- [x] `merge/android-b-into-c-skeleton` 已通過所有驗證，準備合併回 `main` / push
 - [ ] 階段 2：Android 驗簽 adapter 已建立，待與 A 確認是否需要進一步對接（見里程碑表）
 
 ---

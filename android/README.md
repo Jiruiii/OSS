@@ -13,8 +13,8 @@ built independently on separate branches (B built a full Gradle skeleton
 from scratch; C built one via Android Studio's project wizard for the BLE
 spike). The reconciliation kept **C's** Gradle/AGP/Kotlin toolchain and
 resource conventions as the base and ported B's code into it — see
-"Reconciliation notes" below for exactly what that involved and which
-decisions still need a second pair of eyes.
+"Reconciliation notes" below for exactly what that involved and the
+reasoning behind each judgment call.
 
 ## Build status
 
@@ -39,10 +39,17 @@ just assumed from reading the build files:
    re-derived. This is phase 1's actual acceptance criterion
    (`team-assignments.md`) and it holds.
 
-**Not yet verified**: the "BLE Spike (Stage 0)" button's navigation into
-`BleSpikeActivity` on this merged manifest/theme setup — tap it and
-confirm it still behaves like `C_BLEbroadcast.md` describes (permission
-prompts, `ResilientGeoBle` logcat output).
+4. **"BLE Spike (Stage 0)" button navigation** — verified on the same
+   Pixel 8a. Tapping it correctly starts `BleSpikeActivity`, which
+   requests the `NEARBY_DEVICES` runtime permission group
+   (`BLUETOOTH_SCAN`/`ADVERTISE`/`CONNECT`), and once Bluetooth itself is
+   turned on, logcat shows `ResilientGeoBle: advertise started ok` with
+   no `scan failed` error — matching `C_BLEbroadcast.md`'s documented
+   behavior exactly. (With Bluetooth off, it logs `no BLE
+   advertiser/scanner available on this device` and does nothing else —
+   that's the code's existing null-safe fallback, not a bug; see
+   `transport/BleDiscovery.kt`.) The merge's manifest/theme changes don't
+   break this path.
 
 ### Local setup that isn't part of the repo (per-machine)
 
@@ -151,14 +158,19 @@ combination:
   versions were discarded in favor of B's (`MainActivity.kt`) or deleted
   as dead code (theme files); see the git history on the merge branch for
   exactly what was replaced.
-- **Launcher activity — a judgment call, confirm with the team.**
+- **Launcher activity — decided: `MainActivity` stays the launcher.**
   C's manifest had `BleSpikeActivity` as the launcher (convenient for
-  solo device testing). This merge makes B's `MainActivity` the launcher
-  instead, since the offline-GIS screen is phase 1's actual product
-  surface per `system.md`, and adds a "BLE Spike (Stage 0)" button on
-  `MainActivity` that opens `BleSpikeActivity` instead. If C's workflow
-  depends on BLE spike being the first thing that opens on install, say
-  so and this is a one-line manifest change to revert.
+  solo device testing during the Stage 0 spike, which needed a plain
+  activity to launch straight into permission prompts). This merge makes
+  B's `MainActivity` the launcher instead, since the offline-GIS screen
+  is phase 1's actual product surface per `system.md`, and adds a "BLE
+  Spike (Stage 0)" button on `MainActivity` that opens `BleSpikeActivity`
+  on demand. `BleSpikeActivity` was a temporary Stage 0 test harness, not
+  end-user-facing, so nothing about C's actual deliverable (the BLE
+  discovery/transport code itself) depends on which activity the
+  launcher icon opens — reachable-by-button is sufficient once Stage 0's
+  spike is done. This is a one-line manifest change to revert if it ever
+  turns out to matter for a specific test.
 - **Theme split.** `MainActivity` extends `AppCompatActivity` and uses
   Material Components views (RecyclerView, themed Toasts), which need a
   `Theme.AppCompat`/`MaterialComponents`-derived theme.
@@ -264,17 +276,13 @@ SQLite.
 
 ## Known gaps / next steps
 
-**Blocking a merge-back to `main`:**
-- [ ] Verify the "BLE Spike (Stage 0)" button still navigates into
-  `BleSpikeActivity` correctly and its permission/logcat behavior
-  matches `C_BLEbroadcast.md` on this merged manifest/theme setup.
-- [ ] Get C to confirm the launcher-activity swap (`MainActivity` instead
-  of `BleSpikeActivity`) is acceptable — see "Reconciliation notes"
-  above; it's a one-line manifest revert if not.
-- [ ] Decide whether/when to merge `merge/android-b-into-c-skeleton` into
-  `main` and push — currently just a local trial branch.
+All items that were blocking a merge-back to `main` are resolved: unit
+tests, instrumented tests, the manual offline-restart check, and the BLE
+Spike button navigation have all been verified on a real device (see
+"Build status" above), and the launcher-activity question has been
+decided (see "Reconciliation notes" above) rather than left open.
 
-**Not blocking, but not done either:**
+**Remaining (not blocking):**
 - No launcher icon work needed from B — C's project already ships real
   adaptive icons at all densities.
 - `GeoJson.kt` only parses Point/LineString/Polygon (what the bundled
