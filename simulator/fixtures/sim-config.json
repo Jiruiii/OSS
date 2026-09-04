@@ -1,0 +1,32 @@
+{
+  "scenario_id": "neihu-meiyu-front-v1",
+  "description": "內湖區梅雨鋒面滯留：五個生活圈，行動網路部分斷訊，手機在 Emergency Mode 下交換災情分片。",
+  "rounds": 24,
+  "seconds_per_round": 30,
+  "node_counts": [10, 20, 50, 100],
+  "area_density_weights": {
+    "neihu.xihu": 0.18,
+    "neihu.tech-park": 0.30,
+    "neihu.wende": 0.20,
+    "neihu.dahu": 0.14,
+    "neihu.donghu": 0.18
+  },
+  "adjacency": {
+    "neihu.xihu": ["neihu.tech-park"],
+    "neihu.tech-park": ["neihu.xihu", "neihu.wende"],
+    "neihu.wende": ["neihu.tech-park", "neihu.dahu"],
+    "neihu.dahu": ["neihu.wende", "neihu.donghu"],
+    "neihu.donghu": ["neihu.dahu"]
+  },
+  "contact_probability": 0.55,
+  "max_peer_count": 4,
+  "cellular_chunks_per_round": 2,
+  "max_bytes_per_round": 24576,
+  "transfer_failure_prob": 0.06,
+  "gateway_ratio": 0.2,
+  "cellular_fallback_rounds": 6,
+  "p2p_throughput_bytes_per_sec": 131072,
+  "rarity_scope": "global",
+  "transport_params_source": "engineering-estimate-pending-device-spike",
+  "notes": "接觸機率與傳輸參數為工程估計值，待組員 C 的兩台實機 spike（system.md 階段 0）校準後更新此檔重跑。"
+}
