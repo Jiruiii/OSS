@@ -1,6 +1,6 @@
 # Simulator（D 組：擴散模擬 + 量測）
 
-對應 `system.md` 階段 4。一支零依賴的 Node 模擬器，把 `fixtures/neihu/scale-v136.json`
+對應 `system.md` 階段 4。一支零依賴的 Node 模擬器，把 `data/fixtures/neihu/scale-v136.json`
 （~500 筆內湖事件）在執行時建成真實簽章 bundle，模擬 N 台手機在 Emergency Mode 下用
 peer sync 交換分片，量測四個指標。
 

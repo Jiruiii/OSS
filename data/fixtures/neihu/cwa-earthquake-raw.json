@@ -1,0 +1,61 @@
+{
+  "schema_version": "raw-snapshot-v0",
+  "source_id": "cwa-earthquake",
+  "request": {
+    "method": "GET",
+    "url": "https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001?format=JSON",
+    "query": {
+      "format": "JSON"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "etag": "\"local-cwa-earthquake-20260904-1\"",
+      "content_type": "application/json"
+    }
+  },
+  "retrieved_at": "2026-09-04T04:00:00Z",
+  "payload": {
+    "success": true,
+    "result": {
+      "resource_id": "E-A0015-001",
+      "records": [
+        {
+          "EarthquakeNo": "115001",
+          "IssueTime": "2026-09-04T12:05:00+08:00",
+          "EndTime": "2026-09-05T12:05:00+08:00",
+          "OriginTime": "2026-09-04T12:01:00+08:00",
+          "EpicenterLatitude": "25.1000",
+          "EpicenterLongitude": "121.5800",
+          "MagnitudeValue": "4.2",
+          "CountyName": "臺北市",
+          "AreaDesc": "臺北市地區",
+          "StationID": "NEIHU-001",
+          "StationName": "內湖測站",
+          "StationLatitude": "25.0800",
+          "StationLongitude": "121.5800",
+          "SeismicIntensity": "3級",
+          "unit": "gal"
+        },
+        {
+          "EarthquakeNo": "115002",
+          "IssueTime": "2026-09-04T13:05:00+08:00",
+          "EndTime": "2026-09-05T13:05:00+08:00",
+          "OriginTime": "2026-09-04T13:01:00+08:00",
+          "EpicenterLatitude": "25.0000",
+          "EpicenterLongitude": "121.5000",
+          "MagnitudeValue": "3.1",
+          "CountyName": "新北市",
+          "AreaDesc": "新北市地區",
+          "StationID": "OUTSIDE-001",
+          "StationName": "外部測站",
+          "StationLatitude": "25.0000",
+          "StationLongitude": "121.5000",
+          "SeismicIntensity": "1級",
+          "unit": "gal"
+        }
+      ]
+    }
+  }
+}

@@ -8,6 +8,7 @@ import {
   SourceRequestError,
   makeRawSnapshot,
   requestJson,
+  requestText,
   validateRawSnapshot,
 } from '../lib/source.mjs';
 import {
@@ -172,6 +173,29 @@ test('requestJson returns payload and safe response metadata', async () => {
       content_type: 'application/json; charset=utf-8',
     },
     payload: { records: [{ id: '2' }] },
+  });
+});
+
+test('requestText returns body and safe response metadata', async () => {
+  const result = await requestText('https://example.gov.tw/data', {
+    fetchImpl: async () => ({
+      status: 200,
+      ok: true,
+      headers: new Headers({
+        ETag: '"text-1"',
+        'Content-Type': 'text/csv; charset=utf-8',
+        Authorization: 'Bearer should-not-be-copied',
+      }),
+      async text() { return 'id,name\n1,內湖'; },
+    }),
+  });
+  assert.deepEqual(result, {
+    status: 200,
+    headers: {
+      etag: '"text-1"',
+      content_type: 'text/csv; charset=utf-8',
+    },
+    body: 'id,name\n1,內湖',
   });
 });
 

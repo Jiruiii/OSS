@@ -2,7 +2,7 @@
 
 盤點日期：2026-09-04
 
-本文件是 Task 1 的「上網找來源」成果。它確認來源、內湖適用方式、授權門檻與資料粒度；目前仍尚未建立各來源 Collector、實際來源 Raw snapshot 或來源 fixture。共用資料契約已由 Task 1 完成，Raw／Geo 共用模組與官方內湖 boundary 已由 Task 2 完成。
+本文件是 Task 1 的「上網找來源」成果。它確認來源、內湖適用方式、授權門檻與資料粒度。共用資料契約已由 Task 1 完成，Raw／Geo 共用模組與官方內湖 boundary 已由 Task 2 完成；TDX、CWA 與 NCDR 的動態來源介面已在 Task 3/4 建立；OSM、避難所與醫療 Static Feature 已由 Task 5 建立。
 
 ## 結論
 
@@ -35,7 +35,7 @@ OSM relation 可用於 Overpass 擷取，但最終是否屬於內湖，仍以官
 | TDX | [道路事件 v1 Swagger](https://tdx.transportdata.tw/api-service/swagger/basic/60abfa19-ffe3-4eef-a4b1-0539435dfca9) | 呼叫 `City/Taipei`，以 `Town=內湖區` 與 geometry 雙重篩選 | 程式介接要 OAuth2 Client ID / Secret；無金鑰實測為 401 | P1 |
 | CWA 地震 | [E-A0015-001 顯著有感地震](https://opendata.cwa.gov.tw/dataset/earthquake/E-A0015-001) | 保留臺北市震度區或內湖測站；只有市級時標 `coverage_level=city` | 需 CWA 授權碼；事件型、不定期 | P1 |
 | CWA 天氣 | [W-C0033-001 警特報](https://opendata.cwa.gov.tw/dataset/warning/W-C0033-001) | 篩選臺北市；不可宣稱是內湖區專屬警報 | 需 CWA 授權碼；以縣市為主要粒度 | P1 |
-| NCDR | [示警介接](https://alerts.ncdr.nat.gov.tw/web/developer/alerts-rss)、[示警查詢 API](https://alerts.ncdr.nat.gov.tw/web/developer/alerts-api) | 優先用 CAP polygon／行政區碼交集；只有臺北市時保留市級標記 | 2026 新制完整地方與事業示警需 API key；公共資料範圍較小 | P1 |
+| NCDR | [API 介接文件](https://datahub.ncdr.nat.gov.tw/paradigm)、[示警 API 入口](https://alerts.ncdr.nat.gov.tw/alertMessageAPI.aspx) | 優先用 CAP polygon／行政區碼交集；只有臺北市時保留市級標記 | 正式 live 需 API key；具體 datastore 路徑與可用資料集依帳號開通；期限內 Demo 使用 Neihu simulation/replay fallback | P1 |
 | 避難所 | [消防署避難收容處所點位檔](https://data.gov.tw/dataset/73242)、[開設情形](https://data.gov.tw/dataset/12849) | 靜態點位依 `臺北市內湖區` 篩選；開設狀態另成動態資料 | 點位 CSV 無金鑰；開設 XML 為事件狀態，不可用年度名冊冒充 | P1 |
 | 醫療 | [臺北市公私立醫療院所](https://data.taipei/dataset/detail?id=ffdd5753-30db-4c38-b65f-b77892773d60) | 醫院地址含內湖區，再用座標與 polygon 驗證 | 無金鑰；年度更新；先收醫院，不先收全部診所 | P1 |
 | DEM / DSM | [2025 年 20m DTM](https://data.gov.tw/dataset/176927)、[100m DEM / DSM](https://data.gov.tw/dataset/7507) | 找出與內湖 polygon 相交的圖磚，轉座標後裁切 | 靜態檔案、不定期；20m 來源是 DTM，DSM 可用 100m 備援 | P2 |
@@ -66,5 +66,8 @@ OSM relation 可用於 Overpass 擷取，但最終是否屬於內湖，仍以官
 
 - 已完成：線上來源發現、官方入口確認、內湖適用性判定、授權門檻、來源註冊表、`feature-v0`、layer manifest/chunk schemas、schema tests 與 `docs/data-contract-v0.md` 更新。
 - Task 2 已完成：`pipeline/lib/source.mjs`、`pipeline/lib/geo.mjs`、官方 `pipeline/sources/boundaries/taipei-neihu.geojson` 與共用層測試。
-- 尚未完成：TDX、CWA、NCDR、OSM、避難所與醫療等各來源 Collector，以及實際來源 Raw snapshot 與 normalized fixture。
-- 下一步：先接入不需要額外金鑰的 OSM、避難所與醫療資料，再依憑證狀態接入 TDX、CWA、NCDR。
+- 已完成：Task 3 TDX、Task 4 CWA／NCDR 動態事件 Collector、Raw snapshot 契約、Neihu normalized fixture、CLI 與缺少授權時的 source status。
+- 已完成：Task 5 OSM、避難所與醫療 Static Feature Collector、Raw fixture、正規化與靜態 layer bundle CLI。公開 smoke check 取得 OSM 5,939 筆、避難所 26 筆、醫療 4 筆內湖 features；這些是 2026-09-04 的一次抓取結果，不是固定數量。
+- 尚未完成：DEM／DSM、網路與 SAR／光學資料準備；避難所點位檔本身不含即時開設狀態，狀態需另接開設情形來源。
+- NCDR live：帳號驗證完成後才填入帳號核發的 `NCDR_API_KEY` 與完整 `NCDR_API_ENDPOINT`；在此之前標記為 `blocked_by_access`，不阻塞 Demo。
+- Demo fallback：使用 `data/fixtures/neihu/manifest.json`、`scenario.json`、`update-sequence.json` 與 `pipeline/lib/neihu-replay.mjs`；災情事件是模擬資料，不是即時官方 NCDR 資料。

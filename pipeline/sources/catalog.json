@@ -144,27 +144,37 @@
       "source_id": "ncdr-hazard-events",
       "category": "NCDR",
       "data_product": "dynamic_event",
-      "access_mode": "live_api_or_download",
-      "endpoint_or_url": "https://alerts.ncdr.nat.gov.tw/webapi/RssAtomFeed.ashx",
-      "documentation_url": "https://alerts.ncdr.nat.gov.tw/web/developer/alerts-rss",
-      "format": "ATOM, JSON, CAP XML, KML or KMZ depending on service",
+      "access_mode": "live_api",
+      "endpoint_or_url": "https://alerts.ncdr.nat.gov.tw/api/datastore",
+      "documentation_url": "https://datahub.ncdr.nat.gov.tw/paradigm",
+      "format": "JSON",
       "coverage": "nationwide multi-agency warnings, including flood, rainfall, debris-flow and large-landslide alerts",
-      "update_frequency": "ATOM indexes are refreshed every minute; some NCDR model products update four times daily",
+      "update_frequency": "depends on the selected NCDR datastore; retain retrieved_at and source update fields",
       "auth_required": true,
       "license": "NCDR platform terms or source-agency license; record per resource",
-      "coordinate_system": "CAP administrative area, geocode or polygon; KMZ geometries require normalization to EPSG:4326",
+      "coordinate_system": "CAP polygon or point; normalize to EPSG:4326",
       "ttl_policy": "use CAP sent, effective, onset and expires fields; preserve cancel and update messages",
       "integration_stage": "P1",
       "neihu_filter": "Prefer CAP polygons or district geocodes intersecting Neihu. If a warning only names 臺北市, label coverage_level=city. Keep citizen reports in an unverified namespace.",
       "verification": {
-        "status": "official_services_verified_access_setup_required",
+        "status": "official_api_contract_verified_access_setup_required",
         "verified_at": "2026-09-04",
-        "result": "The 2026 service policy requires an API key for full local-government and utility feeds. Public access is limited; historical flood and landslide downloads may also require login or application."
+        "result": "The official NCDR API documentation confirms HTTP GET, JSON or XML responses and Token or Authorization authentication. The concrete datastore route and permitted datasets are account-configured, so NCDR_API_ENDPOINT remains required at runtime."
+      },
+      "demo_policy": {
+        "status": "optional_for_demo",
+        "fallback": "data/fixtures/neihu/manifest.json",
+        "simulation_sources": [
+          "data/fixtures/neihu/scenario.json",
+          "data/fixtures/neihu/update-sequence.json",
+          "pipeline/lib/neihu-replay.mjs"
+        ],
+        "disclaimer": "Replay disaster events are fictional and must not be presented as current NCDR alerts."
       },
       "related_resources": [
         {
           "purpose": "API documentation",
-          "url": "https://alerts.ncdr.nat.gov.tw/web/developer/alerts-api",
+          "url": "https://datahub.ncdr.nat.gov.tw/paradigm",
           "auth": "API key required"
         },
         {
@@ -265,6 +275,9 @@
       "coordinate_system": "source-specific projected coordinates; inspect tile metadata before conversion",
       "ttl_policy": "immutable versioned raster snapshot",
       "integration_stage": "P2",
+      "raster_catalog_ref": "pipeline/sources/raster-catalog.json#dem-dsm-neihu",
+      "artifact_status": "metadata_only",
+      "raw_or_derived": "raw",
       "neihu_filter": "Select tiles intersecting the official Neihu boundary and clip after coordinate conversion. A 100-meter DEM/DSM source is available as a fallback when DSM is required.",
       "verification": {
         "status": "official_metadata_verified",
@@ -293,6 +306,9 @@
       "coordinate_system": "none; district aggregate table",
       "ttl_policy": "retain latest statistical period and historical snapshots",
       "integration_stage": "P2",
+      "raster_catalog_ref": "pipeline/sources/raster-catalog.json#network-neihu",
+      "artifact_status": "metadata_only",
+      "raw_or_derived": "raw",
       "neihu_filter": "Filter 縣市=臺北市 and 鄉鎮區=臺北市內湖區.",
       "verification": {
         "status": "live_download_verified",
@@ -315,6 +331,9 @@
       "coordinate_system": "EPSG:4326 bbox or GeoJSON geometry for catalogue search",
       "ttl_policy": "immutable scene metadata and asset checksum; create new snapshots for new acquisitions",
       "integration_stage": "P3",
+      "raster_catalog_ref": "pipeline/sources/raster-catalog.json#sar-optical-neihu",
+      "artifact_status": "metadata_only",
+      "raw_or_derived": "raw",
       "neihu_filter": "Search by Neihu bbox [121.5519933,25.0518603,121.6286149,25.1151519], date range and collection; clip or mask assets to the official polygon after download.",
       "verification": {
         "status": "live_catalog_verified",

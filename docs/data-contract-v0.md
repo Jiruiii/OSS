@@ -83,6 +83,7 @@ Chunk 的 `chunk_hash` 覆蓋 canonical chunk content（dataset metadata、prior
 - `dataset_id`、`layer_id`、`namespace` 與 `dataset_version`。
 - `source`、`source_version`、`created_at` 與 `expires_at`。
 - `total_feature_count`、`total_size_bytes` 與 chunk 清單。
+- `bbox`（由所有 Feature 幾何推導）與 `content_hash`（所有 Feature payload 的 canonical hash）。
 - Manifest hash、Ed25519 signature 與 `signing_key_id`。
 
 `layer-chunk-v0` 是實際傳輸單位，使用 `features` 裝載 `feature-v0`，不能使用動態事件 Chunk 的 `events` 欄位。每個 chunk 必須綁定已驗證的 Layer Manifest，並驗證 `manifest_hash`、`chunk_hash`、大小、筆數與簽章。
@@ -94,6 +95,26 @@ Chunk 的 `chunk_hash` 覆蓋 canonical chunk content（dataset metadata、prior
 3. 只要求本機缺少的 Layer Chunk。
 4. 驗證 Chunk 與 Manifest binding，再驗證每筆 Feature。
 5. 全部必要 Chunk 驗證成功後，以原子方式切換到新的 layer 版本。
+
+避難所是靜態位置與動態狀態的分層例外：名稱、地址、容量、適用災害類別
+進入 `feature-v0`；開設中、額滿、關閉等狀態進入獨立的
+`SHELTER_STATUS` `event-v0`，不把會變動的狀態簽進靜態位置 Feature。
+
+## Static Raster／Network Artifact Metadata
+
+Task 6 的 `pipeline/sources/raster-catalog.json` 是來源與 artifact metadata
+註冊，不代表檔案已經下載到 repository。每一筆資料都要標示來源 owner、
+官方 URL 或申請路徑、格式、CRS、WGS84 bbox、時間範圍、更新模式、存取限制、
+原始／衍生界線、用途與 limitation。
+
+目前三筆 advanced source 都是 `artifact_status=metadata_only`，因此
+`file_hash` 明確為 `null`；實際下載檔案後才可填入該檔案的 SHA-256。這避免
+用 metadata hash 冒充原始 raster 或影像檔 hash。`network-neihu` 是區級基地臺
+統計表，bbox 只代表內湖適用範圍，不代表基地臺點位或訊號覆蓋。
+
+A 只提供來源 metadata、原始檔案（若取得）與 provenance；坡度、孤立風險、
+通訊脆弱度、淹水範圍、崩塌判釋與災損分類由 D 或後續分析流程負責，且必須
+另外標示為 derived output。
 
 ## Source catalog 與 Raw 的關係
 

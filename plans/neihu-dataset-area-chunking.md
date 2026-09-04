@@ -86,8 +86,8 @@ bbox 一律由該區實際事件幾何計算得出，**不手填**。內湖區�
 | 路徑 | 筆數 | 用途 |
 |---|---|---|
 | `fixtures/events-batch-1.json`、`-2.json`、`expected-results-v0.json` | 4 | **契約回歸**。就地改為內湖地物，維持原有 5 條規則覆蓋。Python replay 測試用，刻意保持小而穩定 |
-| `fixtures/neihu/demo-v136.json`、`demo-v137.json` | ~30 | **Demo 敘事**。真實內湖地物，橫跨 5 個 area、6 個 theme。給 A/B/C 演示與 Android UI |
-| `fixtures/neihu/scale-v136.json` | ~500 | **規模與模擬**。從 OSM 快照生成，補上 `system.md` 階段 0 缺的「100–1,000 筆測試事件與更新序列」，給 D 的模擬與多 chunk 分片測試 |
+| `data/fixtures/neihu/demo-v136.json`、`demo-v137.json` | ~30 | **Demo 敘事**。真實內湖地物，橫跨 5 個 area、6 個 theme。給 A/B/C 演示與 Android UI |
+| `data/fixtures/neihu/scale-v136.json` | ~500 | **規模與模擬**。從 OSM 快照生成，補上 `system.md` 階段 0 缺的「100–1,000 筆測試事件與更新序列」，給 D 的模擬與多 chunk 分片測試 |
 
 ---
 
@@ -124,11 +124,11 @@ bbox 一律由該區實際事件幾何計算得出，**不手填**。內湖區�
 
 Overpass API 查詢內湖區行政區界內的：主要道路（`highway=primary|secondary|tertiary`）、學校（`amenity=school`）、醫院（`amenity=hospital`）、水系（`waterway=river`）、捷運站（`station=subway`）。
 
-**輸出寫成 `fixtures/neihu/osm-snapshot.json` 並提交進 repo。** 之後所有 fixture 生成都讀快照，不再打 API——這是「可重播」的硬性要求，也避免 Overpass rate limit 與資料漂移。快照需記錄抓取時間與查詢語句。
+**輸出寫成 `data/fixtures/neihu/osm-snapshot.json` 並提交進 repo。** 之後所有 fixture 生成都讀快照，不再打 API——這是「可重播」的硬性要求，也避免 Overpass rate limit 與資料漂移。快照需記錄抓取時間與查詢語句。
 
 ### 2.6 新增 `tools/generate-neihu-fixtures.mjs`
 
-吃 `osm-snapshot.json` ＋ 一份情境設定檔（`fixtures/neihu/scenario.json`：災害腳本、時間軸、area 對應），輸出 curated 與 scale 兩套 fixture。**固定 seed**，同 seed 產生位元相同的輸出。
+吃 `osm-snapshot.json` ＋ 一份情境設定檔（`data/fixtures/neihu/scenario.json`：災害腳本、時間軸、area 對應），輸出 curated 與 scale 兩套 fixture。**固定 seed**，同 seed 產生位元相同的輸出。
 
 ### 2.7 文件
 
@@ -142,7 +142,7 @@ Overpass API 查詢內湖區行政區界內的：主要道路（`highway=primary
 
 ## 三、實作順序（建議 commit 切法）
 
-1. **抓 OSM 快照** — `tools/fetch-osm-neihu.mjs` ＋ `fixtures/neihu/osm-snapshot.json`。獨立一個 commit，之後不再需要網路。
+1. **抓 OSM 快照** — `tools/fetch-osm-neihu.mjs` ＋ `data/fixtures/neihu/osm-snapshot.json`。獨立一個 commit，之後不再需要網路。
 2. **schema 加欄位** — chunk-v0、manifest-v0 加 `area_id`／`theme`／`bbox`。此時測試仍應全綠（欄位尚未被寫入，但 required 會讓既有 build 失敗 → 與步驟 3 併為同一 commit，或先設為 optional 再於步驟 3 轉 required）。
 3. **pipeline 改造** — canonical／bundle／contract／normalize 四檔，加上新測試。
 4. **契約回歸 fixture 就地改為內湖** — `events-batch-1/2`、`expected-results-v0`、`tdx-fixture`、`manifest-v136`、兩份 peer summary、`protocol-exchange-v0`；同步更新 `tests/test_replay_fixture.py` 與 `pipeline/test/pipeline.test.mjs` 內的 event_id 斷言（`road:382` → 內湖對應 id）。
@@ -168,7 +168,7 @@ python tools/replay_fixture.py --check      # 應印出 PASS
 ```powershell
 node pipeline/cli.mjs keygen --out-dir .stage2-keys --key-id neihu-demo-2026
 node pipeline/cli.mjs build `
-  --input fixtures/neihu/demo-v136.json `
+  --input data/fixtures/neihu/demo-v136.json `
   --out-dir .neihu-bundle `
   --private-key .stage2-keys/private-key.pem `
   --key-id neihu-demo-2026

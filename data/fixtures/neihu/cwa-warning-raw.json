@@ -1,0 +1,47 @@
+{
+  "schema_version": "raw-snapshot-v0",
+  "source_id": "cwa-weather-warning",
+  "request": {
+    "method": "GET",
+    "url": "https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0033-001?format=JSON",
+    "query": {
+      "format": "JSON"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "etag": "\"local-cwa-warning-20260904-1\"",
+      "content_type": "application/json"
+    }
+  },
+  "retrieved_at": "2026-09-04T04:00:00Z",
+  "payload": {
+    "success": true,
+    "result": {
+      "resource_id": "W-C0033-001",
+      "records": [
+        {
+          "identifier": "CWA-WARNING-NEIHU-001",
+          "IssueTime": "2026-09-04T03:00:00+08:00",
+          "EndTime": "2026-09-04T09:00:00+08:00",
+          "CountyName": "臺北市",
+          "AreaDesc": "臺北市",
+          "WarningType": "豪雨特報",
+          "Severity": "Severe",
+          "Description": "臺北市有局部大雨發生的機率。"
+        },
+        {
+          "identifier": "CWA-WARNING-OUTSIDE-001",
+          "IssueTime": "2026-09-04T03:00:00+08:00",
+          "EndTime": "2026-09-04T09:00:00+08:00",
+          "CountyName": "花蓮縣",
+          "AreaDesc": "花蓮縣",
+          "WarningType": "豪雨特報",
+          "Severity": "Severe",
+          "Description": "花蓮縣有局部大雨發生的機率。"
+        }
+      ]
+    }
+  }
+}

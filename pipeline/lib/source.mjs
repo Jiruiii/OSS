@@ -63,27 +63,32 @@ function safeResponseHeaders(headers) {
   return safe;
 }
 
-function sanitizeQuery(query) {
-  if (query === undefined || query === null) return {};
-  const entries = query instanceof URLSearchParams
+function queryEntries(query) {
+  if (query === undefined || query === null) return [];
+  return query instanceof URLSearchParams
     ? [...query.entries()]
     : Array.isArray(query)
       ? query
       : Object.entries(query);
-  return Object.fromEntries(entries.filter(([name]) => !SECRET_NAME_RE.test(String(name))));
 }
 
-function sanitizeUrl(value) {
+function sanitizeQuery(query, allowedSensitiveNames = new Set()) {
+  return Object.fromEntries(queryEntries(query).filter(([name]) => (
+    allowedSensitiveNames.has(String(name).toLowerCase()) || !SECRET_NAME_RE.test(String(name))
+  )));
+}
+
+function sanitizeUrl(value, allowedSensitiveNames = new Set()) {
   const parsed = assertHttpUrl(value);
   for (const name of [...parsed.searchParams.keys()]) {
-    if (SECRET_NAME_RE.test(name)) parsed.searchParams.delete(name);
+    if (SECRET_NAME_RE.test(name) && !allowedSensitiveNames.has(name.toLowerCase())) parsed.searchParams.delete(name);
   }
   return parsed.toString();
 }
 
-function urlWithQuery(value, query) {
-  const parsed = new URL(sanitizeUrl(value));
-  const safeQuery = sanitizeQuery(query);
+function urlWithQuery(value, query, allowedSensitiveNames = new Set()) {
+  const parsed = new URL(sanitizeUrl(value, allowedSensitiveNames));
+  const safeQuery = sanitizeQuery(query, allowedSensitiveNames);
   for (const [name, queryValue] of Object.entries(safeQuery)) {
     parsed.searchParams.delete(name);
     if (Array.isArray(queryValue)) {
@@ -170,10 +175,12 @@ export async function requestJson(url, {
   fetchImpl = globalThis.fetch,
   headers = {},
   query,
+  allowedSensitiveQueryNames = [],
   timeoutMs = 30000,
   maxAttempts = 3,
 } = {}) {
-  const requestUrl = urlWithQuery(url, query);
+  const allowedSensitiveNames = new Set(allowedSensitiveQueryNames.map((name) => String(name).toLowerCase()));
+  const requestUrl = urlWithQuery(url, query, allowedSensitiveNames);
   if (typeof fetchImpl !== 'function') throw new TypeError('fetchImpl must be a function');
   if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) throw new TypeError('timeoutMs must be positive');
   if (!Number.isInteger(maxAttempts) || maxAttempts <= 0) throw new TypeError('maxAttempts must be positive');
@@ -225,6 +232,87 @@ export async function requestJson(url, {
         });
       }
       return { status: response.status, headers: responseHeaders, payload };
+    } catch (error) {
+      if (error instanceof SourceRequestError) {
+        if (error.code !== 'HTTP_ERROR' || attempt === maxAttempts || !shouldRetryStatus(error.status)) throw error;
+        lastError = error;
+      } else {
+        lastError = new SourceRequestError('source request failed', {
+          code: 'NETWORK_ERROR',
+          url: requestUrl,
+          cause: error,
+        });
+        if (attempt === maxAttempts) throw lastError;
+      }
+      if (attempt < maxAttempts) await wait(Math.min(250 * 2 ** (attempt - 1), 2000));
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw lastError ?? new SourceRequestError('source request failed', { code: 'NETWORK_ERROR', url: requestUrl });
+}
+
+export async function requestText(url, {
+  fetchImpl = globalThis.fetch,
+  headers = {},
+  query,
+  allowedSensitiveQueryNames = [],
+  timeoutMs = 30000,
+  maxAttempts = 3,
+} = {}) {
+  const allowedSensitiveNames = new Set(allowedSensitiveQueryNames.map((name) => String(name).toLowerCase()));
+  const requestUrl = urlWithQuery(url, query, allowedSensitiveNames);
+  if (typeof fetchImpl !== 'function') throw new TypeError('fetchImpl must be a function');
+  if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) throw new TypeError('timeoutMs must be positive');
+  if (!Number.isInteger(maxAttempts) || maxAttempts <= 0) throw new TypeError('maxAttempts must be positive');
+
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetchImpl(requestUrl, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+      const responseHeaders = safeResponseHeaders(response.headers);
+      if (!response || typeof response.status !== 'number') {
+        throw new SourceRequestError('source response has no HTTP status', {
+          code: 'INVALID_RESPONSE',
+          url: requestUrl,
+        });
+      }
+      if (response.status < 200 || response.status >= 300) {
+        const error = new SourceRequestError(`source returned HTTP ${response.status}`, {
+          code: 'HTTP_ERROR',
+          status: response.status,
+          url: requestUrl,
+        });
+        if (attempt === maxAttempts || !shouldRetryStatus(response.status)) throw error;
+        lastError = error;
+        await wait(Math.min(250 * 2 ** (attempt - 1), 2000));
+        continue;
+      }
+      let body;
+      try {
+        body = await response.text();
+      } catch (error) {
+        throw new SourceRequestError('source returned an unreadable text body', {
+          code: 'INVALID_BODY',
+          status: response.status,
+          url: requestUrl,
+          cause: error,
+        });
+      }
+      if (typeof body !== 'string') {
+        throw new SourceRequestError('source text body is not a string', {
+          code: 'INVALID_BODY',
+          status: response.status,
+          url: requestUrl,
+        });
+      }
+      return { status: response.status, headers: responseHeaders, body };
     } catch (error) {
       if (error instanceof SourceRequestError) {
         if (error.code !== 'HTTP_ERROR' || attempt === maxAttempts || !shouldRetryStatus(error.status)) throw error;

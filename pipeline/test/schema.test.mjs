@@ -180,6 +180,8 @@ test('accepts static layer manifest and chunk records containing features', () =
     chunking: { algorithm: 'fixed-size', target_size_bytes: 4096, hash_algorithm: 'SHA-256' },
     total_feature_count: 1,
     total_size_bytes: 1024,
+    bbox: [121.58, 25.08, 121.58, 25.08],
+    content_hash: HASH,
     chunks: [{
       chunk_id: 'resilientgeo-neihu:shelter:chunk:1:000',
       sequence: 0,

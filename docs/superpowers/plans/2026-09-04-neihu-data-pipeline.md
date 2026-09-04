@@ -79,7 +79,7 @@ A：來源、Raw、Collector、正規化、品質驗證、封裝與 fixture
 - `schemas/feature-v0.schema.json`：靜態向量 feature 契約。
 - `schemas/layer-manifest-v0.schema.json`：靜態 layer package 索引契約。
 - `schemas/layer-chunk-v0.schema.json`：靜態 feature chunk 契約。
-- `fixtures/neihu/`：內湖 Raw snapshot、normalized records、更新序列與預期結果。
+- `data/fixtures/neihu/`：內湖 Raw snapshot、normalized records、更新序列與預期結果。
 
 ### 2.2 修改的檔案
 
@@ -245,8 +245,8 @@ A：來源、Raw、Collector、正規化、品質驗證、封裝與 fixture
 
 - Create: `pipeline/sources/tdx.mjs`
 - Create: `pipeline/test/tdx.test.mjs`
-- Create: `fixtures/neihu/tdx-raw-batch-1.json`
-- Create: `fixtures/neihu/tdx-events-batch-1.json`
+- Create: `data/fixtures/neihu/tdx-raw-batch-1.json`
+- Create: `data/fixtures/neihu/tdx-events-batch-1.json`
 - Modify: `pipeline/cli.mjs`
 - Modify: `pipeline/README.md`
 
@@ -258,7 +258,7 @@ A：來源、Raw、Collector、正規化、品質驗證、封裝與 fixture
 
 - [ ] **Step 1: Record the real TDX response shape**
 
-  Pending authenticated capture: no TDX credentials were available in this run. A sanitized `local_fixture` with the official compact/WKT response shape was added at `fixtures/neihu/tdx-raw-batch-1.json`; it is not presented as a live response. The live capture still must record the endpoint, retrieval time, response version／ETag and raw SHA-256 without auth headers or secrets.
+  Pending authenticated capture: no TDX credentials were available in this run. A sanitized `local_fixture` with the official compact/WKT response shape was added at `data/fixtures/neihu/tdx-raw-batch-1.json`; it is not presented as a live response. The live capture still must record the endpoint, retrieval time, response version／ETag and raw SHA-256 without auth headers or secrets.
 
 - [x] **Step 2: Write failing normalization tests**
 
@@ -294,11 +294,13 @@ A：來源、Raw、Collector、正規化、品質驗證、封裝與 fixture
 - Create: `pipeline/sources/cwa.mjs`
 - Create: `pipeline/sources/ncdr.mjs`
 - Create: `pipeline/test/cwa-ncdr.test.mjs`
-- Create: `fixtures/neihu/cwa-earthquake-raw.json`
-- Create: `fixtures/neihu/cwa-warning-raw.json`
-- Create: `fixtures/neihu/ncdr-hazard-raw.json`
-- Create: `fixtures/neihu/cwa-events.json`
-- Create: `fixtures/neihu/ncdr-events.json`
+- Create: `data/fixtures/neihu/cwa-earthquake-raw.json`
+- Create: `data/fixtures/neihu/cwa-warning-raw.json`
+- Create: `data/fixtures/neihu/ncdr-hazard-raw.json`
+- Create: `data/fixtures/neihu/cwa-events.json`
+- Create: `data/fixtures/neihu/ncdr-events.json`
+- Create: `pipeline/test/cli.test.mjs`
+- Modify: `pipeline/.env.example`, `pipeline/cli.mjs`, `pipeline/lib/source.mjs`, `pipeline/README.md`
 - Modify: `pipeline/sources/catalog.json`
 
 **Interfaces:**
@@ -310,31 +312,30 @@ A：來源、Raw、Collector、正規化、品質驗證、封裝與 fixture
 - `fetchNcdrHazards({ credentials, endpoint, fetchImpl, retrievedAt }) -> Promise<RawSnapshot>`
 - `normalizeNcdrHazards(rawSnapshot, options) -> unsigned Event[]`
 
-- [ ] **Step 1: Select and document exact datasets**
+- [x] **Step 1: Select and document exact datasets**
 
   Use the CWA earthquake／weather warning dataset IDs and the NCDR dataset or service actually available to the project account. Record access mode, authentication, format, update frequency and permission limitations in `catalog.json`; do not claim NCDR is live when the available source is a downloadable snapshot or restricted service.
 
-- [ ] **Step 2: Add fixture-driven failure cases**
+- [x] **Step 2: Add fixture-driven failure cases**
 
   Test malformed time, missing geometry, invalid source ID, an event outside Neihu, and an expired warning. A valid warning must remain an event with `expires_at`; an expired event may remain cached but must not be marked current.
 
-- [ ] **Step 3: Implement source-specific normalization**
+- [x] **Step 3: Implement source-specific normalization**
 
   Map CWA／NCDR source records to stable event IDs and uppercase event types. Preserve the original alert number, source description, affected area and original unit inside `attributes`; do not convert an alert into a self-invented risk score.
 
-- [ ] **Step 4: Add authentication-safe live commands**
+- [x] **Step 4: Add authentication-safe live commands**
 
   Read CWA credentials from `CWA_API_KEY` and NCDR credentials from the configured runtime environment. Ensure sanitized Raw metadata never contains those values. A missing or unauthorized source must produce a source-status result and non-zero smoke exit code rather than an empty successful dataset.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests; commit remains user-authorized**
 
   Run: `node --test pipeline/test/cwa-ncdr.test.mjs pipeline/test/pipeline.test.mjs`
 
   Expected: valid fixture events normalize and sign; invalid and out-of-area records are rejected or excluded with explicit reasons.
 
   ```bash
-  git add pipeline/sources/cwa.mjs pipeline/sources/ncdr.mjs pipeline/test/cwa-ncdr.test.mjs fixtures/neihu/cwa-earthquake-raw.json fixtures/neihu/cwa-warning-raw.json fixtures/neihu/ncdr-hazard-raw.json fixtures/neihu/cwa-events.json fixtures/neihu/ncdr-events.json pipeline/sources/catalog.json
-  git commit -m "feat: add CWA and NCDR disaster collectors"
+  # Commit only after reviewing the mixed worktree and receiving explicit approval.
   ```
 
 ## 7. Task 5：接入 OSM、避難所與醫療 Static Feature
@@ -345,10 +346,10 @@ A：來源、Raw、Collector、正規化、品質驗證、封裝與 fixture
 - Create: `pipeline/sources/shelter.mjs`
 - Create: `pipeline/sources/medical.mjs`
 - Create: `pipeline/test/static-sources.test.mjs`
-- Create: `fixtures/neihu/osm-raw.json`
-- Create: `fixtures/neihu/shelter-raw.json`
-- Create: `fixtures/neihu/medical-raw.json`
-- Create: `fixtures/neihu/features.json`
+- Create: `data/fixtures/neihu/osm-raw.json`
+- Create: `data/fixtures/neihu/shelter-raw.json`
+- Create: `data/fixtures/neihu/medical-raw.json`
+- Create: `data/fixtures/neihu/features.json`
 - Create: `pipeline/lib/feature-contract.mjs`
 - Create: `pipeline/lib/feature-bundle.mjs`
 - Modify: `pipeline/cli.mjs`
@@ -366,31 +367,31 @@ A：來源、Raw、Collector、正規化、品質驗證、封裝與 fixture
 - `buildFeatureBundle(features, options) -> { manifest, chunks }`
 - `verifyFeatureBundle(bundle, publicKey, options) -> VerificationResult`
 
-- [ ] **Step 1: Write static feature tests**
+- [x] **Step 1: Write static feature tests**
 
   Assert that OSM road／POI, shelter and hospital records become `feature-v0` with stable `feature_id`, `layer_id`, WGS84 geometry, source properties and provenance. Assert that shelter location and capacity are static properties while open／full／closed status becomes a separate event.
 
-- [ ] **Step 2: Implement feature signing without changing event v0**
+- [x] **Step 2: Implement feature signing without changing event v0**
 
   Reuse `signCanonical`, `verifyCanonical`, SHA-256 and trusted key handling. Keep feature signing input separate from `eventPayload` so an existing event hash cannot change. Reject a feature before bundle creation if its geometry, identity, time or source metadata is invalid.
 
-- [ ] **Step 3: Implement static source normalizers**
+- [x] **Step 3: Implement static source normalizers**
 
   Preserve original OSM tags, shelter source columns and medical source columns in `properties.source_record`. Normalize only identifiers, coordinate order, timestamps, booleans, numeric values and field names needed by B. Do not calculate nearest shelter, route, capacity pressure or medical coverage.
 
-- [ ] **Step 4: Build and verify a static layer bundle**
+- [x] **Step 4: Build and verify a static layer bundle**
 
   Use a separate `layer-manifest-v0`／`layer-chunk-v0` package. The manifest must identify `layer_id`, `source_version`, `record_count`, `total_size_bytes`, `bbox`, `content_hash`, expiration policy and chunk references. The existing event bundle build path must remain unchanged.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests; commit remains user-authorized**
 
-  Run: `node --test pipeline/test/static-sources.test.mjs pipeline/test/feature-contract.test.mjs pipeline/test/pipeline.test.mjs`
+  Run: `npm test` and `node --test pipeline/test/static-sources.test.mjs pipeline/test/feature-contract.test.mjs pipeline/test/cli.test.mjs`
 
-  Expected: static features verify independently; shelter status events use the event verifier; existing event tests remain green.
+  Result: static features verify independently; shelter status is kept as a separate
+  unsigned event batch for the existing event signing step; existing event tests remain green.
 
   ```bash
-  git add pipeline/sources/osm.mjs pipeline/sources/shelter.mjs pipeline/sources/medical.mjs pipeline/test/static-sources.test.mjs pipeline/lib/feature-contract.mjs pipeline/lib/feature-bundle.mjs pipeline/test/feature-contract.test.mjs fixtures/neihu/osm-raw.json fixtures/neihu/shelter-raw.json fixtures/neihu/medical-raw.json fixtures/neihu/features.json pipeline/cli.mjs
-  git commit -m "feat: package Neihu static map and resource layers"
+  # Commit only after reviewing the mixed worktree and receiving explicit approval.
   ```
 
 ## 8. Task 6：完成 DEM／DSM、網路與 SAR／光學資料的來源準備
@@ -399,6 +400,7 @@ A：來源、Raw、Collector、正規化、品質驗證、封裝與 fixture
 
 - Modify: `pipeline/sources/catalog.json`
 - Create: `pipeline/sources/raster-catalog.json`
+- Create: `pipeline/lib/raster.mjs`
 - Create: `pipeline/test/raster-catalog.test.mjs`
 - Modify: `docs/data-contract-v0.md`
 
@@ -407,40 +409,41 @@ A：來源、Raw、Collector、正規化、品質驗證、封裝與 fixture
 - `validateRasterCatalogEntry(entry) -> string[]`
 - `makeRasterArtifactMetadata({ sourceId, layerId, format, crs, bbox, retrievedAt, expiresAt, fileHash, accessMode }) -> RasterArtifactMetadata`
 
-- [ ] **Step 1: Create the raster／network source records**
+- [x] **Step 1: Create the raster／network source records**
 
   Each entry must include source owner, exact URL or application path, format, coordinate system, spatial extent, temporal extent, update mode, access restriction, file hash and intended use. Entries must explicitly distinguish raw data from derived risk analysis.
 
-- [ ] **Step 2: Add sample metadata without fabricating live results**
+- [x] **Step 2: Add sample metadata without fabricating live results**
 
   Store a small, legally usable sample or metadata-only fixture for DEM／DSM, network and SAR／optical sources. Do not create a fake current hazard image or claim automatic satellite detection.
 
-- [ ] **Step 3: Add validation tests**
+- [x] **Step 3: Add validation tests**
 
   Test missing source URL, unsupported format, invalid CRS, missing hash, invalid bbox and expired artifact metadata. Test that each of the three source IDs has a P2 or P3 stage and a non-empty limitation statement.
 
-- [ ] **Step 4: Record the handoff boundary**
+- [x] **Step 4: Record the handoff boundary**
 
   Document that A provides raster artifact metadata and source files; D or a later analytics task computes slope, isolation, coverage or image-derived hazard polygons. B receives a layer manifest rather than raw source credentials.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests; commit remains user-authorized**
 
   Run: `node --test pipeline/test/raster-catalog.test.mjs`
 
   Expected: all advanced-source records are complete and honest about access／processing status.
+  Result: the three advanced sources are registered as metadata-only (`file_hash: null` until a real artifact is downloaded); raster catalog tests pass, full Node tests pass, Python replay tests pass, and the working tree was not committed.
 
   ```bash
-  git add pipeline/sources/catalog.json pipeline/sources/raster-catalog.json pipeline/test/raster-catalog.test.mjs docs/data-contract-v0.md
-  git commit -m "docs: register advanced Neihu raster sources"
+  # Commit only after reviewing the mixed worktree and receiving explicit approval.
   ```
 
 ## 9. Task 7：建立內湖整合 fixture、更新序列與 replay 驗證
 
 **Files:**
 
-- Create: `fixtures/neihu/manifest.json`
-- Create: `fixtures/neihu/update-sequence.json`
-- Create: `fixtures/neihu/expected-results.json`
+- Create: `data/fixtures/neihu/manifest.json`
+- Create: `data/fixtures/neihu/update-sequence.json`
+- Create: `data/fixtures/neihu/expected-results.json`
+- Create: `pipeline/lib/neihu-replay.mjs`
 - Create: `pipeline/test/neihu-replay.test.mjs`
 - Modify: `pipeline/README.md`
 - Modify: `fixtures/README.md`
@@ -451,7 +454,7 @@ A：來源、Raw、Collector、正規化、品質驗證、封裝與 fixture
 - `replayNeihuFixture(fixture, now) -> { inserted, updated, expired, rejected, current, featureLayers }`
 - `checkNeihuExpectations(result, expected) -> string[]`
 
-- [ ] **Step 1: Build the first Neihu fixture**
+- [x] **Step 1: Build the first Neihu fixture**
 
   Include at least these transitions:
 
@@ -464,15 +467,15 @@ A：來源、Raw、Collector、正規化、品質驗證、封裝與 fixture
   crowd:road:382       separate unverified namespace, never overwrites official.tdx
   ```
 
-- [ ] **Step 2: Expand records deterministically**
+- [x] **Step 2: Expand records deterministically**
 
   Generate records from fixed IDs and fixed timestamps until the dynamic fixture contains 100 records; add a checked-in 1,000-record variant only after the 100-record replay is green. Do not generate random IDs or current-time values in tests.
 
-- [ ] **Step 3: Implement replay expectations**
+- [x] **Step 3: Implement replay expectations**
 
   Assert idempotence, newer-version replacement, rollback rejection, expiry state, namespace isolation, static feature replacement by snapshot version, and preservation of Raw records excluded by the Neihu filter.
 
-- [ ] **Step 4: Run the complete local validation**
+- [x] **Step 4: Run the complete local validation**
 
   ```bash
   npm test
@@ -481,13 +484,13 @@ A：來源、Raw、Collector、正規化、品質驗證、封裝與 fixture
   git diff --check
   ```
 
-  Expected: existing 6 Node tests, existing 4 Python tests and new Neihu replay tests pass; no whitespace errors are reported.
+  Expected: the full Node suite, existing 4 Python tests and new Neihu replay tests pass; no whitespace errors are reported.
+  Result: `npm test` passed 107 tests, Python replay passed 4 tests, the dedicated replay suite passed 5 tests, and `git diff --check` passed.
 
-- [ ] **Step 5: Commit the replay fixture**
+- [x] **Step 5: Review changes; commit remains user-authorized**
 
   ```bash
-  git add fixtures/neihu pipeline/test/neihu-replay.test.mjs pipeline/README.md fixtures/README.md
-  git commit -m "test: add replayable Neihu data scenarios"
+  # Commit only after reviewing the mixed worktree and receiving explicit approval.
   ```
 
 ## 10. Task 8：建立 A → B／C／D 交付文件與 live smoke 驗收
@@ -519,7 +522,7 @@ A：來源、Raw、Collector、正規化、品質驗證、封裝與 fixture
 
 - [ ] **Step 4: Run final acceptance checks**
 
-  Run fixture validation without network, then run live smoke only when credentials and network are available. A source with no access must be marked `blocked_by_access` or `unavailable`, never reported as a successful empty source.
+  Run fixture validation without network, then run live smoke only when credentials and network are available. NCDR access is optional for the deadline Demo: if the account is not approved, mark it `blocked_by_access` and use the Neihu simulation/replay fixture. A source with no access must never be reported as a successful empty live source.
 
   ```bash
   node pipeline/sources/smoke.mjs --source tdx-road-events

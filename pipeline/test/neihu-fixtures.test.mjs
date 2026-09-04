@@ -13,7 +13,7 @@ import { bboxOfEvents, bboxContains } from '../lib/geo.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
-const NEIHU = path.join(ROOT, 'fixtures', 'neihu');
+const NEIHU = path.join(ROOT, 'data', 'fixtures', 'neihu');
 const { privateKey, publicKey } = generateEd25519KeyPair();
 const KEY_ID = 'test-neihu-2026';
 

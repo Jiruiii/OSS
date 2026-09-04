@@ -5,7 +5,7 @@
 `system.md` §6 階段 4 與 `team-assignments.md` D 要求一套「可重播的多節點模擬」，比較不同
 擴散策略並產出 §7 的指標報告。目前 repo 完全沒有這塊 —— 沒有 `simulator/` 也沒有
 `experiments/` 目錄（兩者都寫在 `system.md` §9）。`simulate` 分支剛完成內湖資料集與地理
-分片（chunk 帶 `area_id`/`theme`/`bbox`、`fixtures/neihu/scale-v136.json` ~500 筆事件、
+分片（chunk 帶 `area_id`/`theme`/`bbox`、`data/fixtures/neihu/scale-v136.json` ~500 筆事件、
 `pipeline/lib/geo.mjs`）；`origin/main` 有組員 C 的 `pipeline/lib/peer-sync.mjs`
 （`computeDiff`/`buildRequest`）。**本機 `main`（`b671cc6`，尚未 push，ahead 9）已經把兩邊
 merge 好** —— 這就是本次的基底。
@@ -38,7 +38,7 @@ npm test                                   # 動工前先確認 20 個 Node 測�
 | `README.md` | 這是什麼／不是什麼、怎麼跑、決定性、「不宣稱覆蓋全城」註記 |
 | `fixtures/sim-config.json` | 唯一的固定情境：`rounds`、`seconds_per_round`、節點數清單、`area_density_weights`、`adjacency`、`contact_probability`、`max_peer_count`、`cellular_chunks_per_round`、`max_bytes_per_round`、`transfer_failure_prob`、`gateway_ratio`、`cellular_fallback_rounds`、`p2p_throughput_bytes_per_sec` |
 | `lib/rng.mjs` | `mulberry32`（複製自 `tools/generate-neihu-fixtures.mjs`）+ `stream(label, ...ints)` 子種子 + 決定性 Fisher–Yates shuffle/sample |
-| `lib/scenario.mjs` | 讀 `fixtures/neihu/scale-v136.json` + `scenario.json`；`normalizeSource`→`signEvent`，用執行時 `generateEd25519KeyPair()`；`buildBundle(..., targetSizeBytes: 8192)`；由 manifest 各 chunk 的 `bbox` 依 `area_id` 聯集算出 `areaBbox[area_id]`；`latestVersionByEventId`；凍結後回傳 `ScenarioContext` |
+| `lib/scenario.mjs` | 讀 `data/fixtures/neihu/scale-v136.json` + `scenario.json`；`normalizeSource`→`signEvent`，用執行時 `generateEd25519KeyPair()`；`buildBundle(..., targetSizeBytes: 8192)`；由 manifest 各 chunk 的 `bbox` 依 `area_id` 聯集算出 `areaBbox[area_id]`；`latestVersionByEventId`；凍結後回傳 `ScenarioContext` |
 | `lib/world.mjs` | 節點模型；依密度權重把 N 個節點決定性分配到 5 個 area；每節點 `attentionWindow`（自身 + 鄰接 area 的 bbox）；gateway 選取 |
 | `lib/topology.mjs` | 決定性的 round-based 無向接觸圖：同 area ∪ 鄰接 area 為候選 → 種子 shuffle → 取前 `min(max_peer_count, 5)` → 每條邊以 `contact_probability` 實現；邊依 `(a.id,b.id)` 排序後迭代 |
 | `lib/strategies.mjs` | 三策略統一介面 `{ usesPeerPhase, serverPullers, orderRequest }`；replication 直接包 `computeDiff`/`buildRequest`；rarest-first 依全域持有數升冪排序（CRITICAL 仍優先） |

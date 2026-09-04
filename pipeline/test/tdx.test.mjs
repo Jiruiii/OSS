@@ -176,7 +176,7 @@ test('collects the complete Raw snapshot and curated Neihu events together', asy
 
 test('normalizes the checked-in Neihu TDX fixture without credentials', () => {
   const raw = JSON.parse(readFileSync(
-    path.join(ROOT, 'fixtures/neihu/tdx-raw-batch-1.json'),
+    path.join(ROOT, 'data/fixtures/neihu/tdx-raw-batch-1.json'),
     'utf8',
   ));
   const events = normalizeTdxRoadEvents(raw, { boundary: OFFICIAL_NEIHU_BOUNDARY });

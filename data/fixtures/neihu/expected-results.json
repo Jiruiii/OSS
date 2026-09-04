@@ -1,0 +1,30 @@
+{
+  "schema_version": "neihu-replay-expectations-v0",
+  "evaluation_time": "2026-09-04T08:00:00Z",
+  "expected_record_count": 100,
+  "counts": {"inserted": 95, "updated": 4, "rejected": 1},
+  "current_count": 95,
+  "expired_count": 1,
+  "final_events": [
+    {"namespace": "official.tdx", "event_id": "road:382", "event_version": 2, "state": "current"},
+    {"namespace": "official.cwa", "event_id": "warning:001", "event_version": 1, "state": "expired"},
+    {"namespace": "official.ncdr", "event_id": "flood:001", "event_version": 2, "state": "current"},
+    {"namespace": "official.fire", "event_id": "shelter:001", "event_version": 3, "state": "current", "status": "CLOSED"},
+    {"namespace": "crowd.road", "event_id": "road:382", "event_version": 1, "state": "unverified"}
+  ],
+  "final_features": [
+    {
+      "layer_id": "medical",
+      "feature_id": "hospital:001",
+      "snapshot_version": 2,
+      "source_version": "medical-snapshot-2",
+      "content_state": "unchanged",
+      "unchanged_snapshot_count": 1
+    }
+  ],
+  "raw_preservation": {
+    "snapshot_count": 2,
+    "raw_record_count": 3,
+    "excluded_record_count": 1
+  }
+}
