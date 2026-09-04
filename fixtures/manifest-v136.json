@@ -1,6 +1,6 @@
 {
   "schema_version": "manifest-v0",
-  "manifest_id": "demo:official:136",
+  "manifest_id": "resilientgeo-demo:manifest:136",
   "dataset_id": "resilientgeo-demo",
   "namespace": "official",
   "source": "MIXED_OFFICIAL_FIXTURE",
@@ -13,41 +13,49 @@
     "target_size_bytes": 4096,
     "hash_algorithm": "SHA-256"
   },
-  "total_event_count": 4,
+  "total_event_count": 3,
   "total_size_bytes": 2254,
   "chunks": [
     {
-      "chunk_id": "demo:chunk:road-v136",
+      "chunk_id": "resilientgeo-demo:chunk:136:dahu:road:000",
       "sequence": 0,
       "chunk_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       "size_bytes": 512,
       "event_count": 1,
       "priority": "CRITICAL",
+      "area_id": "neihu.dahu",
+      "theme": "road",
+      "bbox": [121.5952185, 25.0841055, 121.6005135, 25.0845461],
       "event_ids": [
-        "road:382"
+        "road:chenggong-4"
       ]
     },
     {
-      "chunk_id": "demo:chunk:shelters-v136",
+      "chunk_id": "resilientgeo-demo:chunk:136:dahu:shelter:000",
       "sequence": 1,
       "chunk_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "size_bytes": 982,
-      "event_count": 2,
+      "event_count": 1,
       "priority": "HIGH",
+      "area_id": "neihu.dahu",
+      "theme": "shelter",
+      "bbox": [121.600697, 25.087809, 121.600697, 25.087809],
       "event_ids": [
-        "shelter:31",
-        "shelter:42"
+        "shelter:dahu-es"
       ]
     },
     {
-      "chunk_id": "demo:chunk:weather-v136",
+      "chunk_id": "resilientgeo-demo:chunk:136:xihu:flood:000",
       "sequence": 2,
       "chunk_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
       "size_bytes": 760,
       "event_count": 1,
       "priority": "CRITICAL",
+      "area_id": "neihu.xihu",
+      "theme": "flood",
+      "bbox": [121.56, 25.079, 121.575, 25.086],
       "event_ids": [
-        "rain:0901-001"
+        "flood:keelung-xihu"
       ]
     }
   ],

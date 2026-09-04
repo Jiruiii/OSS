@@ -19,19 +19,19 @@
     {
       "dataset_id": "resilientgeo-demo",
       "namespace": "official",
-      "manifest_id": "demo:official:136",
+      "manifest_id": "resilientgeo-demo:manifest:136",
       "manifest_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
       "dataset_version": 136,
       "chunks": [
         {
-          "chunk_id": "demo:chunk:road-v136",
+          "chunk_id": "resilientgeo-demo:chunk:136:dahu:road:000",
           "chunk_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
           "size_bytes": 512,
           "priority": "CRITICAL",
           "state": "available"
         },
         {
-          "chunk_id": "demo:chunk:weather-v136",
+          "chunk_id": "resilientgeo-demo:chunk:136:xihu:flood:000",
           "chunk_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
           "size_bytes": 760,
           "priority": "CRITICAL",

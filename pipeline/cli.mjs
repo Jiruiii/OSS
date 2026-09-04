@@ -18,7 +18,7 @@ import {
   signEvent,
   verifyBundle,
 } from './lib/contract.mjs';
-import { normalizeTdx } from './lib/normalize.mjs';
+import { normalizeSource } from './lib/normalize.mjs';
 
 function parseArgs(argv) {
   const [command, ...rest] = argv;
@@ -89,7 +89,7 @@ async function build(options) {
   const privateKey = readPrivateKey(await readFile(privateKeyPath));
   const keyId = options.key_id ?? 'stage2-ed25519-2026';
   const namespace = options.namespace ?? 'official.tdx';
-  const normalized = normalizeTdx(raw, {
+  const normalized = normalizeSource(raw, {
     namespace,
     signingKeyId: keyId,
     receivedAt: raw.retrieved_at,
@@ -101,8 +101,8 @@ async function build(options) {
     datasetId: options.dataset_id ?? raw.dataset_id,
     namespace: options.manifest_namespace ?? 'official',
     datasetVersion,
-    source: raw.source,
-    sourceVersion: raw.source_version,
+    source: options.source ?? raw.source ?? 'MIXED',
+    sourceVersion: options.source_version ?? raw.source_version ?? String(datasetVersion),
     createdAt: options.created_at ?? raw.retrieved_at,
     expiresAt: options.expires_at ?? raw.expires_at,
     signingKeyId: keyId,

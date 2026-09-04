@@ -1,18 +1,19 @@
 {
   "fixture_version": "events-batch-v0",
   "fixture_id": "baseline-2026-09-01",
-  "description": "Initial official events. shelter:31 is intentionally expired at the replay clock used by expected-results-v0.json.",
+  "description": "Initial official Neihu events. shelter:dahu-es is intentionally expired at the replay clock used by expected-results-v0.json. Real OSM geometry, synthetic incident content.",
   "events": [
     {
       "schema_version": "event-v0",
       "namespace": "official.tdx",
-      "event_id": "road:382",
+      "event_id": "road:chenggong-4",
       "event_type": "ROAD_STATUS",
       "geometry": {
         "type": "LineString",
         "coordinates": [
-          [121.599, 23.981],
-          [121.604, 23.982]
+          [121.5952185, 25.0841055],
+          [121.5972202, 25.0845303],
+          [121.6005135, 25.0845461]
         ]
       },
       "severity": "HIGH",
@@ -22,8 +23,10 @@
       "issued_at": "2026-09-01T06:32:00Z",
       "expires_at": "2026-09-01T08:32:00Z",
       "attributes": {
+        "area_id": "neihu.dahu",
+        "theme": "road",
         "status": "OPEN",
-        "road_name": "台9線",
+        "road_name": "成功路四段",
         "reason": null
       },
       "payload_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
@@ -42,11 +45,11 @@
     {
       "schema_version": "event-v0",
       "namespace": "official.fire",
-      "event_id": "shelter:31",
+      "event_id": "shelter:dahu-es",
       "event_type": "SHELTER_STATUS",
       "geometry": {
         "type": "Point",
-        "coordinates": [121.603, 23.985]
+        "coordinates": [121.600697, 25.087809]
       },
       "severity": "HIGH",
       "source": "FIRE_AGENCY",
@@ -55,7 +58,10 @@
       "issued_at": "2026-09-01T06:20:00Z",
       "expires_at": "2026-09-01T07:00:00Z",
       "attributes": {
+        "area_id": "neihu.dahu",
+        "theme": "shelter",
         "status": "OPEN",
+        "site_name": "大湖國小",
         "capacity": 300,
         "available": 120
       },
@@ -75,17 +81,17 @@
     {
       "schema_version": "event-v0",
       "namespace": "official.cwa",
-      "event_id": "rain:0901-001",
-      "event_type": "HEAVY_RAIN",
+      "event_id": "flood:keelung-xihu",
+      "event_type": "FLOOD_WARNING",
       "geometry": {
         "type": "Polygon",
         "coordinates": [
           [
-            [121.59, 23.97],
-            [121.62, 23.97],
-            [121.62, 24.0],
-            [121.59, 24.0],
-            [121.59, 23.97]
+            [121.56, 25.079],
+            [121.575, 25.079],
+            [121.575, 25.086],
+            [121.56, 25.086],
+            [121.56, 25.079]
           ]
         ]
       },
@@ -96,7 +102,10 @@
       "issued_at": "2026-09-01T06:00:00Z",
       "expires_at": "2026-09-01T10:00:00Z",
       "attributes": {
-        "alert_type": "HEAVY_RAIN",
+        "area_id": "neihu.xihu",
+        "theme": "flood",
+        "alert_type": "RIVERBANK_FLOOD",
+        "river": "基隆河",
         "rainfall_mm_per_hour": 80,
         "status": "ACTIVE"
       },
