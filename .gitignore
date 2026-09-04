@@ -3,6 +3,8 @@
 .stage2-bundle/
 .neihu-bundle/
 .neihu-scale/
+.sim-out/
+.sim-out*/
 
 # Python test/runtime artifacts.
 __pycache__/
