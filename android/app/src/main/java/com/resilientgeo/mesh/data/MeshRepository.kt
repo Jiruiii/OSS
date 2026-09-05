@@ -11,6 +11,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 /**
  * Wires the trust adapter and apply rules to Room. This is the only class
@@ -95,6 +97,7 @@ class MeshRepository(context: Context) {
         fallbackManifestId: String,
         fallbackDatasetVersion: Int,
     ): JSONObject = withContext(Dispatchers.IO) {
+        val now = Instant.now()
         val held = chunkDao.forDatasetSync(datasetId, namespace)
         val newest = held.maxByOrNull { it.datasetVersion }
 
@@ -118,11 +121,34 @@ class MeshRepository(context: Context) {
             .put("dataset_version", newest?.datasetVersion ?: fallbackDatasetVersion)
             .put("chunks", chunks)
 
+        // Every field `schemas/peer-summary-v0.schema.json` marks required.
+        // The hand-written summaries this replaced carried only
+        // schema_version/node_id/datasets, so the HELLO actually going over
+        // the air did not conform to the schema the project publishes as its
+        // module interface — and nothing noticed, because the parser only
+        // reads node_id and datasets.
         JSONObject()
             .put("schema_version", "peer-summary-v0")
+            .put("protocol_version", "0")
             .put("node_id", nodeId)
+            .put("generated_at", DateTimeFormatter.ISO_INSTANT.format(now.truncatedTo(ChronoUnit.SECONDS)))
+            .put("capabilities", capabilities())
             .put("datasets", JSONArray().put(dataset))
     }
+
+    /**
+     * What this node can actually do, per ADR-001: BLE for discovery and BLE
+     * GATT for transfer, with byte-level resume proven on real devices. The
+     * two Wi-Fi-based transports the schema also allows were rejected and
+     * their implementations removed, so advertising them would be a lie a
+     * peer could act on.
+     */
+    private fun capabilities(): JSONObject = JSONObject()
+        .put("discovery_transports", JSONArray().put("BLE"))
+        .put("transfer_transports", JSONArray().put("BLE_GATT"))
+        .put("max_peer_count", MAX_PEER_COUNT)
+        .put("supports_resume", true)
+        .put("max_chunk_bytes", MAX_CHUNK_BYTES)
 
     /** How many verified chunks this node currently holds — for status UI/logs. */
     suspend fun heldChunkCount(): Int = withContext(Dispatchers.IO) { chunkDao.countSync() }
@@ -143,6 +169,17 @@ class MeshRepository(context: Context) {
     )
 
     companion object {
+        /** Schema caps this at 5; ADR-001's contact windows make 4 the practical limit. */
+        private const val MAX_PEER_COUNT = 4
+
+        /**
+         * Largest chunk this node will accept. The Neihu scale dataset's
+         * biggest chunk is 46.6 KB (ADR-001), so 1 MiB is headroom rather
+         * than a real constraint — it exists to bound what a peer can ask
+         * this node to buffer.
+         */
+        private const val MAX_CHUNK_BYTES = 1048576
+
         private const val FIXTURE_ASSET = "fixtures/signed-events.json"
         private const val TRUSTED_KEYS_ASSET = "trust/trusted-keys.json"
     }

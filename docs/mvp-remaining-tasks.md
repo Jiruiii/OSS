@@ -83,6 +83,19 @@
   改版後的服務會持續 BLE 掃描，必須重新量測。過程中發現**舊的 22.35 / 26.78 mW 根本沒有量到耗電**：當時手機插著 USB 且電量全滿，電池電流在零附近震盪，記錄到的是計量器雜訊。三項證據：(1) 兩個「不同條件」的 min／p25／median 完全相同（1.35／10.83／20.31），不同工作負載不可能如此；(2) 22 mW 對整支手機物理上不可能，本次量到螢幕關閉的閒置就是約 385 mW；(3) 滿電插電的 Pixel 8a 今天可重現同樣的正負震盪型態。
   重測結果：Pixel 7 螢幕關閉、Pixel 8a 當鄰居，baseline 與 Emergency Mode **交錯** 6 輪 × 60 筆 ⇒ **385 → 439 mW，+54 mW（+14%）**，約每小時多耗 0.3% 電量。採用「各輪中位數的中位數」而非平均值：baseline 第 3 輪被系統背景工作污染（748 mW，其餘五輪 363–398），該輪**保留不刪**，並同時揭露彙總算法的 +43 mW 以顯示估計值對這一輪的敏感度。每輪取樣前後都用 logcat 驗證服務狀態，驗證不過就丟棄該輪——第一次嘗試正是因為螢幕關閉後裝置重新上鎖、開關沒按到，產出了「看起來合理但服務其實沒開」的數據，全部作廢重跑。
 
+## E. 2026-09-05 第二輪程式碼審查（實機在手）
+
+- [x] **11. HELLO 不符合自己發布的 schema** — `schemas/peer-summary-v0.schema.json` 要求 6 個頂層欄位（`schema_version`／`protocol_version`／`node_id`／`generated_at`／`capabilities`／`datasets`），但 Android 端寫死的 `NODE_A/B_SUMMARY` 只帶 3 個，`localPeerSummary()` 也照抄了這個缺陷。沒有東西攔得住，因為 `PeerSummary.fromJson` 只讀 `node_id` 與 `datasets`，而 `pipeline/test/schema.test.mjs` **從未驗證過 peer-summary fixture**。這是唯一真的會在兩台手機之間傳輸的訊息，卻是唯一沒被驗證的 schema。已補齊兩端欄位，並在 Node 測試補上 fixture 對 schema 的驗證、缺欄位的反向測試，以及兩份 fixture 副本（repo 根目錄與 Android test resources）必須位元相同的測試——否則 Kotlin 與 JS 版的 `computeDiff` 會在不同輸入上各自「通過」。
+
+- [x] **12. 能力宣告仍在推銷已否決的傳輸層** — 四份 peer-summary fixture 的 `transfer_transports` 都寫著 `["NEARBY_CONNECTIONS","WIFI_DIRECT"]`，兩個都是 ADR-001 實測後否決、程式碼也已刪除的方案。更根本的是 **schema 的 transport enum 裡根本沒有本專案實際採用的 BLE GATT**——那份詞彙表早於 ADR-001，只能說「BLE」，而在原始設計裡 BLE 專指「只做發現、不做傳輸」。已把 `BLE_GATT` 加進 enum（純擴充），四份 fixture 與 App 端一律改為宣告 `discovery=["BLE"]`／`transfer=["BLE_GATT"]`，並加測試釘住。
+
+- [x] **13. Room 1→2 migration 完全沒被測試** — 其餘 instrumented 測試用 `inMemoryDatabaseBuilder`，那是每次全新建表、**永遠不會執行 migration**。手寫的 `CREATE TABLE` 只要與 Room 期望的 schema 有一點不符，升級的裝置一開 App 就會崩潰，而重新安裝的人永遠測不到。新增 `MigrationInstrumentedTest`：手工造一個 v1 資料庫並塞入一筆事件，用真實檔案開啟 v2，驗證**既有事件仍在**（這正是階段 1「資料不會消失」的通過條件，也是當初不用 destructive fallback 的理由）、chunks 表可寫可讀、全新安裝路徑不受影響。兩台 Pixel 實機通過。
+
+- [x] **14. 送出失敗卻回報成功** — `PeerSyncMilestoneActivity` 的 `sendEnvelope()` 失敗時只記一行 log，呼叫端仍無條件印「sent HELLO」／「sent REQUEST」。實機跑的時候親眼看到 `send failed ... writeCharacteristic() failed to queue` 的下一行就是「sent HELLO」。這個畫面上的日誌正是 demo 時人類用來判斷協定有沒有跑通的依據，等於一次什麼都沒送出去的執行看起來跟成功握手一模一樣。改成回傳 Boolean，失敗就不宣稱送出，並把訊息改為明顯的 `send FAILED`。
+
+- [ ] **15. 兩機端到端仍待實機補跑**（唯一未完成項）
+  第 11、12 項改動了兩台裝置實際交換的 HELLO 內容與大小。已用實機 instrumented 測試驗證產出的 summary 欄位、格式與能力宣告正確（`PeerSummaryConformanceInstrumentedTest`，兩台 Pixel 通過），但**完整的 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY 兩機序列尚未在改動後重跑**——嘗試時兩台手機都回到鎖定畫面，無法操作角色選擇按鈕。風險評估為低（HELLO 約數百 bytes，遠低於已驗證的 1147+ bytes chunk 傳輸；解析端會忽略額外欄位），但**低風險不等於已驗證**，補跑前不應宣稱這條路徑已通過。
+
 ---
 
 ## 完成標準

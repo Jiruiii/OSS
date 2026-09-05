@@ -8,8 +8,7 @@
       "BLE"
     ],
     "transfer_transports": [
-      "NEARBY_CONNECTIONS",
-      "WIFI_DIRECT"
+      "BLE_GATT"
     ],
     "max_peer_count": 3,
     "supports_resume": true,
