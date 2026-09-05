@@ -204,29 +204,30 @@ class _MapScreenState extends State<MapScreen> {
     context: context,
     builder:
         (context) => StatefulBuilder(
-          builder: (context, modalSetState) => LayerFilterPanel(
-            showShelters: _showShelters,
-            showMedical: _showMedical,
-            showEvents: _showEvents,
-            emergencyModeEnabled: _emergencyModeEnabled,
-            onSheltersChanged: (value) {
-              modalSetState(() {});
-              setState(() => _showShelters = value);
-            },
-            onMedicalChanged: (value) {
-              modalSetState(() {});
-              setState(() => _showMedical = value);
-            },
-            onEventsChanged: (value) {
-              modalSetState(() {});
-              setState(() => _showEvents = value);
-            },
-            onEmergencyModeChanged: (value) async {
-              await _setEmergencyMode(value);
-              if (context.mounted) modalSetState(() {});
-            },
-            onLoadFixture: _loadFixture,
-          ),
+          builder:
+              (context, modalSetState) => LayerFilterPanel(
+                showShelters: _showShelters,
+                showMedical: _showMedical,
+                showEvents: _showEvents,
+                emergencyModeEnabled: _emergencyModeEnabled,
+                onSheltersChanged: (value) {
+                  setState(() => _showShelters = value);
+                  modalSetState(() {});
+                },
+                onMedicalChanged: (value) {
+                  setState(() => _showMedical = value);
+                  modalSetState(() {});
+                },
+                onEventsChanged: (value) {
+                  setState(() => _showEvents = value);
+                  modalSetState(() {});
+                },
+                onEmergencyModeChanged: (value) async {
+                  await _setEmergencyMode(value);
+                  if (context.mounted) modalSetState(() {});
+                },
+                onLoadFixture: _loadFixture,
+              ),
         ),
   );
 
@@ -300,6 +301,7 @@ class _MapScreenState extends State<MapScreen> {
                 maxZoom: 17,
                 minNativeZoom: 12,
                 maxNativeZoom: 17,
+                tileBounds: _neihuBounds,
                 keepBuffer: 0,
                 panBuffer: 0,
                 tileDisplay: const TileDisplay.instantaneous(),
@@ -396,7 +398,7 @@ class _StatusOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DecoratedBox(
     decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surface.withOpacity(0.94),
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.94),
       borderRadius: BorderRadius.circular(12),
       boxShadow: const <BoxShadow>[
         BoxShadow(color: Colors.black26, blurRadius: 4),

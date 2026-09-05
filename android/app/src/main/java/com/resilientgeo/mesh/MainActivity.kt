@@ -9,7 +9,7 @@ import androidx.core.content.ContextCompat
 import com.resilientgeo.mesh.bridge.FlutterMapBridge
 import com.resilientgeo.mesh.bridge.SharedPreferencesEmergencyModeState
 import com.resilientgeo.mesh.emergency.EmergencyModeService
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 
 /**
@@ -20,7 +20,7 @@ import io.flutter.embedding.engine.FlutterEngine
  * bridge is registered here, while the native transport activities remain
  * developer harnesses rather than end-user map-screen content.
  */
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
 
     private var mapBridge: FlutterMapBridge? = null
 

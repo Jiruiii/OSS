@@ -1,12 +1,66 @@
 # ResilientGeo Mesh — Android
 
+> 2026-09-05 更新：Android 現在是原生資料與服務的 host，`MainActivity` 直接嵌入 Flutter 內湖離線地圖。下方較早的 native-only baseline 驗證紀錄仍保留作為歷史證據；Flutter 整合後的目前編譯狀態見「Current Flutter integration note」。
+
 Single Android project, jointly owned:
 
-- **Module B (GIS & 本機資料庫)** — offline map, local database, apply
-  rules, Ed25519 trust adapter. `MainActivity` is the app's launcher.
+- **Module B (GIS & 本機資料庫)** — local database, apply rules and Ed25519
+  trust adapter. Its verified event state is now consumed by the Flutter map;
+  `MainActivity` remains the app's launcher.
 - **Module C (Peer Sync & 傳輸層)** — Stage 0 BLE discovery spike
-  (`transport/`), reachable from a button on `MainActivity`. See
+  (`transport/`) and peer-sync harnesses. They remain debug-only native
+  activities rather than content on the Flutter map screen. See
   `C_BLEbroadcast.md` at the repo root for C's device-tested findings.
+
+## Current Flutter integration note
+
+`MainActivity` is now a `FlutterFragmentActivity`. The Flutter module is maintained
+under `flutter/` and is included as the `:flutter` source-code subproject by
+`flutter/.android/include_flutter.groovy`; generated `.android/` files are not
+hand-edited. The user-facing surface is `flutter/lib/screens/map_screen.dart`.
+
+The map uses only committed assets: `flutter_map`'s `AssetTileProvider` loads
+the versioned Neihu tiles at zoom 12–17, with no online tile fallback. The
+snapshot contains 5,774 OSM road geometries, 26 shelters and 4 medical
+facilities. Zoom 17 is the street-level display limit for this snapshot.
+
+Flutter reads native state through `FlutterMapBridge`:
+
+- `com.resilientgeo.mesh/map`: `getInitialState`, `loadBundledFixture` and
+  `setEmergencyMode`.
+- `com.resilientgeo.mesh/events`: verified Room event snapshots, including
+  Android's authoritative `apply_state`.
+
+Room ingestion, signature verification, TTL/version rules, BLE and the
+foreground Emergency Mode service remain Android-owned. Flutter is read-only
+with respect to Room. Shelter `capacity` means expected capacity; current
+occupancy is intentionally unavailable (`available_count: null`) and the UI
+shows `無資料`, never zero. Bundled demo events are labeled
+`模擬事件，非即時官方災情`.
+
+### Current build result
+
+Flutter static asset validation, Flutter analyze/tests, Android unit tests
+(48 tests), and the embedded host `assembleDebug` build pass. The host APK
+is produced at `android/app/build/outputs/apk/debug/app-debug.apk` and
+contains the committed Neihu static data and zoom-17 tiles. Gradle emits a
+non-blocking warning that `path_provider_android` requests NDK
+27.0.12077973 while the generated Flutter module declares 26.3.11579264;
+the module's generated `.android/` files remain unedited. Device-level
+offline restart and marker interaction should still be checked on the target
+phone before release.
+
+### 在 Android Studio 查看 Flutter 畫面
+
+1. 用 Android Studio 開啟 `<repo>/android`，不要把 `flutter/.android/`
+   當成要編輯的專案。
+2. 確認 `android/local.properties` 指向 Android SDK 與 Flutter SDK；這個檔案
+   已被 gitignore，不會提交。
+3. 啟動 Android Emulator 或連接手機，在 Android Studio 選 `app` 設定並執行
+   debug。App 啟動後會直接進入 Flutter 內湖地圖。
+4. Flutter 畫面程式在 `flutter/lib/`；要使用 Dart hot reload，可另外在
+   Android Studio 安裝 Flutter／Dart plugin，開啟 `flutter/` 編輯，但最終
+   整合畫面仍應由 `android` host 的 debug APK 驗證。
 
 This file was rewritten while reconciling two Android projects that were
 built independently on separate branches (B built a full Gradle skeleton
@@ -16,7 +70,11 @@ resource conventions as the base and ported B's code into it — see
 "Reconciliation notes" below for exactly what that involved and the
 reasoning behind each judgment call.
 
-## Build status
+## Native-only baseline build status (before Flutter embed)
+
+The following three verification layers were run against the native-only
+baseline on a real device. They are historical evidence and do not replace
+the current Flutter-host build check described above:
 
 All three verification layers have actually been run against this
 branch, on a real device (Pixel 8a, API 36, connected over USB) — not
@@ -57,14 +115,14 @@ just assumed from reading the build files:
   on this machine that was `<Android Studio install dir>/jbr` (find the
   real install dir via `%LOCALAPPDATA%\Google\AndroidStudio*\.home` if
   Android Studio itself was installed somewhere other than
-  `Program Files`). `gradle-daemon-jvm.properties` requests JDK 25
-  specifically; Android Studio's bundled JBR happened to already be 25.
+  `Program Files`). `gradle-daemon-jvm.properties` selects JDK 21 for the
+  Flutter 3.29.2/Gradle 8.11.1 host combination.
 - `android/local.properties` (gitignored, not committed) needs
   `sdk.dir=<path to Android SDK>`. Default location is
   `%LOCALAPPDATA%\Android\Sdk`; Android Studio's own SDK Manager creates
   and manages this.
 
-### What actually broke on first build (and why the fixes are what they are)
+### Historical native-only build notes
 
 Reading the Gradle files was not enough to predict these — they only
 showed up by actually running `./gradlew` against this exact AGP/Kotlin
@@ -116,7 +174,7 @@ combination:
    `CanonicalTest` case that parses real JSON text instead of only testing
    Kotlin double literals, so this can't silently regress again.
 
-## Reconciliation notes (read before trusting this build)
+## Historical reconciliation notes (native-only baseline)
 
 - **C's original project never applied `org.jetbrains.kotlin.android` —
   and that was correct, not a gap.** An earlier pass at this
@@ -196,29 +254,25 @@ combination:
 
 | Requirement (team-assignments.md) | Where |
 | --- | --- |
-| 顯示測試區域離線底圖（道路、避難所圖層） | `map/OfflineMapView.kt`, `map/GeoJson.kt`, `map/Geometry.kt` |
+| 顯示測試區域離線底圖（道路、避難所圖層） | `../flutter/lib/screens/map_screen.dart`, `../flutter/lib/widgets/map_layers.dart` |
 | 本機資料庫，保存事件、版本、到期時間 | `data/EventEntity.kt`, `data/EventDao.kt`, `data/AppDatabase.kt` |
 | 事件套用規則：新版覆蓋舊版、過期標示、namespace 隔離 | `ingest/EventIngestor.kt`, `ingest/EventStore.kt` |
 | Android 端簽章驗證 adapter | `trust/Canonical.kt`, `trust/Ed25519Verifier.kt`, `trust/EventVerifier.kt`, `trust/EventShapeValidator.kt`, `trust/TrustedKeyStore.kt` |
 
-`MainActivity` + `ui/MainViewModel` + `ui/EventListAdapter` wire these
-together: a "Load bundled test events" button feeds
-`assets/fixtures/signed-events.json` through `EventIngestor` into Room,
-and the map + list both observe Room directly.
+`FlutterMapBridge` now owns the host integration: Flutter requests the
+initial Room snapshot and fixture ingestion through method channels, while
+Android continues to own `EventIngestor`, Room and the verification rules.
+The older `ui/MainViewModel`/`EventListAdapter` classes remain native support
+code from the baseline and are not the normal Flutter launcher surface.
 
 ## Design decisions worth knowing about (module B)
 
-### Why not a tiled basemap
+### Previous native-only map implementation
 
-`OfflineMapView` draws the Neihu test area as a fixed-bounding-box vector
-canvas — roads/shelters/hazard polygons rendered directly from event
-geometry, nothing else. No binary tile assets, no map SDK, no API keys,
-no network access of any kind. What you see is exactly what's in the
-local database, which is exactly what passed `EventVerifier`. Swapping in
-a real tiled basemap for Neihu is a reasonable follow-up (module A
-already has real OSM geometry in `data/fixtures/neihu/osm-snapshot.json`) but
-is additive — it wouldn't change `EventEntity`, `EventIngestor`, or the
-trust adapter, only what `MainActivity` hands to the map view.
+`OfflineMapView` is retained as the earlier native-only vector implementation.
+It is no longer the normal launcher surface: the Flutter map owns the current
+offline basemap and marker/details interaction. The native event and trust
+layers remain unchanged and are exposed to Flutter through the bridge above.
 
 ### Why Bouncy Castle instead of the platform provider
 
@@ -276,11 +330,10 @@ SQLite.
 
 ## Known gaps / next steps
 
-All items that were blocking a merge-back to `main` are resolved: unit
-tests, instrumented tests, the manual offline-restart check, and the BLE
-Spike button navigation have all been verified on a real device (see
-"Build status" above), and the launcher-activity question has been
-decided (see "Reconciliation notes" above) rather than left open.
+The native-only baseline items are resolved. The Flutter embed now builds and
+its host unit tests pass; target-device offline restart, Room event
+redelivery after Flutter host restart, and marker interaction remain release
+acceptance checks.
 
 **Remaining (not blocking):**
 - No launcher icon work needed from B — C's project already ships real
@@ -288,8 +341,8 @@ decided (see "Reconciliation notes" above) rather than left open.
 - `GeoJson.kt` only parses Point/LineString/Polygon (what the bundled
   fixtures use); MultiPoint/MultiLineString/MultiPolygon/
   GeometryCollection return `null` (skipped, not crashed).
-- No UI for namespace filtering, TTL countdown, or manual event
-  inspection beyond the flat list.
+- No UI for namespace filtering or TTL countdown; Flutter now provides marker
+  details for shelters, medical facilities and events.
 - Module C's `PeerTransport.kt` interface has no implementation wired
   into `EventIngestor` yet — per `C_BLEbroadcast.md`'s handoff notes,
   that's expected to land once Stage 0's two-device discovery test and a

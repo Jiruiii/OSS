@@ -1,13 +1,14 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
 }
 
 android {
     namespace = "com.resilientgeo.mesh"
-    compileSdk {
-        version = release(37)
-    }
+    // AGP 8.7.3 (the Flutter 3.29.2 plugin baseline) is tested through API
+    // 35 on this checkout; targetSdk can remain newer independently.
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.resilientgeo.mesh"
@@ -21,9 +22,7 @@ android {
 
     buildTypes {
         release {
-            optimization {
-                enable = false
-            }
+            isMinifyEnabled = false
         }
     }
 
@@ -35,15 +34,12 @@ android {
         // needed for the trust adapter's Instant-based timestamp parsing.
     }
 
-    // No separate `kotlinOptions { jvmTarget = ... }` block: that DSL came
-    // from the org.jetbrains.kotlin.android plugin, which this project
-    // doesn't apply (see build.gradle.kts). Built-in Kotlin derives the
-    // Kotlin compile target from compileOptions above instead — confirmed
-    // by actually running ./gradlew here ("Unresolved reference
-    // 'kotlinOptions'" once kotlin.android was removed).
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17.toString()
+    }
 
     buildFeatures {
-        // Views + ViewBinding for the offline-GIS screen (module B). Compose
+        // Views + ViewBinding for the native support screens (module B). Compose
         // was dropped: the only place it was used was the placeholder
         // "Hello Android" MainActivity this replaces — BleSpikeActivity
         // (module C's Stage 0 spike) was always a plain ComponentActivity

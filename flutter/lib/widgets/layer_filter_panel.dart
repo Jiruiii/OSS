@@ -26,40 +26,42 @@ class LayerFilterPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SafeArea(
-    child: Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text('圖層設定', style: Theme.of(context).textTheme.titleLarge),
-          SwitchListTile(
-            title: const Text('避難所'),
-            value: showShelters,
-            onChanged: onSheltersChanged,
-          ),
-          SwitchListTile(
-            title: const Text('醫療院所'),
-            value: showMedical,
-            onChanged: onMedicalChanged,
-          ),
-          SwitchListTile(
-            title: const Text('災情事件'),
-            value: showEvents,
-            onChanged: onEventsChanged,
-          ),
-          const Divider(),
-          SwitchListTile(
-            title: const Text('緊急模式'),
-            value: emergencyModeEnabled,
-            onChanged: onEmergencyModeChanged,
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: onLoadFixture,
-            icon: const Icon(Icons.inventory_2_outlined),
-            label: const Text('載入內建 fixture'),
-          ),
-        ],
+    child: SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text('圖層設定', style: Theme.of(context).textTheme.titleLarge),
+            SwitchListTile(
+              title: const Text('避難所'),
+              value: showShelters,
+              onChanged: onSheltersChanged,
+            ),
+            SwitchListTile(
+              title: const Text('醫療院所'),
+              value: showMedical,
+              onChanged: onMedicalChanged,
+            ),
+            SwitchListTile(
+              title: const Text('災情事件'),
+              value: showEvents,
+              onChanged: onEventsChanged,
+            ),
+            const Divider(),
+            SwitchListTile(
+              title: const Text('緊急模式'),
+              value: emergencyModeEnabled,
+              onChanged: onEmergencyModeChanged,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: onLoadFixture,
+              icon: const Icon(Icons.inventory_2_outlined),
+              label: const Text('載入內建 fixture'),
+            ),
+          ],
+        ),
       ),
     ),
   );

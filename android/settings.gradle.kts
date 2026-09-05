@@ -15,7 +15,10 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    // Flutter's Gradle plugin adds the engine Maven repository to the
+    // generated :flutter project. Allow that plugin-owned repository while
+    // retaining the settings repositories for the native host.
+    repositoriesMode.set(RepositoriesMode.PREFER_PROJECT)
     repositories {
         google()
         mavenCentral()

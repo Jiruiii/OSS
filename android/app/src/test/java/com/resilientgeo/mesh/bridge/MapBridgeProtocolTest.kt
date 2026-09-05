@@ -41,7 +41,10 @@ class MapBridgeProtocolTest {
             listOf(
                 IngestResult.Inserted(insertedIntoSeparateNamespace = false, state = ApplyState.CURRENT),
                 IngestResult.Updated(fromVersion = 1, toVersion = 2, state = ApplyState.CURRENT),
-                IngestResult.RejectedSameVersionConflict(storedVersion = 2),
+                IngestResult.RejectedSameVersionConflict(
+                    storedVersion = 2,
+                    incomingVersion = 2,
+                ),
             ),
         )
 

@@ -2,6 +2,8 @@
 
 > 極端通訊環境下的空間情報系統 — 當基地台總頻寬受限時，讓附近的手機彼此交換各自缺少的災情資料分片。
 
+> 2026-09-06 更新：Android App 的 launcher 現在是 Flutter module 的內湖離線地圖；Android 原生保留 Room、事件驗證／TTL、BLE 與 transport harness，Flutter 透過 bridge 只讀取已驗證事件。
+
 ## 問題與目標
 
 災害發生時通訊資源下降，但民眾與救援人員對「最新空間資訊」的需求反而急遽上升。現有地圖與防災服務多半依賴持續連網下載，因此會出現**有訊號、卻來不及取得關鍵資訊**的情況：地圖載不出來、關鍵資訊跟不重要的資訊一起搶頻寬、災前下載的離線地圖沒有災後新增的道路封閉與避難所滿載。
@@ -32,7 +34,7 @@
 
 ## 核心功能
 
-- **離線優先的災情地圖** — 事件、版本與到期時間存在手機本機資料庫（Room/SQLite），關掉網路、強制結束 App 再重開，地圖與事件列表照常顯示，並以 CURRENT／EXPIRED／UNVERIFIED 分色標示新鮮度與可信狀態。
+- **Flutter 離線優先的災情地圖** — 內湖道路 raster tiles、避難所、醫療院所與事件以版本化 asset／Room 提供；關掉網路、強制結束 App 再重開，地圖與已驗證事件照常顯示，並以 CURRENT／EXPIRED／UNVERIFIED 分色標示新鮮度與可信狀態。
 - **Peer-to-peer 分片交換** — 兩台手機經 BLE GATT 完成 `HELLO`（交換資料集摘要）→ `DIFF`（算出雙方缺哪些分片）→ `REQUEST`（依 critical／稀有度／大小／TTL 排序）→ `TRANSFER`（分段、位元組級可中斷續傳）→ `VERIFY/APPLY`（驗證後原子寫入），**只交換對方缺少的分片**。
 - **Store-Carry-Forward（DTN）** — A 傳給 B，B 移動後遇到 C 再傳給 C；A 與 C 從不需要同時連線。已用三台實機驗證：force-stop A 之後，C 仍經 B 收到並驗證全部事件。節點會把通過驗證的分片記進本機庫存，因此收到資料後能對下一個 peer 如實宣告「我有這些」，而不是回報空手。
 - **端到端可信度** — 伺服器端以 Ed25519 簽章，手機端在寫入前驗證 hash、簽章、版本與 TTL。版本倒退一律拒絕；官方資料與群眾回報分屬不同 namespace，永不互相覆蓋。私鑰從不進入 repo，也不隨 App 出貨。
@@ -64,15 +66,15 @@ flowchart LR
 | 類型 | 技術／服務 | 用途 |
 | --- | --- | --- |
 | AI 模型 | 未使用 | 本專案為協定與傳輸層研究，不涉及模型推論；所有排程決策（critical-first、rarest-first、地理過濾）皆為決定性規則，以利可重現量測 |
-| 前端（行動端） | Kotlin、Android SDK（minSdk 26／targetSdk 37）、AppCompat + Material Components、ViewBinding、RecyclerView | Emergency Mode 開關、事件列表與新鮮度標示 |
-| 前端（地圖） | 自繪 `OfflineMapView`（Android Canvas + 自寫 GeoJSON 解析） | 內湖區固定範圍向量圖，無地圖 SDK、無圖磚、無 API key、不連網 |
+| 前端（行動端） | Kotlin Android host（minSdk 26／targetSdk 37）+ Flutter module | Flutter launcher、Room／BLE bridge、Emergency Mode 權限與原生服務 |
+| 前端（地圖） | Flutter `flutter_map` + `latlong2` + `AssetTileProvider` | 內湖區版本化 raster tiles、道路、避難所、醫療院所與事件圖層，無線上 tile fallback |
 | 後端（資料管線） | Node.js（零外部相依，僅用內建模組）、`node:crypto` Ed25519 | 來源擷取、正規化、分片、簽章與驗證 CLI |
 | 後端（模擬與分析） | Node.js 決定性模擬器、`node:test` | DTN 擴散模擬、四指標報告、位元級可重現性檢查 |
 | 資料庫 | Room 2.6.1 / SQLite（KSP 註解處理） | 手機本機事件、版本、到期時間儲存 |
 | 密碼學 | Bouncy Castle `bcprov-jdk18on` 1.78.1 | Android 端 Ed25519 驗簽（平台 provider 至 API 33 才支援 EdDSA） |
 | 傳輸層 | Android BLE GATT（自訂 service：DATA write／ACK notify／CONTROL characteristic） | Peer discovery、連線、分片傳輸與位元組級續傳 |
 | 資料契約 | JSON Schema（`event-v0`／`manifest-v0`／`chunk-v0`／`peer-summary-v0`／`feature-v0`） | 跨模組介面，pipeline 與 Android 各自實作、以同一份 fixture 交叉驗證 |
-| 測試 | JUnit 4、AndroidX Test、`node:test`、Python `unittest` | 40 項 JVM 單元測試、14 項 instrumented 測試、122 項 Node 測試、4 項 Python replay 測試 |
+| 測試 | Flutter test、JUnit 4、AndroidX Test、`node:test`、Python `unittest` | 19 項 Flutter 測試、48 項 JVM 單元測試、14 項 instrumented 測試、122 項 Node 測試、6 項 Python 測試 |
 | Sponsor 技術 | 未使用 | 本次未使用主辦方或贊助商提供的服務；pipeline 與 simulator 零第三方相依，Android 端僅用 AndroidX 與 Bouncy Castle |
 
 > 曾評估但**否決**的技術，實測記錄見 [`docs/adr/ADR-001-transport-layer.md`](docs/adr/ADR-001-transport-layer.md)：**Nearby Connections**（兩台實機皆回傳 Google 側 `INTERNAL_ERROR`，非 App 端可控）、**原生 Wi-Fi Direct**（discovery／連線可行，但 TCP 卡在疑似 Android per-app 網路路由限制）。
@@ -83,6 +85,7 @@ flowchart LR
 
 - Node.js 20+（pipeline 與 simulator，無需 `npm install`，零外部相依）
 - Python 3.10+（replay 測試，僅用標準庫）
+- Flutter 3.29.2／Dart 3.7.2（內湖地圖 module）
 - JDK 17+ 與 Android SDK（Android App；Android Studio 內建的 JBR 即可）
 
 ```bash
@@ -112,17 +115,24 @@ node simulator/cli.mjs run --nodes 50 --strategy rarest-first --seed 20260904 --
 node simulator/cli.mjs run --nodes 50 --strategy rarest-first --seed 20260904 --geo-filter --out .sim-out
 node simulator/cli.mjs matrix --check      # 位元比對已提交的 experiments/results/，應為 PASS
 
-# ---------- 4. Android App（需實機或模擬器） ----------
+# ---------- 4. Flutter 內湖地圖 ----------
+cd flutter
+flutter pub get
+flutter analyze
+flutter test                                 # 19 項通過
+
+# ---------- 5. Android App（需實機或模擬器） ----------
 # 先建立 android/local.properties，內容為 sdk.dir=<Android SDK 路徑>
 cd android
-./gradlew testDebugUnitTest                # 40 項 JVM 單元測試
-./gradlew connectedDebugAndroidTest        # 7 項 instrumented 測試（需接實機）
+./gradlew testDebugUnitTest                # 48 項 JVM 單元測試
+./gradlew connectedDebugAndroidTest        # 14 項 instrumented 測試（需接實機）
+./gradlew assembleDebug                    # 產生含 Flutter 地圖的 debug APK
 ./gradlew installDebug                     # 安裝到已連線的裝置
 ```
 
-App 主畫面提供：Emergency Mode 開關（啟停前景服務與 BLE 廣播／掃描）、「Load bundled test events」（把 `assets/fixtures/signed-events.json` 經完整驗證流程寫入 Room）、**「Peer Sync (2 devices)」**（本專案核心功能的入口）、離線地圖與事件列表，以及 BLE spike harness。
+App 主畫面直接進入 Flutter 內湖離線地圖，提供道路底圖、避難所／醫療院所／事件圖層、圖層設定、回到內湖範圍、點位詳情與重疊點位選擇；「載入內建 fixture」與 Emergency Mode 仍由 Android bridge 執行。Peer Sync、BLE spike 與量測畫面是 debug-only 的原生測試 harness，不放在一般地圖主畫面。
 
-**兩機 peer sync 實測**需要兩台開啟藍牙的 Android 裝置，各自在主畫面按「Peer Sync (2 devices)」，再分別指定 NODE_A（requester）／NODE_B（server）角色。逐步 demo 講稿見 [`experiments/demo.md`](experiments/demo.md)；Android 端建置細節與踩雷紀錄見 [`android/README.md`](android/README.md)。
+**兩機 peer sync 實測**需要兩台開啟藍牙的 Android 裝置，debug APK 可由 Android Studio 啟動對應的 `PeerSyncMilestoneActivity`，再分別指定 NODE_A（requester）／NODE_B（server）角色。逐步 demo 講稿見 [`experiments/demo.md`](experiments/demo.md)；Android 端建置細節與踩雷紀錄見 [`android/README.md`](android/README.md)。
 
 ### 實測與模擬結果摘要
 
@@ -180,7 +190,7 @@ App 主畫面提供：Emergency Mode 開關（啟停前景服務與 BLE 廣播�
 - 補齊跨機型連線成功率統計、鎖屏／Doze 長時存活驗證，以及間歇性接觸模式下的耗電量測。
 - 讓 Emergency Mode 服務自行完成連線與同步（含兩台裝置相遇時的自動角色協商），把「開著就會自己交換」變成真的。
 - 讓節點能重新供應自己持有的分片位元組，而不只是宣告持有；群眾回報的信譽評分與多裝置共識。
-- 以真實圖磚底圖（PMTiles／MapLibre）取代目前的自繪向量圖，並加入離線路徑規劃。
+- 擴大目前版本化 raster tiles 的覆蓋範圍，並加入離線路徑規劃。
 
 完整版見 [`experiments/limitations.md`](experiments/limitations.md) 與 [`docs/mvp-remaining-tasks.md`](docs/mvp-remaining-tasks.md)。
 

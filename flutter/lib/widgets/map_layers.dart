@@ -143,7 +143,9 @@ class MapLayers {
           rings.length > 1
               ? rings.skip(1).map((ring) => ring.map(_latLng).toList()).toList()
               : null,
-      color: eventColor(event).withOpacity(event.isExpired ? 0.12 : 0.28),
+      color: eventColor(event).withValues(
+        alpha: event.isExpired ? 0.12 : 0.28,
+      ),
       borderColor: eventColor(event),
       borderStrokeWidth: 3,
       hitValue: event,
