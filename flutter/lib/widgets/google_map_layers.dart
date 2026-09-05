@@ -14,7 +14,7 @@ import 'map_layers.dart';
 class GoogleMapLayers {
   const GoogleMapLayers._();
 
-  static const double markerDiameter = 30;
+  static const double markerDiameter = 32;
 
   static GoogleMapOverlays build({
     required List<StaticFeature> features,
@@ -26,6 +26,7 @@ class GoogleMapLayers {
     required MeshEventSelection onEventSelected,
     required Set<String> pulsingEventKeys,
     required double pulseFraction,
+    GeoPoint? currentLocation,
     GoogleMarkerIcons? markerIcons,
   }) {
     final visibleFacilities = features
@@ -51,6 +52,8 @@ class GoogleMapLayers {
         ...visibleEvents.map(
           (event) => _eventMarker(event, onEventSelected, markerIcons),
         ),
+        if (currentLocation != null)
+          _locationMarker(currentLocation, markerIcons),
       },
       polylines:
           visibleEvents
@@ -128,6 +131,18 @@ class GoogleMapLayers {
     );
   }
 
+  static google.Marker _locationMarker(
+    GeoPoint location,
+    GoogleMarkerIcons? markerIcons,
+  ) => google.Marker(
+    markerId: const google.MarkerId('demo-current-location'),
+    position: _latLng(location),
+    icon: markerIcons?.currentLocation ?? _fallbackLocationMarker,
+    anchor: const Offset(0.5, 0.5),
+    infoWindow: const google.InfoWindow(title: '目前位置'),
+    zIndexInt: 1000,
+  );
+
   static google.Polyline _eventPolyline(
     MeshEvent event,
     MeshEventSelection onSelected,
@@ -200,14 +215,16 @@ class GoogleMapLayers {
   static google.LatLng _latLng(GeoPoint point) =>
       google.LatLng(point.latitude, point.longitude);
 
-  static final google.BitmapDescriptor _fallbackShelterMarker = google
-      .BitmapDescriptor.defaultMarkerWithHue(google.BitmapDescriptor.hueCyan);
-  static final google.BitmapDescriptor _fallbackMedicalMarker = google
-      .BitmapDescriptor.defaultMarkerWithHue(google.BitmapDescriptor.hueViolet);
-  static final google.BitmapDescriptor _fallbackEventMarker = google
-      .BitmapDescriptor.defaultMarkerWithHue(google.BitmapDescriptor.hueOrange);
-  static final google.BitmapDescriptor _fallbackExpiredMarker = google
-      .BitmapDescriptor.defaultMarkerWithHue(google.BitmapDescriptor.hueAzure);
+  static final google.BitmapDescriptor _fallbackShelterMarker =
+      google.BitmapDescriptor.defaultMarker;
+  static final google.BitmapDescriptor _fallbackMedicalMarker =
+      google.BitmapDescriptor.defaultMarker;
+  static final google.BitmapDescriptor _fallbackEventMarker =
+      google.BitmapDescriptor.defaultMarker;
+  static final google.BitmapDescriptor _fallbackExpiredMarker =
+      google.BitmapDescriptor.defaultMarker;
+  static final google.BitmapDescriptor _fallbackLocationMarker =
+      google.BitmapDescriptor.defaultMarker;
 }
 
 class GoogleMapOverlays {
@@ -225,19 +242,21 @@ class GoogleMapOverlays {
 }
 
 /// Small PNG marker descriptors keep Google and Flutter marker footprints close
-/// to 30 logical pixels on phones and high-density screens.
+/// to 32 logical pixels on phones and high-density screens.
 class GoogleMarkerIcons {
   const GoogleMarkerIcons({
     required this.shelter,
     required this.medical,
     required this.event,
     required this.expiredEvent,
+    required this.currentLocation,
   });
 
   final google.BitmapDescriptor shelter;
   final google.BitmapDescriptor medical;
   final google.BitmapDescriptor event;
   final google.BitmapDescriptor expiredEvent;
+  final google.BitmapDescriptor currentLocation;
 
   static Future<GoogleMarkerIcons> create({
     required double devicePixelRatio,
@@ -245,10 +264,11 @@ class GoogleMarkerIcons {
     final size = GoogleMapLayers.markerDiameter;
     final icons = await Future.wait<google.BitmapDescriptor>(
       <Future<google.BitmapDescriptor>>[
-        _roundIcon(const Color(0xFF006C63), size, devicePixelRatio),
-        _roundIcon(const Color(0xFF6A1B9A), size, devicePixelRatio),
-        _roundIcon(const Color(0xFFEF6C00), size, devicePixelRatio),
-        _roundIcon(Colors.grey.shade700, size, devicePixelRatio),
+        _glyphIcon(Icons.home_work, size, devicePixelRatio),
+        _glyphIcon(Icons.local_hospital, size, devicePixelRatio),
+        _glyphIcon(Icons.warning_amber_rounded, size, devicePixelRatio),
+        _glyphIcon(Icons.schedule, size, devicePixelRatio),
+        _locationDot(size, devicePixelRatio),
       ],
     );
     return GoogleMarkerIcons(
@@ -256,11 +276,61 @@ class GoogleMarkerIcons {
       medical: icons[1],
       event: icons[2],
       expiredEvent: icons[3],
+      currentLocation: icons[4],
     );
   }
 
-  static Future<google.BitmapDescriptor> _roundIcon(
-    Color color,
+  static Future<google.BitmapDescriptor> _glyphIcon(
+    IconData icon,
+    double logicalSize,
+    double devicePixelRatio,
+  ) async {
+    final pixels = (logicalSize * devicePixelRatio).round();
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    final inset = 2 * devicePixelRatio;
+    final rect = ui.Rect.fromLTWH(
+      inset,
+      inset,
+      pixels - (inset * 2),
+      pixels - (inset * 2),
+    );
+    final rrect = ui.RRect.fromRectAndRadius(
+      rect,
+      ui.Radius.circular(8 * devicePixelRatio),
+    );
+    final path = ui.Path()..addRRect(rrect);
+    canvas.drawShadow(path, Colors.black45, 2 * devicePixelRatio, false);
+    canvas.drawRRect(rrect, ui.Paint()..color = Colors.white);
+    canvas.drawRRect(
+      rrect,
+      ui.Paint()
+        ..color = const Color(0xFF263238)
+        ..style = ui.PaintingStyle.stroke
+        ..strokeWidth = 1.4 * devicePixelRatio,
+    );
+
+    final painter = TextPainter(
+      text: TextSpan(
+        text: String.fromCharCode(icon.codePoint),
+        style: TextStyle(
+          color: const Color(0xFF263238),
+          fontSize: 19 * devicePixelRatio,
+          fontFamily: icon.fontFamily,
+          package: icon.fontPackage,
+          height: 1,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(
+      canvas,
+      ui.Offset((pixels - painter.width) / 2, (pixels - painter.height) / 2),
+    );
+    return _finishBitmap(recorder, pixels, logicalSize);
+  }
+
+  static Future<google.BitmapDescriptor> _locationDot(
     double logicalSize,
     double devicePixelRatio,
   ) async {
@@ -268,13 +338,24 @@ class GoogleMarkerIcons {
     final recorder = ui.PictureRecorder();
     final canvas = ui.Canvas(recorder);
     final center = ui.Offset(pixels / 2, pixels / 2);
-    final radius = pixels / 2;
-    canvas.drawCircle(center, radius, ui.Paint()..color = Colors.white);
     canvas.drawCircle(
       center,
-      radius - (2 * devicePixelRatio),
-      ui.Paint()..color = color,
+      9 * devicePixelRatio,
+      ui.Paint()..color = Colors.white,
     );
+    canvas.drawCircle(
+      center,
+      6 * devicePixelRatio,
+      ui.Paint()..color = const Color(0xFF1A73E8),
+    );
+    return _finishBitmap(recorder, pixels, logicalSize);
+  }
+
+  static Future<google.BitmapDescriptor> _finishBitmap(
+    ui.PictureRecorder recorder,
+    int pixels,
+    double logicalSize,
+  ) async {
     final image = await recorder.endRecording().toImage(pixels, pixels);
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
     image.dispose();

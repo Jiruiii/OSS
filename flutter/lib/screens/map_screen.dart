@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/map_bridge.dart';
+import '../data/map_defaults.dart';
 import '../data/location_controller.dart';
 import '../data/map_models.dart';
 import '../data/map_runtime_state.dart';
@@ -67,7 +68,7 @@ class _MapScreenState extends State<MapScreen> {
     providerMode: MapProviderMode.offline,
     themeMode: ThemeMode.system,
     zoomPercentage: 0,
-    currentLocation: null,
+    currentLocation: MapDefaults.demoCurrentLocation,
     animationEnabled: true,
   );
   MapSearchResult? _searchSelection;
@@ -94,7 +95,8 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   MapProviderMode get _requestedProvider =>
-      widget.networkAvailable && widget.configuredGoogleMapsKey.trim().isNotEmpty
+      widget.networkAvailable &&
+              widget.configuredGoogleMapsKey.trim().isNotEmpty
           ? MapProviderMode.googleOnline
           : MapProviderMode.offline;
 
@@ -107,8 +109,12 @@ class _MapScreenState extends State<MapScreen> {
     final preferencesChanged =
         oldWidget.themeMode != widget.themeMode ||
         oldWidget.animationEnabled != widget.animationEnabled;
-    if (!providerChanged && !preferencesChanged) return;
+    final demoEventsChanged = oldWidget.demoEvents != widget.demoEvents;
+    if (!providerChanged && !preferencesChanged && !demoEventsChanged) return;
     setState(() {
+      if (demoEventsChanged && widget.demoEvents != null) {
+        _demoEvents = widget.demoEvents!;
+      }
       _runtimeState = _runtimeState.copyWith(
         providerMode: providerChanged ? _requestedProvider : null,
         themeMode: preferencesChanged ? widget.themeMode : null,
@@ -397,6 +403,9 @@ class _MapScreenState extends State<MapScreen> {
                   _StatusOverlay(
                     snapshotAt: staticFeatures.snapshotAt,
                     providerMode: activeProvider,
+                    showingDemoLocation:
+                        _runtimeState.currentLocation ==
+                        MapDefaults.demoCurrentLocation,
                   ),
                   const Spacer(),
                 ],
@@ -427,10 +436,15 @@ class _MapScreenState extends State<MapScreen> {
 }
 
 class _StatusOverlay extends StatelessWidget {
-  const _StatusOverlay({required this.snapshotAt, required this.providerMode});
+  const _StatusOverlay({
+    required this.snapshotAt,
+    required this.providerMode,
+    required this.showingDemoLocation,
+  });
 
   final String? snapshotAt;
   final MapProviderMode providerMode;
+  final bool showingDemoLocation;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -453,6 +467,7 @@ class _StatusOverlay extends StatelessWidget {
                 : 'OSM 離線底圖',
           ),
           Text('資料快照：${snapshotAt ?? '無資料'}'),
+          if (showingDemoLocation) const Text('目前位置：成功路二段附近（模擬）'),
           const Text(
             '模擬事件，非即時官方災情',
             style: TextStyle(fontWeight: FontWeight.w700),

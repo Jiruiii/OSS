@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/map_defaults.dart';
 import '../data/map_models.dart';
 import 'map_layers.dart';
 
@@ -82,10 +83,17 @@ class FeatureDetailsSheet extends StatelessWidget {
     final details = feature.details;
     final kind = feature.kind;
     if (kind == 'shelter') {
+      final authoritativeOccupancy = details['available_count'];
+      final occupancy =
+          authoritativeOccupancy ??
+          MapDefaults.simulatedShelterOccupancy(feature);
       return <Widget>[
         _DetailLine('地址', _text(details['address'])),
         _DetailLine('預計收容人數', _peopleText(details['capacity'])),
-        const _DetailLine('目前收容人數', '無資料'),
+        _DetailLine(
+          authoritativeOccupancy == null ? '目前收容人數（Demo 模擬）' : '目前收容人數',
+          _peopleText(occupancy),
+        ),
         _DetailLine('適用災害類別', _listText(details['disaster_types'])),
         _DetailLine('來源', _text(details['source'])),
         _DetailLine('快照', _text(snapshotAt)),

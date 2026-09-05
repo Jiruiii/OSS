@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' as google;
 import 'package:latlong2/latlong.dart' as latlng;
 
 import '../data/map_models.dart';
+import '../data/map_defaults.dart';
 import '../data/map_runtime_state.dart';
 import '../data/map_search.dart';
 import '../data/map_zoom.dart';
@@ -93,9 +94,9 @@ class MapCanvas extends StatefulWidget {
 }
 
 class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
-  static const latlng.LatLng _neihuCenter = latlng.LatLng(
-    25.083506,
-    121.590304,
+  static const latlng.LatLng _demoCenter = latlng.LatLng(
+    MapDefaults.demoLatitude,
+    MapDefaults.demoLongitude,
   );
   static final LatLngBounds _offlineBounds = LatLngBounds(
     const latlng.LatLng(25.0518603, 121.5519933),
@@ -182,8 +183,8 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       );
       if (mounted) setState(() => _googleMarkerIcons = icons);
     } on Object {
-      // Fall back to SDK-provided colored icons if the platform cannot create
-      // a local bitmap. This does not make a network request.
+      // The SDK fallback remains type/severity neutral if local bitmap
+      // generation is unavailable. This does not make a network request.
     }
   }
 
@@ -253,7 +254,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       );
       return;
     }
-    _offlineController.move(_neihuCenter, MapCanvas.offlineMinZoom);
+    _offlineController.move(_demoCenter, MapCanvas.offlineMinZoom);
   }
 
   void _focus(GeoPoint point) {
@@ -355,10 +356,14 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       pulsingEventKeys: _pulsingEventKeys,
       pulseFraction: pulseFraction,
       markerIcons: _googleMarkerIcons,
+      currentLocation: widget.runtimeState.currentLocation,
     );
     final platformMap = google.GoogleMap(
       initialCameraPosition: google.CameraPosition(
-        target: const google.LatLng(25.083506, 121.590304),
+        target: const google.LatLng(
+          MapDefaults.demoLatitude,
+          MapDefaults.demoLongitude,
+        ),
         zoom: ZoomPercentage.toZoom(
           percentage: widget.runtimeState.zoomPercentage,
           minZoom: MapCanvas.googleMinZoom,
@@ -372,6 +377,10 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       ),
       style: _googleStyle,
       zoomControlsEnabled: false,
+      zoomGesturesEnabled: true,
+      scrollGesturesEnabled: true,
+      rotateGesturesEnabled: false,
+      tiltGesturesEnabled: false,
       myLocationEnabled: widget.runtimeState.currentLocation != null,
       myLocationButtonEnabled: false,
       markers: overlays.markers,
@@ -392,7 +401,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   Widget _buildOfflineMap({double pulseFraction = 0}) => FlutterMap(
     mapController: _offlineController,
     options: MapOptions(
-      initialCenter: _neihuCenter,
+      initialCenter: _demoCenter,
       initialZoom: ZoomPercentage.toZoom(
         percentage: widget.runtimeState.zoomPercentage,
         minZoom: MapCanvas.offlineMinZoom,
@@ -401,6 +410,16 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       minZoom: MapCanvas.offlineMinZoom,
       maxZoom: MapCanvas.offlineMaxZoom,
       cameraConstraint: CameraConstraint.containCenter(bounds: _offlineBounds),
+      interactionOptions: const InteractionOptions(
+        flags:
+            InteractiveFlag.drag |
+            InteractiveFlag.flingAnimation |
+            InteractiveFlag.pinchMove |
+            InteractiveFlag.pinchZoom |
+            InteractiveFlag.doubleTapZoom |
+            InteractiveFlag.doubleTapDragZoom,
+        enableMultiFingerGestureRace: true,
+      ),
       onMapEvent: _onOfflineMapEvent,
       onTap: (_, _) => widget.onMapTap(),
       onMapReady: () {

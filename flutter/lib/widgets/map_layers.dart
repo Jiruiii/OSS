@@ -93,15 +93,11 @@ class MapLayers {
           return Marker(
             key: ValueKey<String>('static-marker-${group.first.id ?? names}'),
             point: _latLng(point),
-            width: 32,
-            height: 32,
+            width: 34,
+            height: 34,
             child: _MapMarkerButton(
               semanticLabel: label,
               icon: isMedicalOnly ? Icons.local_hospital : Icons.home_work,
-              color:
-                  isMedicalOnly
-                      ? const Color(0xFF6A1B9A)
-                      : const Color(0xFF006C63),
               onTap: () => onSelected(group),
             ),
           );
@@ -115,12 +111,11 @@ class MapLayers {
     return Marker(
       key: ValueKey<String>('event-marker-${event.eventId ?? name}'),
       point: _latLng(point),
-      width: 32,
-      height: 32,
+      width: 34,
+      height: 34,
       child: _MapMarkerButton(
         semanticLabel: '事件：$name${event.isExpired ? '，已過期' : ''}',
         icon: event.isExpired ? Icons.schedule : Icons.warning_amber_rounded,
-        color: eventColor(event),
         onTap: () => onSelected(event),
       ),
     );
@@ -288,13 +283,11 @@ class _MapMarkerButton extends StatelessWidget {
   const _MapMarkerButton({
     required this.semanticLabel,
     required this.icon,
-    required this.color,
     required this.onTap,
   });
 
   final String semanticLabel;
   final IconData icon;
-  final Color color;
   final VoidCallback onTap;
 
   @override
@@ -304,18 +297,25 @@ class _MapMarkerButton extends StatelessWidget {
     child: Material(
       color: Colors.transparent,
       child: InkWell(
-        customBorder: const CircleBorder(),
+        borderRadius: BorderRadius.circular(9),
         onTap: onTap,
         child: Ink(
           decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.onSurface,
+              width: 1.4,
+            ),
             boxShadow: const <BoxShadow>[
               BoxShadow(color: Colors.black26, blurRadius: 4),
             ],
           ),
-          child: Icon(icon, color: Colors.white, size: 18),
+          child: Icon(
+            icon,
+            color: Theme.of(context).colorScheme.onSurface,
+            size: 20,
+          ),
         ),
       ),
     ),

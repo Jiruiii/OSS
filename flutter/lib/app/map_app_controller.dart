@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/map_bridge.dart';
+import '../data/map_defaults.dart';
 import '../data/map_models.dart';
 
 /// App-level presentation coordinator.
@@ -19,6 +20,7 @@ class MapAppController extends ChangeNotifier {
 
   static const _themePreference = 'map.theme_mode';
   static const _animationPreference = 'map.animation_enabled';
+  static const _startupDemoEventDelay = Duration(seconds: 10);
 
   final MapBridge bridge;
   final Connectivity _connectivity = Connectivity();
@@ -27,6 +29,7 @@ class MapAppController extends ChangeNotifier {
 
   StreamSubscription<List<MeshEvent>>? _eventSubscription;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  Timer? _startupDemoEventTimer;
   StaticFeatureCollection? staticFeatures;
   List<MeshEvent> demoEvents = const <MeshEvent>[];
   List<MeshEvent> persistedEvents = const <MeshEvent>[];
@@ -42,6 +45,7 @@ class MapAppController extends ChangeNotifier {
   bool isLoading = true;
   Object? loadError;
   bool _disposed = false;
+  bool _startupDemoEventScheduled = false;
 
   Stream<List<MeshEvent>> get eventUpdates => _eventUpdates.stream;
 
@@ -96,6 +100,7 @@ class MapAppController extends ChangeNotifier {
       await _loadPreferences();
       await _loadConnectivity();
       if (nativeBridgeAvailable) _listenToNativeEvents();
+      _scheduleStartupDemoEvent();
     } on Object catch (error) {
       loadError = error;
     } finally {
@@ -114,30 +119,68 @@ class MapAppController extends ChangeNotifier {
     try {
       final result = await _connectivity.checkConnectivity();
       networkAvailable = _hasNetwork(result);
-      _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
-        (results) {
-          final next = _hasNetwork(results);
-          if (next == networkAvailable) return;
-          networkAvailable = next;
-          _notifyIfAlive();
-        },
-        onError: (_) {},
-      );
+      _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
+        results,
+      ) {
+        final next = _hasNetwork(results);
+        if (next == networkAvailable) return;
+        networkAvailable = next;
+        _notifyIfAlive();
+      }, onError: (_) {});
     } on Object {
       networkAvailable = false;
     }
   }
 
   void _listenToNativeEvents() {
-    _eventSubscription = bridge.events.listen(
-      (events) {
-        if (_disposed) return;
-        persistedEvents = events;
-        _eventUpdates.add(List<MeshEvent>.unmodifiable(events));
-        _notifyIfAlive();
-      },
-      onError: (_) {},
-    );
+    _eventSubscription = bridge.events.listen((events) {
+      if (_disposed) return;
+      persistedEvents = events;
+      _eventUpdates.add(List<MeshEvent>.unmodifiable(events));
+      _notifyIfAlive();
+    }, onError: (_) {});
+  }
+
+  void _scheduleStartupDemoEvent() {
+    if (_startupDemoEventScheduled ||
+        demoEvents.any(
+          (event) => event.eventId == MapDefaults.delayedDemoEventId,
+        )) {
+      return;
+    }
+    _startupDemoEventScheduled = true;
+    _startupDemoEventTimer = Timer(_startupDemoEventDelay, () {
+      if (_disposed ||
+          demoEvents.any(
+            (event) => event.eventId == MapDefaults.delayedDemoEventId,
+          )) {
+        return;
+      }
+      final issuedAt = DateTime.now().toUtc();
+      final simulatedEvent = MeshEvent(
+        namespace: 'demo.simulator',
+        eventId: MapDefaults.delayedDemoEventId,
+        eventVersion: 1,
+        eventType: 'LOCAL_FLOOD_ALERT',
+        severity: 'HIGH',
+        source: 'ResilientGeo Demo Simulator（非官方）',
+        issuedAt: issuedAt.toIso8601String(),
+        expiresAt: issuedAt.add(const Duration(hours: 1)).toIso8601String(),
+        applyState: 'CURRENT',
+        geometry: const PointGeometry(MapDefaults.demoCurrentLocation),
+        attributes: const <String, dynamic>{
+          'name': '成功路二段積水模擬警示',
+          'affected_area': '內湖區成功路二段附近',
+          'description': '模擬事件，非即時官方災情',
+          'is_demo': true,
+        },
+      );
+      demoEvents = List<MeshEvent>.unmodifiable(<MeshEvent>[
+        ...demoEvents,
+        simulatedEvent,
+      ]);
+      _notifyIfAlive();
+    });
   }
 
   Future<void> setThemeMode(ThemeMode value) async {
@@ -157,6 +200,7 @@ class MapAppController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _startupDemoEventTimer?.cancel();
     _eventSubscription?.cancel();
     _connectivitySubscription?.cancel();
     _eventUpdates.close();
