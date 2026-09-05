@@ -59,8 +59,28 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
         private const val TAG = "ResilientGeoPeerSync"
         private const val DATASET_ID = "resilientgeo-demo"
         private const val NAMESPACE = "official"
+        // Cross-contact resume demo chunk (item 8) — the only one that gets
+        // the simulated mid-transfer interruption in [serveChunk].
         private const val SERVED_CHUNK_ID = "resilientgeo-demo:chunk:136:dahu:shelter:000"
-        private const val CHUNK_ASSET_PATH = "fixtures/peer-sync/chunk-136-dahu-shelter-000.json"
+
+        // Critical-first scheduling demo chunks (item 9's real-device half —
+        // "Peer 上限" itself needs 3+ devices, out of scope here). Generated
+        // by pipeline/tools/generate-peer-sync-priority-chunks-fixture.mjs.
+        // Listed deliberately out of priority order below (LOW, HIGH,
+        // CRITICAL) in NODE_B_SUMMARY so a REQUEST that comes back
+        // CRITICAL/HIGH/LOW proves buildRequest() actually re-sorted them,
+        // not that they happened to already be in that order.
+        private const val CHUNK_CRITICAL_ID = "resilientgeo-demo:chunk:136:donghu:flood:000"
+        private const val CHUNK_HIGH_ID = "resilientgeo-demo:chunk:136:wende:road:000"
+        private const val CHUNK_LOW_ID = "resilientgeo-demo:chunk:136:dahu:medical:000"
+
+        /** chunk_id -> assets path Node B can serve. */
+        private val SERVED_CHUNKS: Map<String, String> = mapOf(
+            SERVED_CHUNK_ID to "fixtures/peer-sync/chunk-136-dahu-shelter-000.json",
+            CHUNK_CRITICAL_ID to "fixtures/peer-sync/chunk-136-donghu-flood-000.json",
+            CHUNK_HIGH_ID to "fixtures/peer-sync/chunk-136-wende-road-000.json",
+            CHUNK_LOW_ID to "fixtures/peer-sync/chunk-136-dahu-medical-000.json",
+        )
 
         private val NODE_A_SUMMARY = JSONObject(
             """
@@ -98,6 +118,24 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
                       "chunk_id": "$SERVED_CHUNK_ID",
                       "chunk_hash": "sha256:8b7b851074230f562de1d849753269b92ab87e2994eb56e812c43a463db5bb67",
                       "size_bytes": 1147,
+                      "priority": "CRITICAL"
+                    },
+                    {
+                      "chunk_id": "$CHUNK_LOW_ID",
+                      "chunk_hash": "sha256:44a6ce80c751c664b1d737b92ddfda3f68fd3423acf68ce8129cc1b14126fd4b",
+                      "size_bytes": 1165,
+                      "priority": "LOW"
+                    },
+                    {
+                      "chunk_id": "$CHUNK_HIGH_ID",
+                      "chunk_hash": "sha256:778ce46ad0c0c8dd3ac8ce7bffecb01d65e19587d29f49aa9acac976ac8c0832",
+                      "size_bytes": 1163,
+                      "priority": "HIGH"
+                    },
+                    {
+                      "chunk_id": "$CHUNK_CRITICAL_ID",
+                      "chunk_hash": "sha256:70d44e0dcf5bdd1ed10ae7e1081bf7edd7e4d336c285d3389c72946839732099",
+                      "size_bytes": 1148,
                       "priority": "CRITICAL"
                     }
                   ]
@@ -243,6 +281,16 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
                 val summary = if (chosen == Role.NODE_A) NODE_A_SUMMARY else NODE_B_SUMMARY
                 sendEnvelope(conn, JSONObject().put("type", "HELLO").put("summary", summary))
                 appendLog("sent HELLO")
+                // Node B never resends HELLO — if it already arrived here
+                // before this device's own role was chosen/connect() had
+                // finished, handleHello() would have seen role != NODE_A (or
+                // connection == null) and dropped it, silently stalling the
+                // whole exchange forever with no retry. Catch that up now
+                // that both are ready — see pendingRemoteSummaryJson's doc
+                // comment for the two-sided race this closes.
+                if (chosen == Role.NODE_A) {
+                    pendingRemoteSummaryJson?.let { processHelloAsNodeA(it) }
+                }
             } catch (e: Exception) {
                 appendLog("connect/HELLO failed: ${e.message}")
             }
@@ -273,9 +321,39 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Real-device timing race, reproduced live: Node B never resends HELLO
+     * (it sends exactly once, right after its own connect() finishes), so
+     * whichever of these two things happens LAST decides whether the whole
+     * exchange proceeds or stalls forever with no error and no retry:
+     *   1. this device's own role being chosen + its connect() completing
+     *      (so `connection` is non-null)
+     *   2. the peer's HELLO arriving
+     * [handleHello] and [chooseRole] each fire this the moment their own
+     * half becomes true; [diffRequestedOnce] makes sure only one of them
+     * actually sends the REQUEST if both race to it.
+     */
+    @Volatile private var pendingRemoteSummaryJson: JSONObject? = null
+    private val diffRequestedOnce = java.util.concurrent.atomic.AtomicBoolean(false)
+
     private suspend fun handleHello(remoteSummaryJson: JSONObject) {
         appendLog("received HELLO: node_id=${remoteSummaryJson.optString("node_id")}")
-        if (role != Role.NODE_A) return
+        pendingRemoteSummaryJson = remoteSummaryJson
+        if (role == Role.NODE_A) {
+            processHelloAsNodeA(remoteSummaryJson)
+        }
+    }
+
+    private suspend fun processHelloAsNodeA(remoteSummaryJson: JSONObject) {
+        if (!diffRequestedOnce.compareAndSet(false, true)) return
+        val conn = connection
+        if (conn == null) {
+            // Our own connect() hasn't finished yet — chooseRole() will
+            // retry this once it does (pendingRemoteSummaryJson is already
+            // set above), so this isn't a dead end.
+            diffRequestedOnce.set(false)
+            return
+        }
 
         val localSummary = PeerSummary.fromJson(NODE_A_SUMMARY)
         val remoteSummary = PeerSummary.fromJson(remoteSummaryJson)
@@ -295,7 +373,6 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
         }
 
         val request = PeerSync.buildRequest(diff)
-        val conn = connection ?: run { appendLog("no connection to send REQUEST on"); return }
         sendEnvelope(conn, JSONObject().put("type", "REQUEST").put("request", requestToJson(request)))
         appendLog("sent REQUEST for ${request.chunks.map { it.chunkId }}, max_total_bytes=${request.maxTotalBytes}")
     }
@@ -308,12 +385,13 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
             val chunkReq = chunksRequested.getJSONObject(i)
             val chunkId = chunkReq.getString("chunk_id")
             val offsetBytes = chunkReq.optLong("offset_bytes", 0L)
-            appendLog("received REQUEST for $chunkId offset_bytes=$offsetBytes")
-            if (chunkId != SERVED_CHUNK_ID) {
+            appendLog("received REQUEST[$i] for $chunkId offset_bytes=$offsetBytes")
+            val assetPath = SERVED_CHUNKS[chunkId]
+            if (assetPath == null) {
                 appendLog("don't have $chunkId, skipping")
                 continue
             }
-            serveChunk(chunkId, offsetBytes, conn)
+            serveChunk(chunkId, assetPath, offsetBytes, conn)
         }
     }
 
@@ -342,14 +420,18 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
      * envelope completes and fires exactly like an uninterrupted transfer —
      * [handleTransfer] runs unchanged either way.
      */
-    private suspend fun serveChunk(chunkId: String, offsetBytes: Long, conn: Connection) {
+    private suspend fun serveChunk(chunkId: String, assetPath: String, offsetBytes: Long, conn: Connection) {
         val chunkJson = withContext(Dispatchers.IO) {
-            JSONObject(assets.open(CHUNK_ASSET_PATH).bufferedReader().use { it.readText() })
+            JSONObject(assets.open(assetPath).bufferedReader().use { it.readText() })
         }
         val envelopeBytes = JSONObject().put("type", "TRANSFER").put("chunk", chunkJson)
             .toString().toByteArray(StandardCharsets.UTF_8)
 
-        if (offsetBytes == 0L && attemptedChunkIds.add(chunkId)) {
+        // Only the cross-contact resume demo chunk gets the simulated
+        // interruption — the priority-ordering demo chunks (item 9) should
+        // just go straight through so ordering, not resume, is what's being
+        // exercised for them.
+        if (chunkId == SERVED_CHUNK_ID && offsetBytes == 0L && attemptedChunkIds.add(chunkId)) {
             val interruptJob = lifecycleScope.launch {
                 delay(80)
                 transport.interruptRequested = true
@@ -380,7 +462,7 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
                     appendLog("sent TRANSFER for $chunkId whole (didn't land mid-write this run, nothing to resume)")
                 is TransferResult.Failed -> appendLog("TRANSFER for $chunkId failed: ${result.reason}")
             }
-        } else {
+        } else if (offsetBytes > 0L) {
             appendLog("resuming TRANSFER for $chunkId from offset_bytes=$offsetBytes")
             when (val result = transport.resume(conn, envelopeBytes, offsetBytes)) {
                 is TransferResult.Success ->
@@ -388,6 +470,16 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
                 is TransferResult.Interrupted ->
                     appendLog("RESUME_RESULT chunk_id=$chunkId outcome=interrupted_again bytes=${result.bytesTransferred}")
                 is TransferResult.Failed -> appendLog("RESUME_RESULT chunk_id=$chunkId outcome=failed reason=${result.reason}")
+            }
+        } else {
+            // Priority-ordering demo chunks (item 9): sent whole, no
+            // interruption — see the guard above.
+            when (val result = transport.send(conn, envelopeBytes)) {
+                is TransferResult.Success ->
+                    appendLog("sent TRANSFER for $chunkId whole, ${result.bytesTransferred} bytes, ${result.durationMillis}ms")
+                is TransferResult.Interrupted ->
+                    appendLog("TRANSFER for $chunkId unexpectedly interrupted at ${result.bytesTransferred} bytes")
+                is TransferResult.Failed -> appendLog("TRANSFER for $chunkId failed: ${result.reason}")
             }
         }
     }

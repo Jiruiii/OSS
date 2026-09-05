@@ -1,0 +1,73 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "resilientgeo-demo:chunk:136:wende:road:000",
+  "manifest_id": "resilientgeo-demo:manifest:136",
+  "dataset_id": "resilientgeo-demo",
+  "namespace": "official",
+  "dataset_version": 136,
+  "sequence": 0,
+  "priority": "HIGH",
+  "area_id": "neihu.wende",
+  "theme": "road",
+  "bbox": [
+    121.589,
+    25.0795,
+    121.592,
+    25.081
+  ],
+  "created_at": "2026-09-05T15:00:00Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "issued_at": "2026-09-05T15:00:00Z",
+      "expires_at": "2099-01-01T00:00:00Z",
+      "signing_key_id": "peer-sync-priority-demo-2026",
+      "provenance": {
+        "original_source": "fixture-peer-sync-priority-chunks",
+        "received_at": "2026-09-05T15:00:10Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "fixture-ingest"
+        }
+      },
+      "namespace": "official.tdx",
+      "event_id": "road:wende-01",
+      "event_type": "ROAD_STATUS",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            121.589,
+            25.0795
+          ],
+          [
+            121.592,
+            25.081
+          ]
+        ]
+      },
+      "severity": "HIGH",
+      "source": "TDX",
+      "source_version": "135",
+      "event_version": 1,
+      "attributes": {
+        "status": "CLOSED",
+        "road_name": "內湖區文德路測試路段",
+        "area_id": "neihu.wende",
+        "theme": "road"
+      },
+      "payload_hash": "sha256:3f1d9983d02f5676a6f9dd20d8ed7821ee9558621f091cace0e201ce7fe7b71d",
+      "signature_algorithm": "Ed25519",
+      "signature": "bcWjQ0Sq/W7IMCxyPf4ySMx+bcKkmNNL+ONO4D/8w0d9RindrC7wv5pNcD3aQQVLgiVI8Tr6ff9jGGM7UMiaCg=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "peer-sync-priority-demo-2026",
+  "byte_length": 1163,
+  "chunk_hash": "sha256:778ce46ad0c0c8dd3ac8ce7bffecb01d65e19587d29f49aa9acac976ac8c0832",
+  "manifest_hash": "sha256:fc64b2416213fbaf704a77df58ceeb79d9526a4f74674e52ff678f172e295038",
+  "signature": "6o7wSnWtM8cuUasecV2isicjOQiDjU5KHmLVsTqIWFdvNls/LzAElGTzHsG39JJeJZF29v/FznqTXF2YkQpIBg=="
+}

@@ -1,6 +1,6 @@
 # ADR-001：MVP 傳輸層選擇
 
-- 狀態：**Accepted（BLE GATT），條件接受（pending 裝置相容性）**，2026-09-05 實機 Spike 後定案
+- 狀態：**Accepted（BLE GATT），裝置相容性已轉正**，2026-09-05 實機 Spike 後定案，同日用 Sharp SH-M32 補測相容性後轉正
 - 日期：2026-09-01（定案：2026-09-05）
 - 範圍：階段 0 的 Peer discovery 與 chunk transfer
 
@@ -116,18 +116,55 @@ close(connection)
 - **原生 Wi-Fi Direct**：discovery／連線可行，但 TCP 傳輸卡在疑似 Android per-app 網路路由限制，排查需要 root 權限與更多時間（見上方實測記錄）。
 - **純 BLE advertise/scan（不含 GATT 傳輸）**：原始決策只把 BLE 列為 discovery 候選，理由是「吞吐量與 MTU／背景限制不適合大量 chunk 傳輸」——這個假設在加上 GATT 傳輸層並重新檢視實際酬載大小（KB 級，非 MB 級）後不再成立，已改為採用。
 
+## 回填：接觸窗、連線成功率與耗電量測（2026-09-05）
+
+上方「尚未涵蓋」列出的四項裡，三項已經有真機數據，寫在這裡而不是散在 `team-assignments.md` 各處，方便之後引用。
+
+**接觸窗吞吐量**（`transport/BleGattMeasurementActivity.kt`，Pixel 7 + Pixel 8a，多輪）：
+
+| 接觸窗長度 | 傳輸量 | 吞吐量 |
+| --- | --- | --- |
+| 10s | 36,864 B | 3,819 B/s |
+| 30s（第一輪） | 122,880 B | 4,105 B/s |
+| 30s（第二輪） | 126,976 B | 4,281 B/s |
+| 60s | 262,144 B | 4,419 B/s |
+| 60s（另一輪） | 傳輸中途 GATT write 逾時失敗 | — |
+
+量級穩定在 **3.8–4.4 KB/s**，跟本 ADR 前面「3–6 KB/s」的估計吻合；60 秒那輪的失敗案例也如實記錄——長接觸窗不代表穩定，中途逾時是真實存在的現象，不是只在短窗才會發生。**這組數字就是 `targetSizeBytes` 回填的依據**（見 `pipeline/lib/bundle.mjs` 同段落的程式碼註解）：4096 bytes 在 3.8–4.4 KB/s 下約 1–1.5 秒傳完，遠低於 `WRITE_TIMEOUT_MS`（10s）／`ACK_TIMEOUT_MS`（30s），即使是最短的 10 秒接觸窗也能穩定送出好幾個 chunk 並留有中斷重試的餘裕——維持 4096 不變，因為它剛好也貼近內湖 scale 資料集的實際平均 chunk 大小（183 片平均 6.5 KB）。
+
+**Connection success rate**（Pixel 7 → Pixel 8a，20 次一組）：
+
+- **亮屏**：17/20 成功（85%），成功案例 latency p50=289ms／p95=566ms；最後 3 次連續失敗（`service discovery failed`，各逾時 10 秒）——懷疑連續高頻重連後 BLE stack／對端 GATT server 需要更長恢復時間。
+- **鎖屏**：20 次裡扣掉按下按鈕當下仍亮屏的第 1 次，剩下 19/19 全部失敗，**0% 成功率**——沒有 foreground service 保護的一般 App，鎖屏後幾乎無法完成 BLE 連線，這正是 Emergency Mode 需要 foreground service 的直接證據。（跨機型重跑、換乙的正式 `EmergencyModeService` 骨架重跑鎖屏情境，仍是待辦，見 `docs/mvp-remaining-tasks.md`。）
+
+**Energy Cost**（60 秒視窗）：
+
+- Scan-only baseline：平均 **22.35 mW**
+- Scan + 持續傳輸（已扣除連線瞬間尖峰）：平均 **26.78 mW**
+- 傳輸本身增加約 **4.4 mW**，相對 baseline 增幅約 20%
+
+原始 CSV 在 `experiments/results/energy-raw/`；已整理進 `experiments/results/report.md` 第 5 節（透過 `simulator/lib/report.mjs` 生成，非手改該檔案——`matrix --check` 會位元比對，手改會被下次重跑蓋掉）。
+
+**裝置相容性與三機 SCF——2026-09-05 已用 Sharp SH-M32 補齊**，見下方「通過與停止條件」。
+
 ## 通過與停止條件
 
 **已達成（BLE GATT）**：兩台測試機重複完成 discovery、連線、KB 級傳輸與位元組級斷點續傳。
 
-**條件通過，pending 裝置相容性**：目前兩台測試機都是 Pixel、同一 API 37，還沒有證據排除 `system.md` §8 的停止條件「傳輸層只能在單一機型運作」。`C_BLEbroadcast.md` 已記錄一台 Samsung SM-S731B（Android 16, API 36）在手——用它補測 discovery/connect/transfer 是目前最低成本的高價值驗證，應排進本週，通過後才把階段 0 標為完全通過。
+**裝置相容性——已轉正（2026-09-05）**：`system.md` §8 的停止條件「傳輸層只能在單一機型運作」已排除。原計畫用 Samsung SM-S731B 補測，實際依裝置持有狀況改用 **Sharp SH-M32（Android 15, API 35）**——品牌（SHARP vs Google）與 API 版本（35 vs 兩台 Pixel 的 37）都不同，滿足「至少兩個品牌、兩個 Android 版本」的排除標準。discovery/connect/transfer 與完整 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY 序列（含中斷續傳）在 Sharp 上一次到位，細節見 `team-assignments.md`。
 
-**尚未涵蓋、需要後續驗證**：
-- 裝置相容性：目前只測過兩台 Pixel、同一 API 版本，未涵蓋「至少兩個品牌、兩個 Android 版本」（見上）
-- Connection success rate：尚未跑滿 20 次連線成功率統計，也未分亮屏／鎖屏情境
-- Energy：尚未量測 BLE GATT 傳輸的額外耗電
-- Background behavior：BLE discovery 驗證過鎖屏 15 秒內存活，但 GATT 連線本身尚未測試背景/鎖屏行為
-- 多節點（3 台以上）Store-Carry-Forward：階段 3 範圍，本 ADR 只涵蓋兩節點
+**三機 Store-Carry-Forward——已達成（2026-09-05）**：Pixel 8a（A/Origin）→ Pixel 7（B/Relay）→ Sharp SH-M32（C/Far），A 完全 force-stop（`pidof` 確認程序不在跑）情況下，C 仍透過 B 完整收到並驗證全部 4 個簽章事件（含一個中斷又續傳的 chunk），兩段都直接讀 Room `.db-wal` 確認而非只信 log。細節與已知簡化（B 對 C 廣播的摘要是寫死的 fixture，非動態讀自己的 Room）見 `team-assignments.md`。
+
+**已補齊（見上方「回填」段落，2026-09-05）**：
+- Connection success rate：亮屏 20 次（17/20，85%）與鎖屏 20 次（0%）皆已跑完（僅兩台 Pixel 之間；Sharp 沒有另外跑滿 20 次的正式統計，只有本次三機 SCF 過程中的 ad-hoc 連線數據）
+- Energy：60 秒 scan-only／scan+傳輸皆已量測（22.35 mW → 26.78 mW）
+- Background behavior：鎖屏 0% 連線成功率本身就是「一般 App 在背景/鎖屏下無法完成 GATT 連線」的直接證據，印證了 Emergency Mode foreground service 的必要性
+
+**仍未涵蓋、需要後續驗證**：
+- 換乙的正式 `EmergencyModeService` 骨架重跑鎖屏 connection rate 與背景存活——2026-09-05 曾嘗試但螢幕中途被喚醒，測到的是「螢幕亮著」而非「鎖屏」的存活結果，無效，需要重來
+- Sharp SH-M32 上的正式 20 次 connection success rate 統計（目前只有 SCF 過程中的少量 ad-hoc 數據，不是系統性測試）
+
+以上見 `docs/mvp-remaining-tasks.md` A 段。
 
 ## 後續
 
