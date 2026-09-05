@@ -35,8 +35,8 @@
 
 ## B. 建議做（不阻塞 demo 跑起來，但影響可信度／準確度）
 
-- [ ] **7. 用實機數據校準 simulator**
-  用上面 1–4 收集到的接觸率、每次接觸吞吐量校準 `simulator/fixtures/sim-config.json`，重跑 `npm run sim:check` 確認位元相同。現有模擬報告能重現，但參數目前是工程估計值，不是實測值。
+- [x] **7. 用實機數據校準 simulator**（2026-09-05 完成，部分）
+  `max_bytes_per_round` 已從憑感覺的 24576 校準成 `3,819 B/s（10 秒短窗最保守量測）× 30s = 114,570`，`npm run sim:check` 通過位元比對。順帶抓到一個真的設定檔問題：`p2p_throughput_bytes_per_sec: 131072` 這個欄位是舊的高頻寬候選（Nearby Connections/Wi-Fi Direct）遺留下來的數字，**simulator 程式碼從來沒讀過它**——真正生效的一直是 `max_bytes_per_round`，已移除該死欄位並在 `notes` 說明，避免有人以為那才是模擬用的吞吐量。`contact_probability`（0.55）與 `transfer_failure_prob`（0.06）維持工程估計值不變——這兩個是社交接觸機率／傳輸失敗率模型，目前的實機數據（BLE 吞吐量、connection success rate）沒有直接對應到這兩個參數，硬套會是假精確，寧可留著工程估計標籤。
 
 - [ ] **8. 維護 demo 腳本與限制說明**
   確保 `experiments/{demo,limitations}.md` 跟最新的協定行為（cross-manifest DTN diff、跨接觸續傳、critical-first）對得上；把上面每一項的已知限制（尤其是下面 C 段的架構限制）寫進 `limitations.md`，不要等評審問了才現想。

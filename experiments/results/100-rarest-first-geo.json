@@ -1,5 +1,5 @@
 {
-  "git_rev": "cabf6ca",
+  "git_rev": "a085f96",
   "key": "100-rarest-first-geo",
   "params": {
     "scenario_id": "neihu-meiyu-front-v1",
@@ -31,9 +31,9 @@
       20
     ],
     "curve": [
-      0.1464,
-      0.4283,
-      0.5702,
+      0.1917,
+      0.4731,
+      0.5886,
       0.6134
     ],
     "final": 0.6134,
@@ -45,28 +45,28 @@
     ],
     "strict_final": 0,
     "relevant_curve": [
-      0.2625,
-      0.7319,
-      0.9435,
+      0.3372,
+      0.8013,
+      0.9676,
       1
     ],
     "relevant_final": 1,
     "per_round": [
       0.0186,
-      0.0645,
-      0.1464,
-      0.2286,
-      0.303,
-      0.3636,
-      0.4283,
-      0.48,
-      0.5235,
-      0.5487,
-      0.5702,
-      0.5915,
-      0.6078,
-      0.6123,
-      0.613,
+      0.0764,
+      0.1917,
+      0.3037,
+      0.3722,
+      0.4191,
+      0.4731,
+      0.5164,
+      0.5482,
+      0.5662,
+      0.5886,
+      0.608,
+      0.6127,
+      0.6134,
+      0.6134,
       0.6134,
       0.6134,
       0.6134,
@@ -80,32 +80,32 @@
     "sample_event_holdings": 50000
   },
   "freshness": {
-    "p50_seconds": 150,
-    "p95_seconds": 330,
-    "p50_minutes": 2.5,
-    "p95_minutes": 5.5,
+    "p50_seconds": 120,
+    "p95_seconds": 300,
+    "p50_minutes": 2,
+    "p95_minutes": 5,
     "applied_pairs": 30668,
     "unreached_pairs": 19332
   },
   "cellular": {
     "baseline_bytes": 33519652,
-    "actual_bytes": 5221751,
-    "savings": 0.8442,
-    "bytes_saved": 28297901,
+    "actual_bytes": 3711226,
+    "savings": 0.8893,
+    "bytes_saved": 29808426,
     "baseline_full_bytes": 55074200,
-    "total_vs_full": 0.9052,
-    "server_fetches": 782
+    "total_vs_full": 0.9326,
+    "server_fetches": 557
   },
   "transfer": {
-    "efficiency": 0.6749,
-    "duplicate_ratio": 0.2669,
-    "failure_ratio": 0.0582,
-    "useful_bytes": 28297901,
-    "duplicate_bytes": 11191669,
-    "failed_bytes": 2441792,
-    "useful_event_bytes": 27100775,
-    "total_p2p_bytes": 41931362,
-    "transfers": 5882,
-    "failed_transfers": 361
+    "efficiency": 0.6222,
+    "duplicate_ratio": 0.3219,
+    "failure_ratio": 0.0559,
+    "useful_bytes": 29808426,
+    "duplicate_bytes": 15423220,
+    "failed_bytes": 2677303,
+    "useful_event_bytes": 28546723,
+    "total_p2p_bytes": 47908949,
+    "transfers": 6716,
+    "failed_transfers": 396
   }
 }
