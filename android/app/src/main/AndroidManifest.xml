@@ -31,6 +31,13 @@
          mDNS to actually receive replies, not just send them. -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 
+    <!-- Emergency Mode foreground service stub (Phase 0.5, team-assignments.md) —
+         minimal placeholder proving background/lock-screen survival while
+         乙's real Service skeleton is still pending. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -96,6 +103,11 @@
         <activity
             android:name=".transport.PeerSyncMilestoneActivity"
             android:exported="true" />
+
+        <service
+            android:name=".emergency.EmergencyModeService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 
 </manifest>

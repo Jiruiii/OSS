@@ -4,15 +4,7 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b962cff7-8320-438f-9062-a2e7eedfb53d" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../../.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/AndroidManifest.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/assets/trust/trusted-keys.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/assets/trust/trusted-keys.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/resilientgeo/mesh/data/MeshRepository.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/resilientgeo/mesh/data/MeshRepository.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/resilientgeo/mesh/transport/BleGattTransport.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/resilientgeo/mesh/transport/BleGattTransport.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/test/resources/trust/trusted-keys.json" beforeDir="false" afterPath="$PROJECT_DIR$/src/test/resources/trust/trusted-keys.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../team-assignments.md" beforeDir="false" afterPath="$PROJECT_DIR$/../../team-assignments.md" afterDir="false" />
-    </list>
+    <list default="true" id="b962cff7-8320-438f-9062-a2e7eedfb53d" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
