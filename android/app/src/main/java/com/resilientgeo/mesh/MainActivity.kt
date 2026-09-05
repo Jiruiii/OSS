@@ -14,6 +14,8 @@ import com.resilientgeo.mesh.databinding.ActivityMainBinding
 import com.resilientgeo.mesh.map.MapFeature
 import com.resilientgeo.mesh.ui.EventListAdapter
 import com.resilientgeo.mesh.transport.BleSpikeActivity
+import com.resilientgeo.mesh.transport.NearbyTransportSpikeActivity
+import com.resilientgeo.mesh.transport.WifiDirectTransportSpikeActivity
 import com.resilientgeo.mesh.ui.MainViewModel
 import kotlinx.coroutines.launch
 
@@ -47,6 +49,12 @@ class MainActivity : AppCompatActivity() {
         binding.loadFixtureButton.setOnClickListener { viewModel.loadBundledFixture() }
         binding.openBleSpikeButton.setOnClickListener {
             startActivity(Intent(this, BleSpikeActivity::class.java))
+        }
+        binding.openNearbyTransportSpikeButton.setOnClickListener {
+            startActivity(Intent(this, NearbyTransportSpikeActivity::class.java))
+        }
+        binding.openWifiDirectSpikeButton.setOnClickListener {
+            startActivity(Intent(this, WifiDirectTransportSpikeActivity::class.java))
         }
 
         lifecycleScope.launch {

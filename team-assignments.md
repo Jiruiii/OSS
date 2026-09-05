@@ -55,16 +55,20 @@
 
 ## C：Peer Sync & 傳輸層（連線與協定）
 
-**現況**：尚未開始，是階段 0 的關鍵路徑，需優先完成。
+**現況**：階段 0 通過，ADR-001 已定案為 **BLE GATT**（`BleGattTransport.kt`）。同一晚實測了三個候選——Nearby Connections（Google 側 `INTERNAL_ERROR`，非 App 可控）、原生 Wi-Fi Direct（discovery/連線可行，但 TCP 傳輸卡在疑似 Android 網路路由限制）、BLE GATT（discovery、連線、KB 級傳輸、位元組級斷點續傳全部驗證通過）。三個候選的完整實測記錄與否決理由見 `docs/adr/ADR-001-transport-layer.md`。
 
 **待辦**
-- [ ] 兩台 Android 實機比較 BLE 發現、Nearby Connections、Wi-Fi Direct
-- [ ] 記錄 1 MB、10 MB 的連線時間、傳輸速度、斷線恢復結果
-- [ ] 定稿 ADR-001（傳輸層選擇與未選方案原因）
-- [ ] 實作 Peer Sync 協定：HELLO → DIFF → REQUEST → TRANSFER → VERIFY/APPLY
-- [ ] 階段 3：斷線續傳、Peer 上限、critical-first 排程、三機 Store-Carry-Forward 驗證
+- [x] 兩台 Android 實機（Pixel 7 + Pixel 8a）驗證 BLE 雙向 discovery — 修正了 `BleDiscovery` 掃描未過濾 `SERVICE_UUID` 的 bug；discovery latency p50/p95 已記錄於 ADR-001
+- [x] Nearby Connections 實機測試 — 已否決（Google Play services `INTERNAL_ERROR`，見 ADR-001）
+- [x] 原生 Wi-Fi Direct 實機測試 — 已否決（TCP 傳輸層卡住，見 ADR-001）
+- [x] BLE GATT 傳輸實作與實機驗證 — 10KB/100KB 傳輸、中斷續傳皆成功，吞吐量 3–6 KB/s（`BleGattTransport.kt`）
+- [x] 定稿 ADR-001 — 狀態已從 `Proposed` 改為 `Accepted（BLE GATT）`
+- [ ] 裝置相容性：目前只測過兩台 Pixel、同一 API 版本，還需至少一個非 Pixel／不同版本裝置
+- [ ] Connection success rate 統計（20 次，分亮屏／鎖屏）、Energy 量測 — 尚未開始
+- [ ] 實作 Peer Sync 協定：把 HELLO → DIFF → REQUEST → TRANSFER → VERIFY/APPLY 接到 `BleGattTransport` 上（目前只有 Stage 0 spike harness，`send`/`resume` 走的是測試用隨機 payload，還沒接上真正的 chunk 資料）
+- [ ] 階段 3：Peer 上限、critical-first 排程、三機 Store-Carry-Forward 驗證
 
-**通過條件（階段 0）**：兩台指定測試機可重複完成發現、連線、傳輸、斷線重試，才可進入 UI 開發。
+**通過條件（階段 0）**：~~兩台指定測試機可重複完成發現、連線、傳輸、斷線重試~~ **已達成**（BLE GATT，見 ADR-001）。
 
 ---
 
@@ -92,7 +96,7 @@ Cost 一欄與實機校準待補。
 
 | 週次 | 檢查點 | 負責人 |
 | --- | --- | --- |
-| 第 0–1 週 | 階段 0 通過（實機傳輸 Spike 定案） | C |
+| 第 0–1 週 | 階段 0 通過（實機傳輸 Spike 定案：BLE GATT） | C ✅ 2026-09-05 |
 | 第 1 週 | 階段 1 通過（單機離線可讀） | B |
 | 第 2 週 | 階段 2 App-level 驗證完成（Android 驗簽 adapter 接上） | A + B |
 | 第 3–4 週 | 階段 3 通過（3 機 Store-Carry-Forward） | C（D 協助記錄） |

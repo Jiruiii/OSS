@@ -5,35 +5,56 @@
     android:orientation="vertical"
     android:background="#0B141C">
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/emergencyModeLabel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="12dp"
-        android:gravity="center_vertical">
+        android:paddingStart="12dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="12dp"
+        android:text="@string/emergency_mode_on"
+        android:textColor="#4FC3F7"
+        android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/emergencyModeLabel"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/emergency_mode_on"
-            android:textColor="#4FC3F7"
-            android:textStyle="bold" />
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none">
 
-        <Button
-            android:id="@+id/loadFixtureButton"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/load_fixture_bundle" />
+            android:orientation="horizontal"
+            android:padding="12dp">
 
-        <Button
-            android:id="@+id/openBleSpikeButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="@string/open_ble_spike" />
-    </LinearLayout>
+            <Button
+                android:id="@+id/loadFixtureButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/load_fixture_bundle" />
+
+            <Button
+                android:id="@+id/openBleSpikeButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="@string/open_ble_spike" />
+
+            <Button
+                android:id="@+id/openNearbyTransportSpikeButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="@string/open_nearby_transport_spike" />
+
+            <Button
+                android:id="@+id/openWifiDirectSpikeButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="@string/open_wifi_direct_spike" />
+        </LinearLayout>
+    </HorizontalScrollView>
 
     <com.resilientgeo.mesh.map.OfflineMapView
         android:id="@+id/offlineMapView"

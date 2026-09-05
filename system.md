@@ -13,22 +13,26 @@
 | 階段 2：安全測試 | 已完成 | Node 測試涵蓋竄改、版本 replay、TTL、incomplete chunk |
 | 真實資料源 | 尚未開始 | 目前沒有呼叫 TDX／CWA／NCDR 即時 API |
 | Android 驗證器與 App | 尚未開始 | 目前是 platform-neutral Node verifier，尚無 Android project、離線 DB 或地圖 UI |
-| Android 實機傳輸 Spike | 尚未開始 | 尚未比較兩台實機上的 BLE、Nearby Connections、Wi-Fi Direct |
+| Android 實機傳輸 Spike | 已完成 | 兩台實機（Pixel 7 + Pixel 8a）比較 Nearby Connections（已否決，Google 側 INTERNAL_ERROR）、Wi-Fi Direct（已否決，TCP 傳輸層卡住）、BLE GATT（採用，discovery/連線/傳輸/斷點續傳皆驗證通過）。ADR-001 已定案，見 `docs/adr/ADR-001-transport-layer.md`；條件通過，pending 跨品牌相容性（見階段 0） |
 | Simulator／實驗報告 | 進行中 | `simulator/` 決定性模擬 10／20／50／100 節點 × 三策略 × 地理過濾；`experiments/` 有可重現的四指標報告（Coverage／Freshness／Cellular Savings／Transfer Efficiency）。傳輸參數待實機校準；Energy Cost 未建模 |
 
-狀態證據：`npm test` 的 Node 測試 48 項通過（pipeline + simulator，含地理分片、bbox 竄改偵測、生成器與模擬器決定性、`matrix --check` 位元比對），`python -m unittest discover -s tests -v` 的 Python 測試 4 項通過；CLI 也已完成 keygen → build → verify 端到端測試（`demo-v136` 產生 22 個帶 area／theme 的已驗證分片）。正式 Android 驗簽、實機傳輸、真實來源接入與 Emergency Mode 實機耗電量測仍不能視為完成。
+狀態證據：`npm test` 的 Node 測試（pipeline + simulator）全數通過（含地理分片、bbox 竄改偵測、生成器與模擬器決定性、`matrix --check` 位元比對、跨 manifest_id 的 DTN diff），`python -m unittest discover -s tests -v` 的 Python 測試 4 項通過；CLI 也已完成 keygen → build → verify 端到端測試（`demo-v136` 產生 22 個帶 area／theme 的已驗證分片）。正式 Android 驗簽、實機傳輸、真實來源接入與 Emergency Mode 實機耗電量測仍不能視為完成。
+
+> 2026-09-05 修正：先前記錄的「16 項通過」是 pipeline 測試的舊數字，且當時 Windows checkout 出來的 `fixtures/neihu/*.json` 因 `core.autocrlf=true` 又沒有 `.gitattributes` 而帶 CRLF，跟決定性生成器輸出的 LF 逐位元組比對必然 MISMATCH——這是假失敗，不是生成器不決定性。根目錄 `.gitattributes`（`* text=auto eol=lf`）已修掉這個問題。
 
 ## 1. 專案目標
 
 在行動網路低頻寬或局部斷線時，讓 Android 手機仍能：
 
-1. 查看預先下載的離線地圖。
-2. 接收少量、可驗證的災情增量更新。
-3. 與附近手機交換缺少的更新資料。
+1. **避免同一份資料被每個人各自從基地台重複下載**——把稀缺的總頻寬留給還沒拿到資料的人，與附近手機交換缺少的更新分片。
+2. 查看預先下載的離線地圖。
+3. 接收少量、可驗證的災情增量更新。
 4. 辨識資料來源、版本、時效與可信狀態。
 5. 量測資料擴散速度、節省的行動流量與耗電量。
 
 系統定位是「既有行動網路、衛星、LoRa、基地台車之外的額外韌性層」，不是取代既有通訊，也不宣稱能創造額外的基地台頻寬。
+
+> 2026-09-05 調整：原本第一順位是「查看離線地圖」，把 mesh 同步排在第 3 點且措辭是手段（交換分片）而非價值（減少重複下載）。但題目模擬的是「有訊號但被降到 256 kbps（≈32 KB/s）」，不是完全斷網——在這個情境下 mesh 的價值不是比基地台快（BLE 實測 3–6 KB/s，反而比 256 kbps 慢 5–10 倍），而是題目本身第五點強調的「不要讓 100 個人從基地台重複下載同一份資料」。目標順位改成這個，demo 敘事也應該對應改成「10 台共用 256 kbps、一台下載、九台從 peer 拿到」，而不是「兩台飛航模式互傳」。
 
 ## 2. MVP 邊界
 
@@ -113,17 +117,19 @@ flowchart LR
 
 傳輸層必須藏在介面後方。階段 0 先用實機 Spike 比較 Nearby Connections 與原生 Wi-Fi Direct／BLE 的相容性、背景限制、速度和耗電，再決定 MVP 實作；不要讓資料同步邏輯綁死單一傳輸 API。
 
+**已知擴展路徑——HELLO 表示法**：`schemas/peer-summary-v0.schema.json` 目前把每個 chunk 的 `chunk_id`／`chunk_hash`／`size_bytes`／`priority`／`state` 逐條列出（實測單條 202 bytes）。內湖 500 筆現況（183 chunk）算下來 HELLO 是 36 KB，BLE @ 4 KB/s 約 9 秒還可接受；但資料集一旦擴到全台規模（數千 chunk），HELLO 會膨脹到數百 KB，在一次 opportunistic contact 的接觸窗內傳不完。v0 不需要現在實作，但先寫下已知方向：**Bloom filter** 或**對 manifest 順序的 bitmap**（有／沒有各 1 bit，183 chunk 只要 23 bytes，比逐條列舉省約 1500 倍）。等階段 3 才發現要換格式時，schema 可能已經被多個模組依賴，屆時代價會高一個數量級。詳見 `docs/peer-sync-v0.md`。
+
 ## 6. 開發階段與驗收條件
 
 ### 階段 0：證明關鍵假設（2–3 天）
 
 - [x] 定義 Event、Manifest、Chunk 與 Peer Summary 的 v0 格式。（`schemas/`）
 - [x] 準備 100–1,000 筆道路／避難所測試事件與更新序列。（`data/fixtures/neihu/scale-v136.json` ~500 筆，`demo-v136/137` 為更新序列；由 `tools/generate-neihu-fixtures.mjs` 從 OSM 快照決定性生成）
-- [ ] 用兩台 Android 實機測 BLE 發現及一種高速 P2P 傳輸。
-- [ ] 紀錄 1 MB、10 MB 的連線時間、傳輸速度、斷線恢復結果。
-- [x] 寫出 ADR-001：MVP 傳輸層選擇與未選方案的原因。（目前狀態為 Proposed，待實機 Spike 定稿）
+- [x] 用兩台 Android 實機測 BLE 發現及傳輸。（BLE GATT，見下方說明——非原規劃的「高速 P2P」方案，實測後 Nearby Connections／Wi-Fi Direct 皆否決，改採 BLE GATT）
+- [x] 紀錄連線時間、傳輸速度、斷線恢復結果。（KB 級酬載：10KB/100KB 傳輸與位元組級斷點續傳皆成功，吞吐量 3–6 KB/s；原規劃的 1MB/10MB 是壓力測試數字，非實際酬載大小，見 ADR-001）
+- [x] 寫出 ADR-001：MVP 傳輸層選擇與未選方案的原因。（狀態已定案為 Accepted，BLE GATT）
 
-**通過條件**：兩台指定測試機可重複完成發現、連線、傳輸、斷線重試；否則先調整傳輸方案，不進入 UI 開發。
+**通過條件**：兩台指定測試機可重複完成發現、連線、傳輸、斷線重試——**條件通過（pending 相容性）**，2026-09-05。目前兩台測試機皆為 Pixel、同一 API 37，尚未滿足 §8 風險表「至少兩個品牌、兩個 Android 版本」的停止條件排除標準；`C_BLEbroadcast.md` 已記錄一台 Samsung SM-S731B（Android 16, API 36）在手，應優先用它補測 discovery/connect/transfer，而非直接視為階段 0 全數通過。
 
 ### 階段 1：單機離線系統（第 1 週）
 
@@ -147,10 +153,24 @@ flowchart LR
 
 ### 階段 3：多機同步 Demo（第 3–4 週）
 
-- [ ] 兩台手機只交換彼此缺少的 chunk。
-- [ ] 實作斷線續傳、Peer 上限與 critical-first 排程。
-- [ ] 用第三台手機驗證 Store-Carry-Forward。
-- [ ] 擴到 5 台裝置，記錄重複傳輸與同步完成時間。
+原本一次要完成「協定接線 + 斷線續傳 + Peer 上限 + critical-first 排程 + 三機 SCF + 五機擴展」，但協定層與傳輸層從來沒接過線——`send`／`resume` 目前走的還是階段 0 spike 的隨機測試 payload。2026-09-05 拆成三個子階段，3a 是唯一真正的整合風險點，單獨當里程碑：
+
+**3a — 協定接線（唯一的整合風險點）**
+
+- [ ] 把 HELLO/DIFF/REQUEST 序列化接到 `BleGattTransport`。
+- [ ] 兩機交換**一個**真 chunk，通過 `EventVerifier` 寫進 Room。
+
+**3b — 依賴 3a 打通**
+
+- [ ] 接上跨接觸續傳（`pipeline/lib/peer-sync.mjs` 的 `buildRequest()` 目前硬寫 `offset_bytes: 0`，要接上 `BleGattTransport` 已驗證的位元組級續傳）。
+- [ ] Peer 上限與 critical-first 排程。
+- [ ] **實作 Emergency Mode foreground service**——`android/app/.../transport/` 目前全是 Activity，沒有任何 foreground service；三機 Store-Carry-Forward 需要中繼手機在口袋裡移動時還活著，這是目前唯一已寫在計畫裡、實作還沒開始、而且會直接卡住 3c 的項目。排在協定接線之前或同時開始準備。
+
+**3c — 依賴 3b + foreground service**
+
+- [ ] 用第三台手機驗證 Store-Carry-Forward（A 不直接連到 C 時，更新仍能經 B 到達 C）。
+
+**~~3d — 五機實機擴展~~**：時間緊就砍掉用模擬器代替，邊際資訊量遠低於成本；階段 4 的節點模擬所需參數（接觸率、每次接觸吞吐量）改由 3a/3b 的實測資料提供。
 
 **通過條件**：A 不直接連到 C 時，更新仍能經 B 到達 C；所有收到的資料都通過簽章驗證，且沒有從伺服器重複下載完整資料集。
 

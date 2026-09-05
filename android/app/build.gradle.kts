@@ -69,6 +69,12 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.coroutines.android)
 
+    // Nearby Connections (module C): ADR-001's bulk-transfer candidate.
+    // kotlinx-coroutines-play-services supplies Task.await(), used to
+    // bridge ConnectionsClient's Task-based API into suspend functions.
+    implementation(libs.play.services.nearby)
+    implementation(libs.kotlinx.coroutines.play.services)
+
     // Local database (module B): events, versions, expiry.
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
