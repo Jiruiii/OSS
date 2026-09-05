@@ -72,7 +72,7 @@ flowchart LR
 | 密碼學 | Bouncy Castle `bcprov-jdk18on` 1.78.1 | Android 端 Ed25519 驗簽（平台 provider 至 API 33 才支援 EdDSA） |
 | 傳輸層 | Android BLE GATT（自訂 service：DATA write／ACK notify／CONTROL characteristic） | Peer discovery、連線、分片傳輸與位元組級續傳 |
 | 資料契約 | JSON Schema（`event-v0`／`manifest-v0`／`chunk-v0`／`peer-summary-v0`／`feature-v0`） | 跨模組介面，pipeline 與 Android 各自實作、以同一份 fixture 交叉驗證 |
-| 測試 | JUnit 4、AndroidX Test、`node:test`、Python `unittest` | 40 項 JVM 單元測試、7 項 instrumented 測試、115 項 Node 測試、4 項 Python replay 測試 |
+| 測試 | JUnit 4、AndroidX Test、`node:test`、Python `unittest` | 40 項 JVM 單元測試、14 項 instrumented 測試、122 項 Node 測試、4 項 Python replay 測試 |
 | Sponsor 技術 | 未使用 | 本次未使用主辦方或贊助商提供的服務；pipeline 與 simulator 零第三方相依，Android 端僅用 AndroidX 與 Bouncy Castle |
 
 > 曾評估但**否決**的技術，實測記錄見 [`docs/adr/ADR-001-transport-layer.md`](docs/adr/ADR-001-transport-layer.md)：**Nearby Connections**（兩台實機皆回傳 Google 側 `INTERNAL_ERROR`，非 App 端可控）、**原生 Wi-Fi Direct**（discovery／連線可行，但 TCP 卡在疑似 Android per-app 網路路由限制）。
@@ -90,7 +90,7 @@ git clone https://github.com/Jiruiii/OSS.git
 cd OSS
 
 # ---------- 1. 驗證整套資料契約與模擬器（不需要手機，約 1 分鐘） ----------
-npm test                                   # 115 項通過（pipeline + simulator）
+npm test                                   # 122 項通過（pipeline + simulator）
 python -m unittest discover -s tests -v    # 4 項通過（replay fixture）
 
 # ---------- 2. 產生並驗證一份真實簽章的資料封包 ----------
