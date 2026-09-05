@@ -46,7 +46,7 @@ flutter:
   assets:
     - assets/data/neihu/static-features.json
     - assets/data/neihu/demo-events.json
-+    - assets/map/tiles/12/3430/
+    - assets/map/tiles/12/3430/
     - assets/map/tiles/12/3431/
     - assets/map/tiles/13/6861/
     - assets/map/tiles/13/6862/
