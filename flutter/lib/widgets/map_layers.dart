@@ -19,6 +19,9 @@ class MapLayers {
     required bool showEvents,
     required StaticFeatureSelection onStaticFeatureSelected,
     required MeshEventSelection onEventSelected,
+    GeoPoint? currentLocation,
+    Set<String> pulsingEventKeys = const <String>{},
+    double pulseFraction = 0,
   }) {
     final visibleFacilities = features
         .where((feature) {
@@ -38,22 +41,30 @@ class MapLayers {
             : const <MeshEvent>[];
 
     return <Widget>[
-      PolylineLayer<MeshEvent>(
-        polylines: visibleEvents
-            .where((event) => event.geometry is LineStringGeometry)
-            .map(_eventPolyline)
-            .toList(growable: false),
+      _EventGeometryLayers(
+        events: visibleEvents,
+        onEventSelected: onEventSelected,
       ),
-      PolygonLayer<MeshEvent>(
-        polygons: visibleEvents
-            .where((event) => event.geometry is PolygonGeometry)
-            .map(_eventPolygon)
-            .toList(growable: false),
-      ),
+      if (pulsingEventKeys.isNotEmpty)
+        CircleLayer(
+          circles: visibleEvents
+              .where((event) => pulsingEventKeys.contains(eventKey(event)))
+              .map(
+                (event) => CircleMarker(
+                  point: _eventPoint(event),
+                  radius: 14 + (18 * pulseFraction),
+                  color: eventColor(event).withValues(alpha: 0.10),
+                  borderColor: eventColor(event).withValues(alpha: 0.65),
+                  borderStrokeWidth: 2,
+                ),
+              )
+              .toList(growable: false),
+        ),
       MarkerLayer(
         markers: <Marker>[
           ...facilityMarkers,
           ...visibleEvents.map((event) => _eventMarker(event, onEventSelected)),
+          if (currentLocation != null) _locationMarker(currentLocation),
         ],
       ),
     ];
@@ -82,8 +93,8 @@ class MapLayers {
           return Marker(
             key: ValueKey<String>('static-marker-${group.first.id ?? names}'),
             point: _latLng(point),
-            width: 48,
-            height: 48,
+            width: 32,
+            height: 32,
             child: _MapMarkerButton(
               semanticLabel: label,
               icon: isMedicalOnly ? Icons.local_hospital : Icons.home_work,
@@ -99,18 +110,13 @@ class MapLayers {
   }
 
   static Marker _eventMarker(MeshEvent event, MeshEventSelection onSelected) {
-    final geometry = event.geometry!;
-    final point = switch (geometry) {
-      PointGeometry(:final point) => point,
-      LineStringGeometry(:final points) => points[points.length ~/ 2],
-      PolygonGeometry(:final rings) => rings.first.first,
-    };
+    final point = _eventGeoPoint(event);
     final name = eventName(event);
     return Marker(
       key: ValueKey<String>('event-marker-${event.eventId ?? name}'),
       point: _latLng(point),
-      width: 50,
-      height: 50,
+      width: 32,
+      height: 32,
       child: _MapMarkerButton(
         semanticLabel: '事件：$name${event.isExpired ? '，已過期' : ''}',
         icon: event.isExpired ? Icons.schedule : Icons.warning_amber_rounded,
@@ -143,9 +149,7 @@ class MapLayers {
           rings.length > 1
               ? rings.skip(1).map((ring) => ring.map(_latLng).toList()).toList()
               : null,
-      color: eventColor(event).withValues(
-        alpha: event.isExpired ? 0.12 : 0.28,
-      ),
+      color: eventColor(event).withValues(alpha: event.isExpired ? 0.12 : 0.28),
       borderColor: eventColor(event),
       borderStrokeWidth: 3,
       hitValue: event,
@@ -154,6 +158,100 @@ class MapLayers {
 
   static LatLng _latLng(GeoPoint point) =>
       LatLng(point.latitude, point.longitude);
+
+  static GeoPoint _eventGeoPoint(MeshEvent event) {
+    final geometry = event.geometry!;
+    return switch (geometry) {
+      PointGeometry(:final point) => point,
+      LineStringGeometry(:final points) => points[points.length ~/ 2],
+      PolygonGeometry(:final rings) => rings.first.first,
+    };
+  }
+
+  static LatLng _eventPoint(MeshEvent event) => _latLng(_eventGeoPoint(event));
+
+  static Marker _locationMarker(GeoPoint location) => Marker(
+    key: const ValueKey<String>('current-location-marker'),
+    point: _latLng(location),
+    width: 24,
+    height: 24,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A73E8),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 3),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(color: Colors.black26, blurRadius: 4),
+        ],
+      ),
+    ),
+  );
+}
+
+class _EventGeometryLayers extends StatefulWidget {
+  const _EventGeometryLayers({
+    required this.events,
+    required this.onEventSelected,
+  });
+
+  final List<MeshEvent> events;
+  final MeshEventSelection onEventSelected;
+
+  @override
+  State<_EventGeometryLayers> createState() => _EventGeometryLayersState();
+}
+
+class _EventGeometryLayersState extends State<_EventGeometryLayers> {
+  final LayerHitNotifier<MeshEvent> _lineHits = ValueNotifier(null);
+  final LayerHitNotifier<MeshEvent> _polygonHits = ValueNotifier(null);
+
+  @override
+  void initState() {
+    super.initState();
+    _lineHits.addListener(_selectLineHit);
+    _polygonHits.addListener(_selectPolygonHit);
+  }
+
+  @override
+  void dispose() {
+    _lineHits
+      ..removeListener(_selectLineHit)
+      ..dispose();
+    _polygonHits
+      ..removeListener(_selectPolygonHit)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _selectLineHit() => _select(_lineHits.value?.hitValues);
+
+  void _selectPolygonHit() => _select(_polygonHits.value?.hitValues);
+
+  void _select(List<MeshEvent>? events) {
+    if (events == null || events.isEmpty) return;
+    widget.onEventSelected(events.first);
+  }
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    fit: StackFit.expand,
+    children: <Widget>[
+      PolylineLayer<MeshEvent>(
+        polylines: widget.events
+            .where((event) => event.geometry is LineStringGeometry)
+            .map(MapLayers._eventPolyline)
+            .toList(growable: false),
+        hitNotifier: _lineHits,
+      ),
+      PolygonLayer<MeshEvent>(
+        polygons: widget.events
+            .where((event) => event.geometry is PolygonGeometry)
+            .map(MapLayers._eventPolygon)
+            .toList(growable: false),
+        hitNotifier: _polygonHits,
+      ),
+    ],
+  );
 }
 
 String featureName(StaticFeature feature) {
@@ -217,9 +315,12 @@ class _MapMarkerButton extends StatelessWidget {
               BoxShadow(color: Colors.black26, blurRadius: 4),
             ],
           ),
-          child: Icon(icon, color: Colors.white, size: 26),
+          child: Icon(icon, color: Colors.white, size: 18),
         ),
       ),
     ),
   );
 }
+
+String eventKey(MeshEvent event) =>
+    '${event.eventId ?? 'event'}:${event.eventVersion ?? 0}';

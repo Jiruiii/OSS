@@ -28,10 +28,26 @@ void main() {
       await tester.pump();
 
       expect(find.text('離線地圖可用'), findsOneWidget);
+      expect(find.text('OSM 離線底圖'), findsOneWidget);
       expect(find.text('模擬事件，非即時官方災情'), findsOneWidget);
+      expect(find.byIcon(Icons.layers_outlined), findsOneWidget);
       expect(find.bySemanticsLabel('圖層設定'), findsOneWidget);
     },
   );
+
+  testWidgets('offline map controls remain available at 390dp width', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_testApp());
+    await tester.pump();
+
+    expect(find.bySemanticsLabel('搜尋地點'), findsOneWidget);
+    expect(find.bySemanticsLabel('圖層設定'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 Widget _testApp() => const MaterialApp(

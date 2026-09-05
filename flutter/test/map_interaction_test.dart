@@ -129,6 +129,23 @@ void main() {
     expect(tester.widget<Switch>(find.byType(Switch).at(2)).value, isFalse);
     expect(find.bySemanticsLabel('事件：內湖模擬淹水，已過期'), findsNothing);
   });
+
+  testWidgets('local search selects a shelter and opens its details', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _testApp(features: const <StaticFeature>[_shelter]),
+    );
+    await _finishMapLoad(tester);
+
+    await tester.enterText(find.bySemanticsLabel('搜尋地點'), '潭美');
+    await tester.pump();
+    expect(find.text('潭美國小'), findsOneWidget);
+
+    await tester.tap(find.text('潭美國小'));
+    await tester.pump();
+    expect(find.text('目前收容人數：無資料'), findsOneWidget);
+  });
 }
 
 Future<void> _finishMapLoad(WidgetTester tester) async {

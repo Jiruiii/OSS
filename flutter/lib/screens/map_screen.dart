@@ -3,14 +3,16 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 
 import '../data/map_bridge.dart';
+import '../data/location_controller.dart';
 import '../data/map_models.dart';
+import '../data/map_runtime_state.dart';
+import '../data/map_search.dart';
 import '../widgets/feature_details_sheet.dart';
 import '../widgets/layer_filter_panel.dart';
-import '../widgets/map_layers.dart';
+import '../widgets/map_canvas.dart';
+import '../widgets/map_layers.dart' show featureName;
 
 class MapScreen extends StatefulWidget {
   const MapScreen({
@@ -20,6 +22,9 @@ class MapScreen extends StatefulWidget {
     this.initialState,
     this.bridge,
     this.eventUpdates,
+    this.networkAvailable = false,
+    this.configuredGoogleMapsKey = MapCanvas.compileTimeGoogleMapsKey,
+    this.locationController,
   });
 
   /// Optional deterministic inputs keep widget tests independent of channels.
@@ -29,18 +34,20 @@ class MapScreen extends StatefulWidget {
   final MapBridge? bridge;
   final Stream<List<MeshEvent>>? eventUpdates;
 
+  /// Tests and keyless builds stay on the asset renderer unless the app shell
+  /// explicitly supplies both connectivity and a configured Android Maps key.
+  final bool networkAvailable;
+  final String configuredGoogleMapsKey;
+  final LocationController? locationController;
+
   @override
   State<MapScreen> createState() => _MapScreenState();
 }
 
 class _MapScreenState extends State<MapScreen> {
-  static final LatLngBounds _neihuBounds = LatLngBounds(
-    const LatLng(25.0518603, 121.5519933),
-    const LatLng(25.1151519, 121.6286149),
-  );
-
-  final MapController _mapController = MapController();
   late final MapBridge _bridge;
+  late final LocationController _locationController;
+  final TextEditingController _searchController = TextEditingController();
   StreamSubscription<List<MeshEvent>>? _eventSubscription;
   StaticFeatureCollection? _staticFeatures;
   List<MeshEvent> _demoEvents = const <MeshEvent>[];
@@ -51,18 +58,38 @@ class _MapScreenState extends State<MapScreen> {
   bool _emergencyModeEnabled = false;
   StaticFeature? _selectedFeature;
   MeshEvent? _selectedEvent;
+  MapRuntimeState _runtimeState = const MapRuntimeState(
+    providerMode: MapProviderMode.offline,
+    themeMode: ThemeMode.system,
+    zoomPercentage: 0,
+    currentLocation: null,
+    animationEnabled: true,
+  );
+  MapSearchResult? _searchSelection;
+  GeoPoint? _focusPoint;
+  String _searchText = '';
 
   @override
   void initState() {
     super.initState();
     _bridge = widget.bridge ?? MapBridge();
+    _locationController = widget.locationController ?? LocationController();
+    if (widget.networkAvailable &&
+        widget.configuredGoogleMapsKey.trim().isNotEmpty) {
+      _runtimeState = _runtimeState.copyWith(
+        providerMode: MapProviderMode.googleOnline,
+      );
+    }
     _load();
   }
 
   @override
   void dispose() {
     _eventSubscription?.cancel();
-    _mapController.dispose();
+    _searchController.dispose();
+    if (widget.locationController == null) {
+      unawaited(_locationController.dispose());
+    }
     super.dispose();
   }
 
@@ -257,14 +284,31 @@ class _MapScreenState extends State<MapScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _recenter() => _mapController.fitCamera(
-    CameraFit.bounds(
-      bounds: _neihuBounds,
-      padding: const EdgeInsets.all(36),
-      minZoom: 12,
-      maxZoom: 17,
-    ),
-  );
+  void _setZoomPercentage(int percentage) => setState(() {
+    _runtimeState = _runtimeState.copyWith(zoomPercentage: percentage);
+  });
+
+  void _selectSearchResult(MapSearchResult result) => setState(() {
+    _searchSelection = result;
+    _focusPoint = result.coordinate;
+    _selectedFeature = result.feature;
+    _selectedEvent = null;
+    _searchText = '';
+    _searchController.clear();
+  });
+
+  Future<void> _requestCurrentLocation() async {
+    final location = await _locationController.requestCurrentLocation();
+    if (!mounted) return;
+    if (location == null) {
+      _showMessage('無法取得目前位置，請確認定位服務與權限');
+      return;
+    }
+    setState(() {
+      _focusPoint = location;
+      _runtimeState = _runtimeState.copyWith(currentLocation: location);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -272,97 +316,54 @@ class _MapScreenState extends State<MapScreen> {
     if (staticFeatures == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
+    final searchResults = MapSearchIndex(
+      staticFeatures.features,
+    ).query(_searchText);
+    final activeProvider = MapCanvas.resolveProvider(
+      requestedMode: _runtimeState.providerMode,
+      configuredGoogleMapsKey: widget.configuredGoogleMapsKey,
+      networkAvailable: widget.networkAvailable,
+    );
     return Scaffold(
       body: Stack(
         children: <Widget>[
-          FlutterMap(
-            mapController: _mapController,
-            options: MapOptions(
-              initialCenter: const LatLng(25.083506, 121.590304),
-              initialZoom: 13,
-              initialCameraFit: CameraFit.bounds(
-                bounds: _neihuBounds,
-                padding: const EdgeInsets.all(24),
-                minZoom: 12,
-                maxZoom: 17,
-              ),
-              minZoom: 12,
-              maxZoom: 17,
-              cameraConstraint: CameraConstraint.containCenter(
-                bounds: _neihuBounds,
-              ),
-              onTap: (_, _) => _closeDetails(),
-            ),
-            children: <Widget>[
-              TileLayer(
-                urlTemplate: 'assets/map/tiles/{z}/{x}/{y}.png',
-                tileProvider: AssetTileProvider(),
-                minZoom: 12,
-                maxZoom: 17,
-                minNativeZoom: 12,
-                maxNativeZoom: 17,
-                tileBounds: _neihuBounds,
-                keepBuffer: 0,
-                panBuffer: 0,
-                tileDisplay: const TileDisplay.instantaneous(),
-              ),
-              ...MapLayers.build(
-                features: staticFeatures.features,
-                events: _visibleEvents,
-                showShelters: _showShelters,
-                showMedical: _showMedical,
-                showEvents: _showEvents,
-                onStaticFeatureSelected: _showStaticSelection,
-                onEventSelected: _showEvent,
-              ),
-              const SimpleAttributionWidget(
-                source: Text('OpenStreetMap contributors'),
-              ),
-            ],
+          MapCanvas(
+            runtimeState: _runtimeState,
+            staticFeatures: staticFeatures.features,
+            visibleEvents: _visibleEvents,
+            showShelters: _showShelters,
+            showMedical: _showMedical,
+            showEvents: _showEvents,
+            onStaticFeatureSelected: _showStaticSelection,
+            onEventSelected: _showEvent,
+            onZoomPercentageChanged: _setZoomPercentage,
+            onOpenLayerSettings: _openLayerPanel,
+            onRequestLocation: _requestCurrentLocation,
+            onMapTap: _closeDetails,
+            searchSelection: _searchSelection,
+            focusPoint: _focusPoint,
+            networkAvailable: widget.networkAvailable,
+            configuredGoogleMapsKey: widget.configuredGoogleMapsKey,
           ),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  _StatusOverlay(snapshotAt: staticFeatures.snapshotAt),
-                  const Spacer(),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Semantics(
-                          button: true,
-                          label: '圖層設定',
-                          onTap: _openLayerPanel,
-                          child: ExcludeSemantics(
-                            child: FloatingActionButton.small(
-                              heroTag: 'layer-filter',
-                              tooltip: '圖層設定',
-                              onPressed: _openLayerPanel,
-                              child: const Icon(Icons.layers_outlined),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Semantics(
-                          button: true,
-                          label: '回到內湖範圍',
-                          onTap: _recenter,
-                          child: ExcludeSemantics(
-                            child: FloatingActionButton.small(
-                              heroTag: 'recenter-neihu',
-                              tooltip: '回到內湖範圍',
-                              onPressed: _recenter,
-                              child: const Icon(Icons.my_location),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  _SearchOverlay(
+                    text: _searchText,
+                    controller: _searchController,
+                    results: searchResults,
+                    onChanged: (value) => setState(() => _searchText = value),
+                    onSelected: _selectSearchResult,
                   ),
+                  const SizedBox(height: 8),
+                  _StatusOverlay(
+                    snapshotAt: staticFeatures.snapshotAt,
+                    providerMode: activeProvider,
+                  ),
+                  const Spacer(),
                 ],
               ),
             ),
@@ -391,9 +392,10 @@ class _MapScreenState extends State<MapScreen> {
 }
 
 class _StatusOverlay extends StatelessWidget {
-  const _StatusOverlay({required this.snapshotAt});
+  const _StatusOverlay({required this.snapshotAt, required this.providerMode});
 
   final String? snapshotAt;
+  final MapProviderMode providerMode;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -410,6 +412,11 @@ class _StatusOverlay extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           const Text('離線地圖可用'),
+          Text(
+            providerMode == MapProviderMode.googleOnline
+                ? 'Google 線上地圖'
+                : 'OSM 離線底圖',
+          ),
           Text('資料快照：${snapshotAt ?? '無資料'}'),
           const Text(
             '模擬事件，非即時官方災情',
@@ -418,5 +425,87 @@ class _StatusOverlay extends StatelessWidget {
         ],
       ),
     ),
+  );
+}
+
+class _SearchOverlay extends StatelessWidget {
+  const _SearchOverlay({
+    required this.text,
+    required this.controller,
+    required this.results,
+    required this.onChanged,
+    required this.onSelected,
+  });
+
+  final String text;
+  final TextEditingController controller;
+  final List<MapSearchResult> results;
+  final ValueChanged<String> onChanged;
+  final ValueChanged<MapSearchResult> onSelected;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder:
+        (context, constraints) => ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: constraints.maxWidth.clamp(0, 480).toDouble(),
+          ),
+          child: Material(
+            color: Theme.of(
+              context,
+            ).colorScheme.surface.withValues(alpha: 0.96),
+            elevation: 4,
+            borderRadius: BorderRadius.circular(14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Semantics(
+                  textField: true,
+                  label: '搜尋地點',
+                  child: TextField(
+                    key: const ValueKey<String>('map-search-field'),
+                    controller: controller,
+                    onChanged: onChanged,
+                    textInputAction: TextInputAction.search,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      hintText: '搜尋醫院、避難所或道路',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                  ),
+                ),
+                if (text.trim().isNotEmpty && results.isNotEmpty)
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 220),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: results.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final result = results[index];
+                        final address = result.feature.details['address'];
+                        return ListTile(
+                          dense: true,
+                          title: Text(result.title),
+                          subtitle: Text(
+                            address is String && address.isNotEmpty
+                                ? '${result.typeLabel}・$address'
+                                : result.typeLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onTap: () => onSelected(result),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
   );
 }
