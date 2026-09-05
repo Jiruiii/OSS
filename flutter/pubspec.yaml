@@ -43,6 +43,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  assets:
+    - assets/data/neihu/static-features.json
+    - assets/data/neihu/demo-events.json
+    - assets/map/tiles/
+
   # To add Flutter specific assets to your application, add an assets section,
   # like this:
   # assets:
