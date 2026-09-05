@@ -19,6 +19,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _lastLoadSummary = MutableStateFlow<String?>(null)
     val lastLoadSummary: StateFlow<String?> = _lastLoadSummary.asStateFlow()
 
+    // Defaults to off: MVP boundary requires the user to explicitly opt in,
+    // never inferred from network/battery state. Pure state for now — no
+    // foreground service, no BLE — that's the next task, wired in later
+    // once this toggle exists for it to control.
+    private val _emergencyModeEnabled = MutableStateFlow(false)
+    val emergencyModeEnabled: StateFlow<Boolean> = _emergencyModeEnabled.asStateFlow()
+
+    fun setEmergencyMode(enabled: Boolean) {
+        _emergencyModeEnabled.value = enabled
+    }
+
     val events: StateFlow<List<EventEntity>> = repository.observeEvents()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
