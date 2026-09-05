@@ -48,18 +48,18 @@
                 android:text="@string/load_fixture_bundle" />
 
             <Button
-                android:id="@+id/openBleSpikeButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="@string/open_ble_spike" />
-
-            <Button
                 android:id="@+id/openPeerSyncButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:text="@string/open_peer_sync" />
+
+            <Button
+                android:id="@+id/openBleSpikeButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="@string/open_ble_spike" />
         </LinearLayout>
     </HorizontalScrollView>
 

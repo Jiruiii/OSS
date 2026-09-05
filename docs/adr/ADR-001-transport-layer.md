@@ -137,11 +137,16 @@ close(connection)
 - **亮屏**：17/20 成功（85%），成功案例 latency p50=289ms／p95=566ms；最後 3 次連續失敗（`service discovery failed`，各逾時 10 秒）——懷疑連續高頻重連後 BLE stack／對端 GATT server 需要更長恢復時間。
 - **鎖屏**：20 次裡扣掉按下按鈕當下仍亮屏的第 1 次，剩下 19/19 全部失敗，**0% 成功率**——沒有 foreground service 保護的一般 App，鎖屏後幾乎無法完成 BLE 連線，這正是 Emergency Mode 需要 foreground service 的直接證據。（跨機型重跑、換乙的正式 `EmergencyModeService` 骨架重跑鎖屏情境，仍是待辦，見 `docs/mvp-remaining-tasks.md`。）
 
-**Energy Cost**（60 秒視窗）：
+**Energy Cost**（2026-09-05 重測，取代同日稍早已作廢的量測）：
 
-- Scan-only baseline：平均 **22.35 mW**
-- Scan + 持續傳輸（已扣除連線瞬間尖峰）：平均 **26.78 mW**
-- 傳輸本身增加約 **4.4 mW**，相對 baseline 增幅約 20%
+| 條件 | 各輪中位數（6 輪） | 主要估計值 |
+| --- | --- | ---: |
+| baseline（App 已 force-stop，螢幕關閉） | 363, 367, 375, 395, 398, 748 | **385 mW** |
+| Emergency Mode（BLE 廣播＋掃描前景服務） | 426, 433, 438, 440, 447, 474 | **439 mW** |
+
+Emergency Mode 的邊際成本約 **+54 mW（+14%）**，以 Pixel 7 的 16.8 Wh 電池換算，持續開啟一小時約多耗 **0.3% 電量**。這是「待命中持續發現鄰居」的成本，**不含** GATT 連線與分片傳輸——目前的服務不會自行傳輸。
+
+**同日稍早的 22.35 → 26.78 mW（「+4.4 mW、20%」、「1810 mW 連線尖峰」）已作廢，不應再引用。** 那次是在插著 USB、電量全滿的手機上取樣，電池電流在零附近震盪，記錄到的是計量器雜訊：兩個「不同條件」的 min／p25／median 完全相同（1.35／10.83／20.31），而且 22 mW 對整支手機物理上不可能（本次量到螢幕關閉的閒置就是約 385 mW）。詳見 `experiments/results/energy-raw/README.md`。
 
 原始 CSV 在 `experiments/results/energy-raw/`；已整理進 `experiments/results/report.md` 第 5 節（透過 `simulator/lib/report.mjs` 生成，非手改該檔案——`matrix --check` 會位元比對，手改會被下次重跑蓋掉）。
 
@@ -157,7 +162,7 @@ close(connection)
 
 **已補齊（見上方「回填」段落，2026-09-05）**：
 - Connection success rate：亮屏 20 次（17/20，85%）與鎖屏 20 次（0%）皆已跑完（僅兩台 Pixel 之間；Sharp 沒有另外跑滿 20 次的正式統計，只有本次三機 SCF 過程中的 ad-hoc 連線數據）
-- Energy：60 秒 scan-only／scan+傳輸皆已量測（22.35 mW → 26.78 mW）
+- Energy：已重測（baseline 385 mW → Emergency Mode 439 mW，+54 mW／+14%，6 輪交錯）；同日稍早那組 22.35 → 26.78 mW 因插電滿電量到雜訊而作廢，見上方
 - Background behavior：鎖屏 0% 連線成功率本身就是「一般 App 在背景/鎖屏下無法完成 GATT 連線」的直接證據，印證了 Emergency Mode foreground service 的必要性
 
 **仍未涵蓋、需要後續驗證**：

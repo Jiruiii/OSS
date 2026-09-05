@@ -49,12 +49,18 @@
           therefore the launcher. Every other activity is a developer
           harness reached from a button on it.
 
-          All of them are android:exported="false": none is meant to be
-          started by another app, and several turn on BLE advertising, so
-          leaving them exported handed any installed app a way to trigger
-          that. `adb shell am start` still works on non-exported components
-          because the shell user holds START_ANY_ACTIVITY, so the existing
-          device-test workflow is unaffected.
+          All of them are android:exported="false" here: none is meant to
+          be started by another app, and several turn on BLE advertising,
+          so leaving them exported handed any installed app a way to
+          trigger that.
+
+          This does break `adb shell am start` — the shell user does NOT
+          hold START_ANY_ACTIVITY on these devices, verified on the Pixel 7
+          ("Permission Denial ... not exported from uid 10262"). Since the
+          Stage 0, contact-window, connection-rate and energy workflows all
+          drive these screens over adb, src/debug/AndroidManifest.xml
+          re-exports them for the debug variant only. Release builds expose
+          nothing; the debug APK the team flashes keeps the adb workflow.
         -->
         <activity
             android:name=".MainActivity"

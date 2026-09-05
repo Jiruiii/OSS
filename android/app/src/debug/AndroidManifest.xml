@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-only overrides: re-export the developer harness activities.
+
+  The main manifest marks every harness activity android:exported="false",
+  because none of them is meant to be started by another app and several
+  switch on BLE advertising — leaving them exported in a shipped build
+  hands any installed app a way to trigger that.
+
+  But `adb shell am start` genuinely cannot start a non-exported
+  component: the shell user (uid 2000) does not hold START_ANY_ACTIVITY
+  on these devices, and the attempt fails with
+
+      SecurityException: Permission Denial: starting Intent { ... }
+      from null (pid=..., uid=2000) not exported from uid 10262
+
+  — verified on the Pixel 7, contradicting the assumption under which the
+  non-exported change was first made. Since the whole Stage 0 / contact-
+  window / connection-rate / energy workflow drives these screens over
+  adb, making them unreachable would have quietly broken every device
+  measurement this project depends on.
+
+  A debug-variant override is the standard resolution: the debug APK the
+  team flashes keeps the adb workflow, and a release build still exposes
+  nothing. MainActivity is untouched (it is the launcher and legitimately
+  exported); EmergencyModeService stays non-exported in both variants and
+  is driven from its Emergency Mode switch in the UI.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <activity
+            android:name=".transport.BleSpikeActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+
+        <activity
+            android:name=".transport.BleGattTransportSpikeActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+
+        <activity
+            android:name=".transport.BleGattMeasurementActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+
+        <activity
+            android:name=".transport.PeerSyncMilestoneActivity"
+            android:exported="true"
+            tools:replace="android:exported" />
+    </application>
+
+</manifest>

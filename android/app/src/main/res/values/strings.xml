@@ -8,12 +8,12 @@
     <string name="emergency_mode_on">Emergency Mode: ON (offline)</string>
     <string name="emergency_mode_off">Emergency Mode: OFF</string>
     <string name="emergency_mode_switch_description">Toggle Emergency Mode</string>
-    <string name="load_fixture_bundle">Load bundled test events</string>
+    <string name="load_fixture_bundle">Load events</string>
     <string name="event_list_title">Events (local database)</string>
-    <string name="open_ble_spike">BLE Spike (Stage 0)</string>
+    <string name="open_ble_spike">BLE Spike</string>
     <!-- The project's core capability: two devices exchanging only the
          chunks the other is missing. Previously reachable only via
          `adb shell am start`, which meant nobody who merely installed the
          APK could see the thing the project is actually about. -->
-    <string name="open_peer_sync">Peer Sync (2 devices)</string>
+    <string name="open_peer_sync">Peer Sync</string>
 </resources>
