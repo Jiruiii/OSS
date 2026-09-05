@@ -29,3 +29,6 @@ __pycache__/
 /android/*/*/build/
 *.iml
 .DS_Store
+
+# Local scratch notes, not shared with the team.
+/docs/jia-task-sequence.md

@@ -23,9 +23,14 @@ import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
@@ -71,6 +76,26 @@ class BleGattTransport(
         val SERVICE_UUID: UUID = BleDiscovery.SERVICE_UUID
         val DATA_CHARACTERISTIC_UUID: UUID = UUID.fromString("8f6a1c01-0000-4000-8000-00805f9b34fb")
         val ACK_CHARACTERISTIC_UUID: UUID = UUID.fromString("8f6a1c02-0000-4000-8000-00805f9b34fb")
+
+        // Out-of-band control signaling (docs/jia-task-sequence.md item 8,
+        // cross-contact resume) — deliberately separate from
+        // DATA_CHARACTERISTIC. A control write is delivered to the peer
+        // whole, in one shot, with no relation to whatever DATA_CHARACTERISTIC
+        // message is (or isn't) currently in flight. That independence is
+        // the entire point: reproduced on a real device where a sender,
+        // after abandoning a still-incomplete DATA transfer, tried to
+        // announce that fact over the SAME DATA_CHARACTERISTIC — the
+        // receiver's handleIncomingChunk() has no notion of "message
+        // boundary" beyond a running byte count against the length header
+        // from the FIRST write of whatever's currently accumulating, so it
+        // silently appended the new message's bytes onto the old,
+        // still-incomplete one instead of recognizing a fresh message. The
+        // sender's write itself succeeded; the receiver just never reached
+        // enough bytes to ack anything, so the sender's ack wait timed out
+        // 30s later with no error on either side pointing at the real
+        // cause. A dedicated characteristic sidesteps this entirely: it never
+        // touches incomingMessages' accumulation state.
+        val CONTROL_CHARACTERISTIC_UUID: UUID = UUID.fromString("8f6a1c03-0000-4000-8000-00805f9b34fb")
         private val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         private const val DESIRED_MTU = 247
         private const val HEADER_BYTES = 4
@@ -86,6 +111,7 @@ class BleGattTransport(
         val gatt: BluetoothGatt,
         val dataCharacteristic: BluetoothGattCharacteristic,
         val ackCharacteristic: BluetoothGattCharacteristic,
+        val controlCharacteristic: BluetoothGattCharacteristic,
         val mtuPayloadSize: Int,
     )
 
@@ -96,6 +122,7 @@ class BleGattTransport(
     // multiplexed transport.
     @Volatile private var pendingWriteAck: CompletableDeferred<Boolean>? = null
     @Volatile private var pendingAckNotify: CompletableDeferred<Unit>? = null
+    @Volatile private var pendingControlWriteAck: CompletableDeferred<Boolean>? = null
 
     @Volatile
     var interruptRequested = false
@@ -106,6 +133,28 @@ class BleGattTransport(
     private var gattServer: BluetoothGattServer? = null
     private val incomingMessages = ConcurrentHashMap<String, IncomingMessage>()
     private val subscribedDevices = ConcurrentHashMap<String, BluetoothDevice>()
+
+    /**
+     * Every fully-received message, as (peerId, payload bytes). Stage 0's
+     * spike only ever cared whether a transfer completed, so the received
+     * bytes were discarded right after acking (see [handleIncomingChunk]) —
+     * fine for measuring throughput, useless for running an actual
+     * HELLO/DIFF/REQUEST/TRANSFER protocol on top, which needs to read what
+     * was sent. `extraBufferCapacity` + DROP_OLDEST: a slow/absent
+     * collector should not block the GATT callback thread from acking.
+     */
+    private val _receivedMessages = MutableSharedFlow<Pair<String, ByteArray>>(
+        extraBufferCapacity = 32,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val receivedMessages: SharedFlow<Pair<String, ByteArray>> get() = _receivedMessages
+
+    /** Every control message, delivered whole in a single GATT write — see [CONTROL_CHARACTERISTIC_UUID]. */
+    private val _controlMessages = MutableSharedFlow<Pair<String, ByteArray>>(
+        extraBufferCapacity = 32,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val controlMessages: SharedFlow<Pair<String, ByteArray>> get() = _controlMessages
 
     private class IncomingMessage {
         var expectedLength: Int = -1
@@ -132,6 +181,9 @@ class BleGattTransport(
         ) {
             if (characteristic.uuid == DATA_CHARACTERISTIC_UUID) {
                 handleIncomingChunk(device, value)
+            } else if (characteristic.uuid == CONTROL_CHARACTERISTIC_UUID) {
+                Log.i(TAG, "server: received control message (${value.size} bytes) from ${device.address}")
+                _controlMessages.tryEmit(device.address to value)
             }
             if (responseNeeded) {
                 gattServer?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value)
@@ -175,6 +227,7 @@ class BleGattTransport(
         if (message.buffer.size() >= message.expectedLength) {
             Log.i(TAG, "server: received full message (${message.buffer.size()} bytes) from ${device.address}")
             incomingMessages.remove(device.address)
+            _receivedMessages.tryEmit(device.address to message.buffer.toByteArray())
             sendAck(device)
         }
     }
@@ -215,8 +268,14 @@ class BleGattTransport(
         ackChar.addDescriptor(
             BluetoothGattDescriptor(CCCD_UUID, BluetoothGattDescriptor.PERMISSION_READ or BluetoothGattDescriptor.PERMISSION_WRITE),
         )
+        val controlChar = BluetoothGattCharacteristic(
+            CONTROL_CHARACTERISTIC_UUID,
+            BluetoothGattCharacteristic.PROPERTY_WRITE,
+            BluetoothGattCharacteristic.PERMISSION_WRITE,
+        )
         service.addCharacteristic(dataChar)
         service.addCharacteristic(ackChar)
+        service.addCharacteristic(controlChar)
         server.addService(service)
         gattServer = server
     }
@@ -288,13 +347,42 @@ class BleGattTransport(
 
     // --- connect (central role: connectGatt to a discovered peer) ---
 
+    // Guards against two overlapping connect() calls for the same peer (a
+    // double-tap in a caller's UI, or a retry racing the original attempt)
+    // firing two concurrent device.connectGatt()s. Reproduced on a real
+    // device: two connect() calls ~30ms apart both issued connectGatt(),
+    // neither the 15s local timeout NOR the underlying native connection
+    // ever resolved on schedule — the real onConnectionStateChange(status=147)
+    // only arrived ~30s later, well after both callers had already given up.
+    // A single mutex (not per-peer) matches this class's existing
+    // single-flight assumption for sends (see pendingWriteAck/pendingAckNotify).
+    private val connectMutex = Mutex()
+
     override suspend fun connect(peerId: String): Connection {
+        centralLinks[peerId]?.let { return Connection(peerId = peerId, connectionId = peerId) }
+        return connectMutex.withLock { connectLocked(peerId) }
+    }
+
+    private suspend fun connectLocked(peerId: String): Connection {
         centralLinks[peerId]?.let { return Connection(peerId = peerId, connectionId = peerId) }
 
         val device = adapter.getRemoteDevice(peerId)
         val connected = CompletableDeferred<Boolean>()
         val servicesDiscovered = CompletableDeferred<Boolean>()
-        val mtuDeferred = CompletableDeferred<Int>()
+        // Some devices fire an unsolicited onMtuChanged (a system-initiated
+        // MTU exchange right at connect time, before we ever call
+        // requestMtu()) — confirmed on a Pixel 7 via logcat: onConfigureMTU
+        // arrives ~4ms after onConnectionStateChange, well before
+        // discoverServices() even runs. A plain CompletableDeferred created
+        // up front would be completed by that stray event, so the later
+        // withTimeoutOrNull { mtuDeferred.await() } (meant to wait for OUR
+        // requestMtu() call) returns immediately with the stale value —
+        // control then reaches writeCharacteristic() while our real
+        // requestMtu() is still in flight at the GATT stack level (only one
+        // outstanding op is allowed), and the write is rejected outright.
+        // Indirected through a ref that's only populated right before we
+        // issue requestMtu() so any earlier, unsolicited event is dropped.
+        val mtuDeferredRef = java.util.concurrent.atomic.AtomicReference<CompletableDeferred<Int>?>(null)
         val descriptorWriteDeferred = CompletableDeferred<Boolean>()
 
         val callback = object : BluetoothGattCallback() {
@@ -314,7 +402,7 @@ class BleGattTransport(
             }
 
             override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
-                mtuDeferred.complete(mtu)
+                mtuDeferredRef.get()?.complete(mtu)
             }
 
             override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
@@ -322,7 +410,12 @@ class BleGattTransport(
             }
 
             override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-                pendingWriteAck?.complete(status == BluetoothGatt.GATT_SUCCESS)
+                val ok = status == BluetoothGatt.GATT_SUCCESS
+                if (characteristic.uuid == CONTROL_CHARACTERISTIC_UUID) {
+                    pendingControlWriteAck?.complete(ok)
+                } else {
+                    pendingWriteAck?.complete(ok)
+                }
             }
 
             override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, value: ByteArray) {
@@ -350,6 +443,8 @@ class BleGattTransport(
             ?: throw IllegalStateException("peer $peerId missing data characteristic")
         val ackChar = service.getCharacteristic(ACK_CHARACTERISTIC_UUID)
             ?: throw IllegalStateException("peer $peerId missing ack characteristic")
+        val controlChar = service.getCharacteristic(CONTROL_CHARACTERISTIC_UUID)
+            ?: throw IllegalStateException("peer $peerId missing control characteristic")
 
         gatt.setCharacteristicNotification(ackChar, true)
         ackChar.getDescriptor(CCCD_UUID)?.let { cccd ->
@@ -365,6 +460,8 @@ class BleGattTransport(
             withTimeoutOrNull(5_000) { descriptorWriteDeferred.await() }
         }
 
+        val mtuDeferred = CompletableDeferred<Int>()
+        mtuDeferredRef.set(mtuDeferred)
         gatt.requestMtu(DESIRED_MTU)
         val negotiatedMtu = withTimeoutOrNull(5_000) { mtuDeferred.await() } ?: 23
 
@@ -372,6 +469,7 @@ class BleGattTransport(
             gatt = gatt,
             dataCharacteristic = dataChar,
             ackCharacteristic = ackChar,
+            controlCharacteristic = controlChar,
             // BLE's ATT spec caps a single attribute value at 512 bytes
             // regardless of negotiated ATT_MTU (which can go up to 517) —
             // a negotiated MTU of 517 gives (517-3)=514 bytes of "room" that
@@ -386,11 +484,71 @@ class BleGattTransport(
         return Connection(peerId = peerId, connectionId = peerId)
     }
 
+    // transfer() reads/writes class-level pendingWriteAck/pendingAckNotify
+    // (this class's own doc comment already calls out the "single-flight
+    // assumption" this relies on). Nothing enforced that until now — and a
+    // real bidirectional protocol breaks it immediately: reproduced on a
+    // real device where a HELLO send (still awaiting its ack) overlapped
+    // with a REQUEST send triggered by receiving the peer's own HELLO in
+    // response, on the same connection. The second call clobbered
+    // pendingAckNotify before the first's ack arrived, and the first send
+    // just silently hung until its own 30s ack timeout — no crash, no log,
+    // it just never returned. This mutex makes the existing single-flight
+    // assumption actually true instead of merely documented.
+    private val sendMutex = Mutex()
+
     override suspend fun send(connection: Connection, payload: ByteArray): TransferResult =
-        transfer(connection, payload, offsetBytes = 0L)
+        sendMutex.withLock { transfer(connection, payload, offsetBytes = 0L) }
 
     override suspend fun resume(connection: Connection, payload: ByteArray, offsetBytes: Long): TransferResult =
-        transfer(connection, payload, offsetBytes)
+        sendMutex.withLock { transfer(connection, payload, offsetBytes) }
+
+    // Independent of sendMutex/DATA_CHARACTERISTIC on purpose — see
+    // CONTROL_CHARACTERISTIC_UUID's doc comment. Not part of PeerTransport:
+    // this is a BleGattTransport-specific escape hatch for small,
+    // out-of-band signaling (e.g. "I abandoned an in-progress TRANSFER at
+    // byte N"), not a general-purpose second data channel — no framing,
+    // no ack-notify, must fit in one GATT write.
+    private val controlMutex = Mutex()
+
+    suspend fun sendControl(connection: Connection, payload: ByteArray): TransferResult = controlMutex.withLock {
+        val link = centralLinks[connection.connectionId]
+            ?: return@withLock TransferResult.Failed("no active GATT link for ${connection.connectionId}; call connect() again")
+        if (payload.size > link.mtuPayloadSize) {
+            return@withLock TransferResult.Failed(
+                "control payload ${payload.size} bytes exceeds mtuPayloadSize=${link.mtuPayloadSize}; " +
+                    "control messages must fit in a single GATT write",
+            )
+        }
+
+        val writeDeferred = CompletableDeferred<Boolean>()
+        pendingControlWriteAck = writeDeferred
+        val queued = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            link.gatt.writeCharacteristic(
+                link.controlCharacteristic,
+                payload,
+                BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT,
+            ) == BluetoothGatt.GATT_SUCCESS
+        } else {
+            @Suppress("DEPRECATION")
+            run {
+                link.controlCharacteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                link.controlCharacteristic.value = payload
+                link.gatt.writeCharacteristic(link.controlCharacteristic)
+            }
+        }
+        if (!queued) {
+            pendingControlWriteAck = null
+            return@withLock TransferResult.Failed("writeCharacteristic() failed to queue control payload")
+        }
+        val ok = withTimeoutOrNull(WRITE_TIMEOUT_MS) { writeDeferred.await() } ?: false
+        pendingControlWriteAck = null
+        if (!ok) {
+            TransferResult.Failed("control write failed/timed out")
+        } else {
+            TransferResult.Success(bytesTransferred = payload.size.toLong(), durationMillis = 0)
+        }
+    }
 
     private suspend fun transfer(connection: Connection, payload: ByteArray, offsetBytes: Long): TransferResult {
         val link = centralLinks[connection.connectionId]
@@ -406,7 +564,27 @@ class BleGattTransport(
         var sent = 0
         val chunkSize = link.mtuPayloadSize
         var offset = 0
-        var first = true
+        // The length header is a property of the MESSAGE (so the receiver's
+        // handleIncomingChunk knows the total expectedLength once, from the
+        // very first write it ever sees for this peer), not of this
+        // particular transfer() *call* — it must be sent only when starting
+        // a message from scratch (offsetBytes == 0), carrying the message's
+        // full original size, never on a resume.
+        //
+        // This was wrong before: `first` was reset to true on every call,
+        // so resume() also prepended a header — one holding remaining.size
+        // (bytes left to send), not payload.size (the original total). The
+        // receiver's IncomingMessage only parses a header on the very first
+        // write it accumulates for a peer (expectedLength < 0) and treats
+        // everything after as raw continuation bytes — so on resume those 4
+        // header bytes silently became 4 bogus payload bytes spliced into
+        // the middle of the reassembled message. Reproduced on a real
+        // device: a resumed TRANSFER completed "successfully" per both
+        // sides' logs, but the receiver's chunk_hash didn't match — the
+        // very check this class's own Stage 0 spike history never actually
+        // performed (it only asserted resume() returned Success, never
+        // compared reassembled bytes against the original).
+        var needsHeader = offsetBytes == 0L
 
         val ackDeferred = CompletableDeferred<Unit>()
         pendingAckNotify = ackDeferred
@@ -418,15 +596,15 @@ class BleGattTransport(
                 return TransferResult.Interrupted(bytesTransferred = sent.toLong(), reason = "simulated interrupt")
             }
 
-            val payloadRoom = if (first) chunkSize - HEADER_BYTES else chunkSize
+            val payloadRoom = if (needsHeader) chunkSize - HEADER_BYTES else chunkSize
             val len = minOf(payloadRoom, remaining.size - offset)
-            val chunk = if (first) {
-                val header = ByteBuffer.allocate(HEADER_BYTES).order(ByteOrder.BIG_ENDIAN).putInt(remaining.size).array()
+            val chunk = if (needsHeader) {
+                val header = ByteBuffer.allocate(HEADER_BYTES).order(ByteOrder.BIG_ENDIAN).putInt(payload.size).array()
                 header + remaining.copyOfRange(offset, offset + len)
             } else {
                 remaining.copyOfRange(offset, offset + len)
             }
-            first = false
+            needsHeader = false
 
             val writeDeferred = CompletableDeferred<Boolean>()
             pendingWriteAck = writeDeferred

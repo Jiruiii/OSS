@@ -18,18 +18,18 @@
 
 ## 甲：實機整合與量測（需要 Android 手機的一切）
 
-**現況**：BLE GATT 傳輸層已驗證通過（`transport/BleGattTransport.kt`，discovery/連線/傳輸/位元組級續傳皆成功），但完全沒有協定層接上去——`send()`/`resume()` 傳的仍是 `randomPayload()`／`SecureRandom` 產生的假資料。`EventVerifier` → `EventIngestor` → Room 這條驗證寫入路徑已經打通，但目前唯一入口是讀 App 內建 fixture 的 `MeshRepository.ingestBundledFixture()`，還沒有東西從 Peer Sync 真的傳進來。
+**現況（2026-09-05 更新）**：BLE GATT 傳輸層已驗證通過（`transport/BleGattTransport.kt`）。乙交付 Kotlin 版 `PeerSync`（`computeDiff`/`buildRequest`）後，甲已把協定邏輯接上真傳輸層並在 Pixel 7 + Pixel 8a 上跑通完整的 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY（`transport/PeerSyncMilestoneActivity.kt`），並接上跨接觸續傳——**3a 里程碑已達成**，細節見下方。過程中在真機上抓到並修好三個 `BleGattTransport` 的真 bug（MTU 協商 race、`connect()`/`send()` 缺少序列化保護、**續傳會把多餘的 4-byte header 誤插進資料中間，靠 chunk_hash 驗證失敗才抓到**——這代表 Stage 0 spike 當時「驗證通過」的續傳測試其實從未真的比對過收到的位元組是否跟原始資料一致），修法與根因記錄在程式碼註解裡。
 
 **待辦（依序）**
 
-- [ ] **接觸窗量測**：用兩台實機模擬 opportunistic contact（10–60 秒隨機擦身而過），實測「一次接觸平均能傳幾 bytes」，回填 `docs/adr/ADR-001-transport-layer.md` 與 `pipeline/lib/bundle.mjs` 的 `targetSizeBytes` 決策（現在是拍腦袋定的 4096）——這項可以在等乙交付協定邏輯的同時先做，不互相卡
-- [ ] **跨機型相容性測試**：3 台裡若有非 Pixel／不同 API 版本的機型（`C_BLEbroadcast.md` 記錄的 Samsung SM-S731B），拿來重跑 discovery／connect／transfer，把階段 0 從「條件通過」轉正
-- [ ] 把乙交付的 Kotlin 協定邏輯接上 `BleGattTransport`，取代 spike activity 裡的隨機測試 payload
-- [ ] 兩機交換**一個**真的簽章 chunk，接進 `MeshRepository` → `EventVerifier` → Room（取代目前只能餵 `ingestBundledFixture()` 的呼叫路徑）— **3a 里程碑，唯一的整合風險點**
-- [ ] 接上跨接觸續傳：`buildRequest()` 目前硬寫 `offset_bytes: 0`，`BleGattTransport` 已驗證的位元組級續傳要真的用上，實機測中斷後能否接續
+- [x] **接觸窗量測**：harness 已完成（`transport/BleGattMeasurementActivity.kt`），Pixel 7 + Pixel 8a 實測 30 秒窗口 = 122,880 bytes acked（4105 B/s），與 ADR-001 既有 3–6 KB/s 量級吻合——**尚需**：多輪次數據 + 正式回填 ADR-001／`pipeline/lib/bundle.mjs` 的 `targetSizeBytes` 決策段落
+- [ ] **跨機型相容性測試**：本輪只用了兩台 Pixel，尚未拿 Samsung SM-S731B 重跑
+- [x] 把乙交付的 Kotlin 協定邏輯接上 `BleGattTransport`（`transport/PeerSyncMilestoneActivity.kt`），取代 spike activity 裡的隨機測試 payload
+- [x] 兩機交換**一個**真的簽章 chunk，接進 `MeshRepository.ingestChunk()`（新增）→ `ChunkVerifier`（新增，chunk_hash + chunk 級 Ed25519 簽章）→ `EventVerifier`/`EventIngestor` → Room —— **3a 里程碑，2026-09-05 在 Pixel 7 ↔ Pixel 8a 上通過**，直接讀出裝置上 Room 的 `.db-wal` 檔案確認 event 真的寫入（`applyState=CURRENT`），不只是信 log。chunk fixture 由 `pipeline/tools/generate-peer-sync-chunk-fixture.mjs` 產生（真實 Ed25519 簽章，key_id `peer-sync-demo-2026`）
+- [x] 接上跨接觸續傳：Node B 故意在傳送中途模擬「接觸窗關閉」中斷（真機重現在 508/1735 bytes），透過新增的 CONTROL characteristic（獨立於 DATA，避免中斷通知被誤判成前一則訊息的延續字節——真機上實測撞到這個問題）告知 Node A 中斷位置，A 帶著正確 `offset_bytes` 重新送 REQUEST，B 用 `transport.resume()` 續傳，chunk_hash 驗證通過，證明續傳後的資料位元組完全正確。過程中修好 `transfer()` 一個資料損毀 bug（見上）
 - [ ] Peer 上限與 critical-first 排程的實機驗證
 - [ ] Emergency Mode foreground service 的背景／鎖屏實機驗證（乙會先把 Service 骨架寫好，甲負責證明它在背景真的存活）
-- [ ] Connection success rate（20 次，分亮屏／鎖屏）與 Energy Cost 量測，記錄 `elapsed_s,power_mw` CSV 交給乙分析
+- [x] Connection success rate（分亮屏／鎖屏）與 Energy Cost 量測 harness 已完成（`transport/BleGattMeasurementActivity.kt`，輸出 `elapsed_s,power_mw` CSV）——**尚需**：正式跑滿 20 次 + 交給乙分析
 - [ ] 三機 Store-Carry-Forward 驗證：A 不直接連到 C 時，更新仍能經 B 到達 C（正好用自己的 3 台，不用跟人借）
 
 **通過條件**：兩台測試機重複完成 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY，且只交換缺少的分片並通過簽章驗證；三機情境下 A 不連 C 也能經 B 同步到最新資料；階段 0 相容性轉正。

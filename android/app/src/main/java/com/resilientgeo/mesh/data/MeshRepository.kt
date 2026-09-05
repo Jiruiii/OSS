@@ -3,6 +3,7 @@ package com.resilientgeo.mesh.data
 import android.content.Context
 import com.resilientgeo.mesh.ingest.EventIngestor
 import com.resilientgeo.mesh.ingest.IngestResult
+import com.resilientgeo.mesh.protocol.ChunkVerifier
 import com.resilientgeo.mesh.trust.TrustedKeyStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -44,8 +45,33 @@ class MeshRepository(context: Context) {
         }
     }
 
+    /**
+     * TRANSFER entry point for Peer Sync (docs/jia-task-sequence.md item 7,
+     * the "3a milestone"): verifies a `chunk-v0` payload received over
+     * `BleGattTransport` — chunk_hash + chunk-level Ed25519 signature via
+     * [ChunkVerifier], then each individual event via the same
+     * [EventIngestor] path [ingestBundledFixture] already uses — and only
+     * then writes to Room. A chunk that fails verification never reaches
+     * [EventIngestor]/Room at all.
+     */
+    suspend fun ingestChunk(chunk: JSONObject): ChunkIngestResult = withContext(Dispatchers.IO) {
+        when (val verified = ChunkVerifier.verify(chunk, trustStore)) {
+            is ChunkVerifier.Result.Invalid -> ChunkIngestResult.Rejected(verified.reason)
+            is ChunkVerifier.Result.Valid -> {
+                val now = Instant.now()
+                val results = verified.events.map { event -> EventIngestor.ingest(store, event, trustStore, now) }
+                ChunkIngestResult.Applied(results)
+            }
+        }
+    }
+
     companion object {
         private const val FIXTURE_ASSET = "fixtures/signed-events.json"
         private const val TRUSTED_KEYS_ASSET = "trust/trusted-keys.json"
     }
+}
+
+sealed class ChunkIngestResult {
+    data class Applied(val eventResults: List<IngestResult>) : ChunkIngestResult()
+    data class Rejected(val reason: String) : ChunkIngestResult()
 }
