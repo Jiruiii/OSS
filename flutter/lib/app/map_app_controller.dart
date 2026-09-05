@@ -76,6 +76,11 @@ class MapAppController extends ChangeNotifier {
         (jsonDecode(rawDemo) as Map<String, dynamic>)['events'],
       );
 
+      // Google configuration is independent from Room. The Android host can
+      // provide a valid Manifest key even when its local database is empty or
+      // temporarily unavailable.
+      googleMapsConfigured = await bridge.hasGoogleMapsApiKey();
+
       try {
         initialState = await bridge.getInitialState();
         persistedEvents = initialState.events;
@@ -86,10 +91,6 @@ class MapAppController extends ChangeNotifier {
           events: <MeshEvent>[],
           emergencyModeEnabled: false,
         );
-      }
-
-      if (nativeBridgeAvailable) {
-        googleMapsConfigured = await bridge.hasGoogleMapsApiKey();
       }
 
       await _loadPreferences();

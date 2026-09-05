@@ -1,6 +1,7 @@
 package com.resilientgeo.mesh.bridge
 
 import android.content.Context
+import android.content.pm.PackageManager
 import com.resilientgeo.mesh.data.MeshRepository
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
@@ -126,11 +127,19 @@ class FlutterMapBridge(
         }
     }
 
-    private fun hasGoogleMapsApiKey(): Boolean =
-        applicationContext.applicationInfo.metaData
+    private fun hasGoogleMapsApiKey(): Boolean = try {
+        applicationContext.packageManager
+            .getApplicationInfo(
+                applicationContext.packageName,
+                PackageManager.GET_META_DATA,
+            )
+            .metaData
             ?.getString(GOOGLE_MAPS_API_KEY_META_DATA)
             ?.trim()
             ?.isNotEmpty() == true
+    } catch (_: PackageManager.NameNotFoundException) {
+        false
+    }
 
     private companion object {
         const val METHOD_CHANNEL_NAME = "com.resilientgeo.mesh/map"
