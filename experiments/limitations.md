@@ -10,20 +10,38 @@
 
 ## 尚未校準
 
-接觸機率、P2P 傳輸速率、傳輸失敗率是工程估計值，寫在
-`simulator/fixtures/sim-config.json`，`transport_params_source` 標為
-`engineering-estimate-pending-device-spike`。組員 C 的兩台實機 spike（`system.md` 階段 0）
-量到 1 MB / 10 MB 的連線時間、傳輸速度、斷線恢復後，應更新該檔並重跑
-`node simulator/cli.mjs matrix --out experiments/results`。
+`simulator/fixtures/sim-config.json` 的 `transport_params_source` 已從
+`engineering-estimate-pending-device-spike` 更新為 `ble-gatt-real-device-2026-09-05`，
+但只有 **`max_bytes_per_round`**（單次接觸能傳多少 bytes）真的用 Pixel 7 + Pixel 8a 的
+BLE GATT 實機接觸窗量測校準（3.8–4.4 KB/s，取最保守的 10 秒短窗數字 × 30 秒回合長度）。
+`contact_probability`（節點多常真的碰面）與 `transfer_failure_prob`（傳輸失敗率）仍是工程
+估計值——目前的實機數據是「BLE 連線/傳輸層」的量測，沒有一項直接對應到這兩個描述真實世界
+社交接觸模式的參數，硬套上去只會是假精確，維持原值並如實標注。
+
+## 已測，但只有單一機型/單一視窗
+
+- **Energy Cost。** `system.md` §7 要求的實機量測已完成（見 `results/report.md` 第 5
+  節）：Pixel 7，60 秒 scan-only（22.35 mW）vs scan+持續傳輸（26.78 mW，已扣除連線瞬間
+  尖峰），傳輸本身增加約 4.4 mW。但只有 1 台機型、1 次 60 秒視窗，且只涵蓋「持續傳輸」
+  這一種使用型態，不是 Emergency Mode 真實運作下的間歇性接觸/掃描退避模式，也還沒涵蓋
+  鎖屏情境（鎖屏下沒有 foreground service 保護的連線成功率是 0%，這組耗電數字是亮屏量
+  到的）。換算成「每小時額外耗電」前，這些假設要講清楚，不要直接報一個聽起來精確的數字。
 
 ## 未建模
 
-- **Energy Cost。** `system.md` §7 要求指定機型、電量、掃描頻率下的實機量測，純軟體模擬
-  做不到真值，v1 不建模。之後要接：以裝置電力 log（`elapsed_s,power_mw` CSV）計算
-  每小時額外耗電，並在報告另開一欄標明「模型 + N 台實機」。
 - **移動模型。** 節點位置固定在所屬 area，只有接觸圖隨回合變化；沒有連續移動 / 速度。
-- **傳輸層細節。** 沒有分段 framing、checksum、超時、背景限制；`verifyChunk` 之前的
-  bytes 一律當作完整收到或完全失敗。
+- **傳輸層細節。** 模擬器本身沒有分段 framing、checksum、超時、背景限制；`verifyChunk` 之前的
+  bytes 一律當作完整收到或完全失敗——真實的位元組級續傳、GATT MTU 協商、訊息序號等細節
+  只在 Android 端的 `BleGattTransport` 實作與實機驗證中處理，模擬器刻意不重現這層複雜度。
+- **固定大小切分讓版本更新無法真正 delta。** `manifest.chunking.algorithm` 是
+  `fixed-size`：資料集新版本只要有一筆事件變動，同組後面所有 chunk 的邊界就會位移、
+  hash 全變，等於整組重傳。內容導向切分（CDC）或組內單事件對齊可以修，但工作量不小，
+  v0 不處理。（跨 `manifest_id` 的 DIFF 行為本身已經處理好：新版本整組覆蓋舊版本的 DTN
+  規則已實作並有測試，不受這條限制影響。）
+- **HELLO 表示法會隨資料集線性膨脹。** 目前逐條列舉 chunk（現況 183 chunk ≈ 36 KB），
+  全台規模的資料集會膨脹到數百 KB，在一次 opportunistic contact 的接觸窗內傳不完。
+  Bloom filter 或對 manifest 順序的 bitmap 表示法可以把這個數字壓到 23 bytes 等級，
+  已寫進 `system.md` §5 當已知擴展路徑，v0 資料量夠小不需要現在實作。
 
 ## 樣本數
 
