@@ -22,8 +22,8 @@
 - [ ] **4. 三機 Store-Carry-Forward 驗證**（階段 3 的核心通過條件，目前完全還沒測）
   用 Samsung 當第三台裝置，驗證 A 不直接連 C 時，更新仍能經 B 到達 C，且全程通過簽章驗證、沒有重複從伺服器下載完整資料集。
 
-- [ ] **5. Energy Cost 分析補進報告**（階段 4 通過條件之一）
-  原始 CSV（60 秒 scan-only 22.35 mW、scan+傳輸 26.78 mW）已收集，只差整理進 `experiments/results/report.md` 的 Energy Cost 欄位。
+- [x] **5. Energy Cost 分析補進報告**（2026-09-05 完成，階段 4 通過條件之一）
+  已整理進 `experiments/results/report.md` 第 5 節（透過 `simulator/lib/report.mjs` 的 `ENERGY_COST` 常數生成，而非手改 report.md——那個檔案是 `matrix --check` 位元比對的對象，手改會被下次重跑蓋掉），含樣本數與「單一機型、單一視窗」的限制揭露。
 
 - [x] **6. 回填 ADR-001 與 targetSizeBytes 決策**（2026-09-05 完成）
   多輪接觸窗（3.8–4.4 KB/s）、connection rate（亮屏 17/20、鎖屏 0/19）、energy cost（22.35→26.78 mW）都已寫進 `docs/adr/ADR-001-transport-layer.md`「回填」段落；`pipeline/lib/bundle.mjs` 的 `targetSizeBytes = 4096` 保留原值，但補上用接觸窗吞吐量反推的理由（4096 bytes 在 3.8–4.4 KB/s 下約 1–1.5 秒傳完，符合最短 10 秒接觸窗的需求）。
@@ -38,17 +38,17 @@
 - [x] **7. 用實機數據校準 simulator**（2026-09-05 完成，部分）
   `max_bytes_per_round` 已從憑感覺的 24576 校準成 `3,819 B/s（10 秒短窗最保守量測）× 30s = 114,570`，`npm run sim:check` 通過位元比對。順帶抓到一個真的設定檔問題：`p2p_throughput_bytes_per_sec: 131072` 這個欄位是舊的高頻寬候選（Nearby Connections/Wi-Fi Direct）遺留下來的數字，**simulator 程式碼從來沒讀過它**——真正生效的一直是 `max_bytes_per_round`，已移除該死欄位並在 `notes` 說明，避免有人以為那才是模擬用的吞吐量。`contact_probability`（0.55）與 `transfer_failure_prob`（0.06）維持工程估計值不變——這兩個是社交接觸機率／傳輸失敗率模型，目前的實機數據（BLE 吞吐量、connection success rate）沒有直接對應到這兩個參數，硬套會是假精確，寧可留著工程估計標籤。
 
-- [ ] **8. 維護 demo 腳本與限制說明**
-  確保 `experiments/{demo,limitations}.md` 跟最新的協定行為（cross-manifest DTN diff、跨接觸續傳、critical-first）對得上；把上面每一項的已知限制（尤其是下面 C 段的架構限制）寫進 `limitations.md`，不要等評審問了才現想。
+- [x] **8. 維護 demo 腳本與限制說明**（2026-09-05 完成）
+  `experiments/demo.md` 更新了過期的分支參照與校準前的數字（cellular_savings、freshness p50），並補上 Energy Cost 已量測的說明；`experiments/limitations.md` 更新「尚未校準」段落反映 `max_bytes_per_round` 已校準、`contact_probability`／`transfer_failure_prob` 仍是估計值，並把下面 C 段的兩項架構限制寫進去（見 9、10）。
 
 ---
 
-## C. 已知架構限制（v0 不修，但要寫進文件，避免被當成沒發現）
+## C. 已知架構限制（v0 不修，但已寫進文件，避免被當成沒發現）
 
-- [ ] **9. 固定大小切分導致版本更新無法真正 delta**
-  `manifest.chunking.algorithm` 是 `fixed-size`：v136 → v137 只要有一筆事件變動，同組後面所有 chunk 的邊界就會位移、hash 全變，等於整組重傳。內容導向切分（CDC）或組內單事件對齊可以修，但工作量不小——v0 建議只在 `limitations.md` 寫清楚，不在 hackathon 時限內動这个。（跨 `manifest_id` 的 DIFF 行為本身**已經修好**：`pipeline/lib/peer-sync.mjs` 與 Kotlin 版 `PeerSync.kt` 都已實作「新版本整組覆蓋舊版本」的 DTN 規則並有測試，這點不用再做。）
+- [x] **9. 固定大小切分導致版本更新無法真正 delta**（2026-09-05 已寫進 `experiments/limitations.md`）
+  `manifest.chunking.algorithm` 是 `fixed-size`：v136 → v137 只要有一筆事件變動，同組後面所有 chunk 的邊界就會位移、hash 全變，等於整組重傳。內容導向切分（CDC）或組內單事件對齊可以修，但工作量不小——v0 不在 hackathon 時限內動這個，只確保文件寫清楚。（跨 `manifest_id` 的 DIFF 行為本身**已經修好**：`pipeline/lib/peer-sync.mjs` 與 Kotlin 版 `PeerSync.kt` 都已實作「新版本整組覆蓋舊版本」的 DTN 規則並有測試，這點不用再做。）
 
-- [ ] **10. HELLO 表示法會隨資料集線性膨脹**
+- [x] **10. HELLO 表示法會隨資料集線性膨脹**（2026-09-05 已寫進 `experiments/limitations.md`）
   目前逐條列舉 chunk（183 chunk＝36 KB），全台規模會膨脹到數百 KB、傳不完。Bloom filter／bitmap 表示法（23 bytes 等級）已寫進 `system.md` §5 當已知擴展路徑，v0 資料量夠小不需要現在實作，維持現狀即可。
 
 ---
