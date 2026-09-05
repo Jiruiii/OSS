@@ -106,23 +106,43 @@ object PeerSync {
      * ordered CRITICAL > HIGH > NORMAL > LOW, then smallest-first within
      * the same priority.
      *
-     * v0 always requests from offset 0 — resumable mid-chunk requests are
-     * the stage-3 cross-contact resume work `BleGattTransport` already
-     * proved possible at the byte level; wiring it into REQUEST is 甲's
-     * next step, not this function's.
+     * [offsets] carries how many bytes of a given chunk this node already
+     * holds from an earlier, interrupted contact, keyed by `chunk_id`.
+     * ADR-001 makes this load-bearing rather than a nicety: at a measured
+     * 3.8-4.4 KB/s over BLE GATT a single opportunistic contact window
+     * often cannot finish one chunk, so a REQUEST that always restarted at
+     * 0 would make no forward progress across contacts however many times
+     * the two nodes met. `BleGattTransport.resume()` already does the
+     * byte-level work; this is what lets the protocol layer ask for it
+     * instead of the demo activity hand-assembling the message.
+     *
+     * Must stay behaviourally identical to `buildRequest()` in
+     * pipeline/lib/peer-sync.mjs — including dropping an already-complete
+     * chunk rather than requesting a zero-length range.
      */
-    fun buildRequest(diff: DiffResult, resume: Boolean = true): RequestMessage {
+    fun buildRequest(
+        diff: DiffResult,
+        resume: Boolean = true,
+        offsets: Map<String, Long> = emptyMap(),
+    ): RequestMessage {
         val wanted = (diff.missingChunks + diff.staleChunks)
             .sortedWith(compareBy({ it.priority.ordinal }, { it.sizeBytes }))
             .map {
+                val held = offsets[it.chunkId] ?: 0L
+                if (held < 0L || held > it.sizeBytes) {
+                    throw PeerSyncException(
+                        "offset for ${it.chunkId} must be within [0, ${it.sizeBytes}], got $held",
+                    )
+                }
                 RequestChunk(
                     chunkId = it.chunkId,
                     chunkHash = it.chunkHash,
                     priority = it.priority,
-                    offsetBytes = 0L,
-                    maxBytes = it.sizeBytes,
+                    offsetBytes = held,
+                    maxBytes = it.sizeBytes - held,
                 )
             }
+            .filter { it.maxBytes > 0L }
 
         return RequestMessage(
             datasetId = diff.datasetId,

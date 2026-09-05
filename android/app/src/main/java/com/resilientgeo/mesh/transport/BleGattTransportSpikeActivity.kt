@@ -24,10 +24,11 @@ import java.security.SecureRandom
  * Stage 0 spike harness for [BleGattTransport] — ADR-001's third
  * bulk-transfer candidate, after Nearby Connections and raw Wi-Fi Direct
  * sockets both hit unresolved platform-level blockers on the test devices
- * (see WifiDirectTransport's and NearbyConnectionsTransport's doc comments).
+ * (both rejected implementations are now deleted; the measurement record
+ * is in docs/adr/ADR-001-transport-layer.md).
  *
  * Test sizes here (10KB/100KB) are deliberately much smaller than the
- * Nearby/Wi-Fi-Direct harnesses' 1MB/10MB: BLE GATT writes are issued one at
+ * 1MB/10MB the now-deleted Nearby/Wi-Fi-Direct harnesses used: BLE GATT writes are issued one at
  * a time (no write pipelining), so throughput is round-trip-latency bound,
  * not MTU bound — 10MB would take an impractically long time for a spike.
  * KB-scale is also what this project's actual event/chunk payloads look

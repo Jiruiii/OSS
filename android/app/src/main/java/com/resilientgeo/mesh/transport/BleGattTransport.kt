@@ -39,13 +39,18 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * ADR-001's third bulk-transfer candidate — plain BLE GATT, chosen after
- * both Nearby Connections (Google Play services INTERNAL_ERROR) and
- * WifiDirectTransport (raw P2P sockets: confirmed TCP connect timeout to a
- * correctly bound, listening ServerSocket despite working ICMP — looks like
- * an Android per-app default-network routing issue, not fixable quickly)
- * hit real platform-level blockers on the Stage 0 test devices, independent
- * of application code.
+ * ADR-001's third bulk-transfer candidate — plain BLE GATT, and the one
+ * that was adopted, after both Nearby Connections (Google Play services
+ * INTERNAL_ERROR) and native Wi-Fi Direct (raw P2P sockets: confirmed TCP
+ * connect timeout to a correctly bound, listening ServerSocket despite
+ * working ICMP — looks like an Android per-app default-network routing
+ * issue, not fixable quickly) hit real platform-level blockers on the
+ * Stage 0 test devices, independent of application code.
+ *
+ * Both rejected implementations have since been deleted along with the
+ * Wi-Fi/Play-Services permissions and dependencies they pulled in; the
+ * full measurement record for all three candidates lives in
+ * docs/adr/ADR-001-transport-layer.md, and the code itself in git history.
  *
  * Unlike those two, this reuses [BleDiscovery]'s already-proven-reliable
  * advertise/scan pair (see C_BLEbroadcast.md) and layers real data transfer

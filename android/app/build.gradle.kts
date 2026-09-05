@@ -69,11 +69,11 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.kotlinx.coroutines.android)
 
-    // Nearby Connections (module C): ADR-001's bulk-transfer candidate.
-    // kotlinx-coroutines-play-services supplies Task.await(), used to
-    // bridge ConnectionsClient's Task-based API into suspend functions.
-    implementation(libs.play.services.nearby)
-    implementation(libs.kotlinx.coroutines.play.services)
+    // No Play Services dependency: ADR-001 rejected Nearby Connections
+    // after both test devices got a Google-side INTERNAL_ERROR, and its
+    // implementation has been removed. BLE GATT needs only the platform
+    // Bluetooth APIs, which is also what lets this app work with no
+    // Google services present at all.
 
     // Local database (module B): events, versions, expiry.
     implementation(libs.androidx.room.runtime)

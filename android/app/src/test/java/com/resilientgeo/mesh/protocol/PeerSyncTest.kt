@@ -157,4 +157,47 @@ class PeerSyncTest {
         val request = PeerSync.buildRequest(diff)
         assertEquals("resilientgeo-demo:manifest:136", request.supersededManifestId)
     }
+
+    @Test
+    fun `buildRequest resumes from a per-chunk byte offset instead of restarting at 0`() {
+        val diff = PeerSync.computeDiff(peerA, peerB, datasetId, namespace)
+        val target = diff.missingChunks.first()
+
+        val fresh = PeerSync.buildRequest(diff)
+        assertEquals(0L, fresh.chunks.first().offsetBytes)
+        assertEquals(target.sizeBytes, fresh.chunks.first().maxBytes)
+
+        // Same DIFF, but this node already holds the first 400 bytes from an
+        // earlier contact that was cut short. Without this, every contact
+        // would re-request the whole chunk and never finish it at the
+        // 3.8-4.4 KB/s BLE throughput ADR-001 measured.
+        val resumed = PeerSync.buildRequest(diff, offsets = mapOf(target.chunkId to 400L))
+        assertEquals(400L, resumed.chunks.first().offsetBytes)
+        assertEquals(target.sizeBytes - 400L, resumed.chunks.first().maxBytes)
+        assertEquals(target.sizeBytes - 400L, resumed.maxTotalBytes)
+    }
+
+    @Test
+    fun `buildRequest drops a chunk that is already fully held`() {
+        val diff = PeerSync.computeDiff(peerA, peerB, datasetId, namespace)
+        val target = diff.missingChunks.first()
+
+        val request = PeerSync.buildRequest(diff, offsets = mapOf(target.chunkId to target.sizeBytes))
+
+        assertEquals(emptyList<String>(), request.chunks.map { it.chunkId })
+        assertEquals(0L, request.maxTotalBytes)
+    }
+
+    @Test
+    fun `buildRequest rejects an offset past the end of the chunk`() {
+        val diff = PeerSync.computeDiff(peerA, peerB, datasetId, namespace)
+        val target = diff.missingChunks.first()
+
+        assertThrows(PeerSyncException::class.java) {
+            PeerSync.buildRequest(diff, offsets = mapOf(target.chunkId to target.sizeBytes + 1L))
+        }
+        assertThrows(PeerSyncException::class.java) {
+            PeerSync.buildRequest(diff, offsets = mapOf(target.chunkId to -1L))
+        }
+    }
 }

@@ -23,9 +23,9 @@ import com.resilientgeo.mesh.emergency.EmergencyModeService
 import com.resilientgeo.mesh.map.MapFeature
 import com.resilientgeo.mesh.ui.EventListAdapter
 import com.resilientgeo.mesh.transport.BleSpikeActivity
-import com.resilientgeo.mesh.transport.NearbyTransportSpikeActivity
-import com.resilientgeo.mesh.transport.WifiDirectTransportSpikeActivity
+import com.resilientgeo.mesh.transport.PeerSyncMilestoneActivity
 import com.resilientgeo.mesh.ui.MainViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -59,6 +59,26 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission(),
     ) { /* EmergencyModeService already started either way — see its own doc comment. */ }
 
+    /**
+     * Emergency Mode is useless without these: the service starts either
+     * way and keeps the process alive, but with no BLUETOOTH_SCAN /
+     * BLUETOOTH_ADVERTISE it can't see or be seen by anyone, and its
+     * notification says "Discovery off". Restarting the service after the
+     * grant is what makes discovery actually begin without the user having
+     * to toggle the switch twice.
+     */
+    private val blePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { granted ->
+        if (granted.values.any { it } && viewModel.emergencyModeEnabled.value) {
+            stopService(Intent(this, EmergencyModeService::class.java))
+            ContextCompat.startForegroundService(
+                this,
+                Intent(this, EmergencyModeService::class.java),
+            )
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -87,11 +107,8 @@ class MainActivity : AppCompatActivity() {
         binding.openBleSpikeButton.setOnClickListener {
             startActivity(Intent(this, BleSpikeActivity::class.java))
         }
-        binding.openNearbyTransportSpikeButton.setOnClickListener {
-            startActivity(Intent(this, NearbyTransportSpikeActivity::class.java))
-        }
-        binding.openWifiDirectSpikeButton.setOnClickListener {
-            startActivity(Intent(this, WifiDirectTransportSpikeActivity::class.java))
+        binding.openPeerSyncButton.setOnClickListener {
+            startActivity(Intent(this, PeerSyncMilestoneActivity::class.java))
         }
 
         lifecycleScope.launch {
@@ -123,6 +140,7 @@ class MainActivity : AppCompatActivity() {
                                 this@MainActivity,
                                 Intent(this@MainActivity, EmergencyModeService::class.java),
                             )
+                            requestBlePermissionsIfNeeded()
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                                 ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
                             ) {
@@ -131,6 +149,21 @@ class MainActivity : AppCompatActivity() {
                         } else {
                             stopService(Intent(this@MainActivity, EmergencyModeService::class.java))
                         }
+                    }
+                }
+
+                launch {
+                    // Displayed apply state is derived from the current clock
+                    // (see ApplyState.at), so nothing rebinds when an event
+                    // silently expires — the stored row is unchanged and
+                    // DiffUtil correctly reports no difference. This ticker is
+                    // what makes a badge actually flip to EXPIRED while the
+                    // screen is open, which offline is the only way it ever
+                    // happens.
+                    while (true) {
+                        delay(EXPIRY_REFRESH_INTERVAL_MS)
+                        adapter.refreshExpiryStates()
+                        binding.offlineMapView.invalidate()
                     }
                 }
                 launch {
@@ -142,5 +175,24 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun requestBlePermissionsIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        val needed = listOf(
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_ADVERTISE,
+            Manifest.permission.BLUETOOTH_CONNECT,
+        ).filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
+        if (needed.isNotEmpty()) blePermissionLauncher.launch(needed.toTypedArray())
+    }
+
+    private companion object {
+        /**
+         * Coarse on purpose: expiry is a minutes-scale concern and this
+         * wakes the UI thread, so a tighter interval would burn battery in
+         * the exact mode that is supposed to conserve it.
+         */
+        const val EXPIRY_REFRESH_INTERVAL_MS = 30_000L
     }
 }

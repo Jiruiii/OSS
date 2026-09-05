@@ -2,38 +2,34 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Needed by module C's Stage 0 BLE spike (transport/BleSpikeActivity).
-         Module B's offline-GIS screen (MainActivity) needs none: phase 1 is
-         single-device and makes no network calls of any kind. -->
+    <!--
+      Bluetooth is the only radio this app uses.
+
+      ADR-001 rejected both Wi-Fi-based candidates after real-device
+      testing (Nearby Connections returned a Google-side INTERNAL_ERROR;
+      native Wi-Fi Direct's TCP transfer never completed), and their
+      implementations have been removed along with the permissions they
+      required — ACCESS_WIFI_STATE, CHANGE_WIFI_STATE, NEARBY_WIFI_DEVICES,
+      CHANGE_WIFI_MULTICAST_STATE and INTERNET are deliberately absent. The
+      rejected code remains in git history and the full measurement record
+      is in docs/adr/ADR-001-transport-layer.md; keeping the permissions
+      installed for code nothing calls would contradict this project's
+      central claim that it works with no network infrastructure at all.
+
+      ACCESS_FINE_LOCATION is retained because BLE scanning still requires
+      it on API 30 and below (minSdk here is 26); on API 31+ the
+      neverForLocation flag on BLUETOOTH_SCAN is what applies.
+    -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
 
-    <!-- Nearby Connections (module C) additionally needs Wi-Fi state access
-         (it can use a Wi-Fi-based medium under the hood, even for a BLE/WiFi
-         P2P strategy) and, on API 33+, NEARBY_WIFI_DEVICES in place of the
-         location permission above — matches Google's own connectivity-samples
-         ConnectionsActivity permission list. -->
-    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" android:usesPermissionFlags="neverForLocation" />
-
-    <!-- Wi-Fi Direct transfer (module C's ADR-001 fallback, used instead of
-         Nearby Connections after that candidate hit a real Google-side
-         INTERNAL_ERROR on both Stage 0 test devices — see ADR-001) opens
-         plain TCP sockets over the P2P group's local link. -->
-    <uses-permission android:name="android.permission.INTERNET" />
-
-    <!-- LocalNetworkTransport's NSD-based discovery (regular Wi-Fi fallback,
-         used after WifiDirectTransport's P2P sockets hit an unresolved
-         platform-level TCP block — see ADR-001). Multicast is needed for
-         mDNS to actually receive replies, not just send them. -->
-    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
-
-    <!-- Emergency Mode foreground service stub (Phase 0.5, team-assignments.md) —
-         minimal placeholder proving background/lock-screen survival while
-         乙's real Service skeleton is still pending. -->
+    <!-- Emergency Mode foreground service: holds the process up so BLE
+         discovery keeps running with the screen off. ADR-001 measured 0/19
+         successful locked-screen connections without one. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -49,12 +45,22 @@
         android:theme="@style/Theme.ResilientGeoMesh">
 
         <!--
-          Launcher choice (a judgment call made while reconciling B's and
-          C's separately-created Android projects — confirm with the team):
-          MainActivity (module B's offline-GIS screen) is phase 1's actual
-          product surface, so it is the launcher. BleSpikeActivity (module
-          C's Stage 0 transport spike) stays reachable via a button on
-          MainActivity instead of being the app's entry point.
+          MainActivity (the offline-GIS screen) is the product surface and
+          therefore the launcher. Every other activity is a developer
+          harness reached from a button on it.
+
+          All of them are android:exported="false" here: none is meant to
+          be started by another app, and several turn on BLE advertising,
+          so leaving them exported handed any installed app a way to
+          trigger that.
+
+          This does break `adb shell am start` — the shell user does NOT
+          hold START_ANY_ACTIVITY on these devices, verified on the Pixel 7
+          ("Permission Denial ... not exported from uid 10262"). Since the
+          Stage 0, contact-window, connection-rate and energy workflows all
+          drive these screens over adb, src/debug/AndroidManifest.xml
+          re-exports them for the debug variant only. Release builds expose
+          nothing; the debug APK the team flashes keeps the adb workflow.
         -->
         <activity
             android:name=".MainActivity"
@@ -69,40 +75,26 @@
 
         <activity
             android:name=".transport.BleSpikeActivity"
-            android:exported="true" />
-
-        <activity
-            android:name=".transport.NearbyTransportSpikeActivity"
-            android:exported="true" />
-
-        <activity
-            android:name=".transport.WifiDirectTransportSpikeActivity"
-            android:exported="true" />
-
-        <activity
-            android:name=".transport.LocalNetworkTransportSpikeActivity"
-            android:exported="true" />
+            android:exported="false" />
 
         <activity
             android:name=".transport.BleGattTransportSpikeActivity"
-            android:exported="true" />
+            android:exported="false" />
 
-        <!-- Phase 0 measurement harness (docs/jia-task-sequence.md items 1/3/4):
-             contact-window sizing, connection success rate, energy capture.
-             Launched the same way as the other spike activities — via
-             `adb shell am start` — not wired into MainActivity. -->
+        <!-- Phase 0 measurement harness: contact-window sizing, connection
+             success rate, energy capture (see ADR-001's backfilled data). -->
         <activity
             android:name=".transport.BleGattMeasurementActivity"
-            android:exported="true" />
+            android:exported="false" />
 
-        <!-- Phase 1 item 7 (docs/jia-task-sequence.md), the 3a milestone:
-             two devices run HELLO/DIFF/REQUEST/TRANSFER/VERIFY-APPLY over
-             BleGattTransport using 乙's PeerSync Kotlin port. Same
-             adb-launch convention as the other spike/measurement
-             activities. -->
+        <!-- The 3a milestone: two devices run
+             HELLO/DIFF/REQUEST/TRANSFER/VERIFY-APPLY over BleGattTransport.
+             Reachable from a button on MainActivity so the project's core
+             capability can be demonstrated from the installed app, not only
+             over adb. -->
         <activity
             android:name=".transport.PeerSyncMilestoneActivity"
-            android:exported="true" />
+            android:exported="false" />
 
         <service
             android:name=".emergency.EmergencyModeService"

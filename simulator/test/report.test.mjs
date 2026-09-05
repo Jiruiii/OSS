@@ -46,9 +46,28 @@ test('the report has a Limitations section with the no-whole-city disclaimer', (
 test('the report has an Energy Cost section with real-device sample sizes and caveats', () => {
   const energy = sectionBody('5. Energy Cost');
   assert.match(energy, /Pixel 7/);
-  assert.match(energy, /scan-only/);
-  assert.match(energy, /n=59|n=58/);
+  // Both conditions must be named, so the section cannot silently become a
+  // single-condition number with no baseline to compare against.
+  assert.match(energy, /baseline/);
+  assert.match(energy, /emergency-mode/);
+  // Sample size stated as runs x samples: the previous measurement's headline
+  // came from one 60-sample window, which is how a single transient became a
+  // reported "1810 mW connection spike".
+  assert.match(energy, /6 輪/);
+  assert.match(energy, /360 筆/);
   assert.match(energy, /(限制|樣本數)/);
+});
+
+test('the Energy Cost section marks the withdrawn 2026-09-05 measurement as withdrawn', () => {
+  // The 22.35 / 26.78 mW figures measured gauge noise on a plugged-in, fully
+  // charged phone. They are allowed to appear only as something explicitly
+  // retracted, never as a live number.
+  const energy = sectionBody('5. Energy Cost');
+  for (const stale of ['22.35', '26.78']) {
+    if (energy.includes(stale)) {
+      assert.match(energy, /作廢/, `${stale} appears without being marked withdrawn`);
+    }
+  }
 });
 
 test('no whole-city / fixed-time claim appears outside the disclaimer', () => {
