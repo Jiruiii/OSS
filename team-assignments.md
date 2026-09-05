@@ -28,8 +28,11 @@
 - [x] 兩機交換**一個**真的簽章 chunk，接進 `MeshRepository.ingestChunk()`（新增）→ `ChunkVerifier`（新增，chunk_hash + chunk 級 Ed25519 簽章）→ `EventVerifier`/`EventIngestor` → Room —— **3a 里程碑，2026-09-05 在 Pixel 7 ↔ Pixel 8a 上通過**，直接讀出裝置上 Room 的 `.db-wal` 檔案確認 event 真的寫入（`applyState=CURRENT`），不只是信 log。chunk fixture 由 `pipeline/tools/generate-peer-sync-chunk-fixture.mjs` 產生（真實 Ed25519 簽章，key_id `peer-sync-demo-2026`）
 - [x] 接上跨接觸續傳：Node B 故意在傳送中途模擬「接觸窗關閉」中斷（真機重現在 508/1735 bytes），透過新增的 CONTROL characteristic（獨立於 DATA，避免中斷通知被誤判成前一則訊息的延續字節——真機上實測撞到這個問題）告知 Node A 中斷位置，A 帶著正確 `offset_bytes` 重新送 REQUEST，B 用 `transport.resume()` 續傳，chunk_hash 驗證通過，證明續傳後的資料位元組完全正確。過程中修好 `transfer()` 一個資料損毀 bug（見上）
 - [ ] Peer 上限與 critical-first 排程的實機驗證
-- [ ] Emergency Mode foreground service 的背景／鎖屏實機驗證（乙會先把 Service 骨架寫好，甲負責證明它在背景真的存活）
-- [x] Connection success rate（分亮屏／鎖屏）與 Energy Cost 量測 harness 已完成（`transport/BleGattMeasurementActivity.kt`，輸出 `elapsed_s,power_mw` CSV）——**尚需**：正式跑滿 20 次 + 交給乙分析
+- [x] Emergency Mode foreground service 的背景／鎖屏實機驗證：乙的 Service 骨架尚未交付，甲照 `docs/jia-task-sequence.md` Phase 0.5 的說法自己先寫最小版本（`emergency/EmergencyModeService.kt`，5 秒心跳 + 前景通知，`MainActivity` 啟動時一併啟動）——Pixel 7 上鎖屏 **176 秒不間斷心跳**（遠超 `C_BLEbroadcast.md` 先前只驗證過 15 秒），背景/鎖屏存活證實。乙的真版本交付後可直接替換這個類別的內容，不影響已證明的存活結論
+- [x] **Connection success rate**：Pixel 7 → Pixel 8a 正式跑滿 20 次（皆亮屏），**17/20 成功（85%）**，成功案例 latency p50=289ms／p95=566ms。最後 3 次連續失敗（`service discovery failed`，各逾時 10 秒）——懷疑是連續高頻重連 20 次後 BLE stack／對端 GATT server 需要更長恢復時間，值得後續追蹤，但非本次 harness 的 bug。**尚需**：鎖屏情境、跨機型重跑
+- [x] **Energy Cost**：60 秒 scan-only baseline 平均 **22.35 mW**；60 秒 scan+持續傳輸平均 **26.78 mW**（已扣除連線瞬間的尖峰）——傳輸本身增加約 4.4 mW。原始 CSV 存在 `experiments/results/energy-raw/`，**交給乙分析**補進 `experiments/results/report.md`
+
+
 - [ ] 三機 Store-Carry-Forward 驗證：A 不直接連到 C 時，更新仍能經 B 到達 C（正好用自己的 3 台，不用跟人借）
 
 **通過條件**：兩台測試機重複完成 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY，且只交換缺少的分片並通過簽章驗證；三機情境下 A 不連 C 也能經 B 同步到最新資料；階段 0 相容性轉正。

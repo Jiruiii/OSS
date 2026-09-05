@@ -1,9 +1,14 @@
 package com.resilientgeo.mesh
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -11,6 +16,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.resilientgeo.mesh.data.toStoredEvent
 import com.resilientgeo.mesh.databinding.ActivityMainBinding
+import com.resilientgeo.mesh.emergency.EmergencyModeService
 import com.resilientgeo.mesh.map.MapFeature
 import com.resilientgeo.mesh.ui.EventListAdapter
 import com.resilientgeo.mesh.transport.BleSpikeActivity
@@ -38,6 +44,10 @@ class MainActivity : AppCompatActivity() {
     }
     private val adapter = EventListAdapter()
 
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* EmergencyModeService already started either way — see its own doc comment. */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -45,6 +55,16 @@ class MainActivity : AppCompatActivity() {
 
         binding.eventRecyclerView.layoutManager = LinearLayoutManager(this)
         binding.eventRecyclerView.adapter = adapter
+
+        // Emergency Mode has no on/off toggle yet in phase 1 (see class doc
+        // comment) — this stub foreground service just starts alongside it,
+        // matching the always-on label above.
+        ContextCompat.startForegroundService(this, Intent(this, EmergencyModeService::class.java))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
 
         binding.loadFixtureButton.setOnClickListener { viewModel.loadBundledFixture() }
         binding.openBleSpikeButton.setOnClickListener {
