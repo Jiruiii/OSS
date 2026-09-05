@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val splashResDir = layout.buildDirectory.dir("generated/res/splash/main")
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 
@@ -49,6 +50,8 @@ val googleMapsApiKey = System.getenv("GOOGLE_MAPS_API_KEY")
     ?.trim()
     .takeUnless { it.isNullOrEmpty() }
     ?: localProperties.getProperty("GOOGLE_MAPS_API_KEY")?.trim().orEmpty()
+        .takeUnless { it.isEmpty() }
+    ?: dotEnv.getProperty("GOOGLE_MAPS_API_KEY")?.trim().orEmpty()
 
 android {
     namespace = "com.resilientgeo.mesh"
@@ -95,6 +98,8 @@ android {
         viewBinding = true
     }
 
+    sourceSets["main"].res.srcDir(splashResDir)
+
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
@@ -107,6 +112,7 @@ dependencies {
     implementation(project(":flutter"))
 
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.material)
     implementation(libs.androidx.recyclerview)
@@ -141,4 +147,14 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.room.testing)
+}
+
+val copySplashLogo = tasks.register<Copy>("copySplashLogo") {
+    from(project.file("../../flutter/assets/Logo.png"))
+    into(splashResDir.map { it.dir("drawable-nodpi") })
+    rename { "resilientgeo_logo.png" }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(copySplashLogo)
 }
