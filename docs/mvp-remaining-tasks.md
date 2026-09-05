@@ -93,8 +93,14 @@
 
 - [x] **14. 送出失敗卻回報成功** — `PeerSyncMilestoneActivity` 的 `sendEnvelope()` 失敗時只記一行 log，呼叫端仍無條件印「sent HELLO」／「sent REQUEST」。實機跑的時候親眼看到 `send failed ... writeCharacteristic() failed to queue` 的下一行就是「sent HELLO」。這個畫面上的日誌正是 demo 時人類用來判斷協定有沒有跑通的依據，等於一次什麼都沒送出去的執行看起來跟成功握手一模一樣。改成回傳 Boolean，失敗就不宣稱送出，並把訊息改為明顯的 `send FAILED`。
 
-- [ ] **15. 兩機端到端仍待實機補跑**（唯一未完成項）
-  第 11、12 項改動了兩台裝置實際交換的 HELLO 內容與大小。已用實機 instrumented 測試驗證產出的 summary 欄位、格式與能力宣告正確（`PeerSummaryConformanceInstrumentedTest`，兩台 Pixel 通過），但**完整的 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY 兩機序列尚未在改動後重跑**——嘗試時兩台手機都回到鎖定畫面，無法操作角色選擇按鈕。風險評估為低（HELLO 約數百 bytes，遠低於已驗證的 1147+ bytes chunk 傳輸；解析端會忽略額外欄位），但**低風險不等於已驗證**，補跑前不應宣稱這條路徑已通過。
+- [x] **15. 兩機端到端已補跑**（2026-09-05，Pixel 7 + Pixel 8a）
+  第 11、12 項改動了兩台裝置實際交換的 HELLO 內容與大小，因此重跑完整序列驗證。
+
+  **第一次交換**（Node A 手上是空的）：HELLO 雙向 → `DIFF: missing=[4 片]` → REQUEST 依 critical-first 排序送出（`shelter(CRITICAL) → flood(CRITICAL) → road(HIGH) → medical(LOW)`，`max_total_bytes=4623`）→ 其中 shelter **中斷於 507 bytes**，A 帶 `offset_bytes=507` 送出 resume REQUEST → 4 個分片全部通過 `ChunkVerifier` + `EventVerifier` 並寫入 Room（`Inserted(state=CURRENT)` ×4）。新版 HELLO（多帶 `protocol_version`／`generated_at`／`capabilities`）沒有造成任何問題。
+
+  **第二次交換（關鍵驗證）**：force-stop 兩台重跑同一流程，這次 Node A 已持有全部 4 片。結果是 **`DIFF: missing=[] stale=[]` → 「nothing to request, already in sync」**，一個 byte 都沒有重傳。改動前寫死的 `NODE_A_SUMMARY` 永遠宣告空庫存，第二次相遇會把同樣 4 片全部重抓一次——**這條就是本專案「不要讓同一份資料被重複下載」的核心主張，現在是實機可證的，而不只是設計意圖**。
+
+  另外直接讀 Pixel 7 的 Room 確認新的 `chunks` 表確實寫入了 4 筆分片記錄（不只信 log），這是第二次交換能正確回報持有的來源。
 
 ---
 

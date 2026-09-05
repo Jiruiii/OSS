@@ -134,6 +134,7 @@ App 主畫面提供：Emergency Mode 開關（啟停前景服務與 BLE 廣播�
 | 斷點續傳 | 位元組級續傳成功（中斷點回報的 `bytesTransferred` 直接作為下次 `resume()` 的 offset） |
 | 跨品牌相容性 | Google Pixel（API 37）+ SHARP（API 35），滿足「兩品牌、兩 Android 版本」 |
 | 三機 Store-Carry-Forward | A 完全 force-stop 後，C 仍經 B 收到並驗證全部 4 筆簽章事件（含一個中斷又續傳的 chunk） |
+| 不重複下載（核心主張） | 第二次相遇時 `DIFF: missing=[]`，「already in sync」——節點從本機庫存如實宣告持有，一個 byte 都不重傳 |
 | 連線成功率 | 亮屏 17/20（85%，p50 289ms）；**鎖屏 0/19（0%）** — 這正是 Emergency Mode 需要前景服務的直接證據 |
 | 耗電 | baseline 385 mW → Emergency Mode 439 mW（**+54 mW，+14%**，螢幕關閉、6 輪交錯各 60 筆）；約等於每小時多耗 0.3% 電量 |
 
