@@ -1,0 +1,50 @@
+{
+  "schema_version": "peer-summary-v0",
+  "protocol_version": "0",
+  "node_id": "node-b",
+  "generated_at": "2026-09-01T07:20:01Z",
+  "capabilities": {
+    "discovery_transports": [
+      "BLE"
+    ],
+    "transfer_transports": [
+      "NEARBY_CONNECTIONS",
+      "WIFI_DIRECT"
+    ],
+    "max_peer_count": 3,
+    "supports_resume": true,
+    "max_chunk_bytes": 1048576
+  },
+  "datasets": [
+    {
+      "dataset_id": "resilientgeo-demo",
+      "namespace": "official",
+      "manifest_id": "resilientgeo-demo:manifest:136",
+      "manifest_hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "dataset_version": 136,
+      "chunks": [
+        {
+          "chunk_id": "resilientgeo-demo:chunk:136:dahu:road:000",
+          "chunk_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "size_bytes": 512,
+          "priority": "CRITICAL",
+          "state": "available"
+        },
+        {
+          "chunk_id": "resilientgeo-demo:chunk:136:dahu:shelter:000",
+          "chunk_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "size_bytes": 982,
+          "priority": "HIGH",
+          "state": "available"
+        },
+        {
+          "chunk_id": "resilientgeo-demo:chunk:136:xihu:flood:000",
+          "chunk_hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "size_bytes": 760,
+          "priority": "CRITICAL",
+          "state": "available"
+        }
+      ]
+    }
+  ]
+}

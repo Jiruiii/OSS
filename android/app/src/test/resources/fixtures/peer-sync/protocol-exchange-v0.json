@@ -1,0 +1,72 @@
+{
+  "fixture_version": "peer-sync-exchange-v0",
+  "scenario": "node-a-is-missing-the-dahu-shelter-chunk-held-by-node-b",
+  "peer_summaries": {
+    "node-a": "peer-a-summary-v0.json",
+    "node-b": "peer-b-summary-v0.json"
+  },
+  "messages": [
+    {
+      "direction": "A_TO_B",
+      "type": "HELLO",
+      "message_id": "hello-a-0001",
+      "sent_at": "2026-09-01T07:20:02Z",
+      "peer_summary": "peer-a-summary-v0.json"
+    },
+    {
+      "direction": "B_TO_A",
+      "type": "HELLO",
+      "message_id": "hello-b-0001",
+      "sent_at": "2026-09-01T07:20:02Z",
+      "peer_summary": "peer-b-summary-v0.json"
+    },
+    {
+      "direction": "A_TO_B",
+      "type": "DIFF",
+      "message_id": "diff-a-0001",
+      "reply_to": "hello-b-0001",
+      "dataset_id": "resilientgeo-demo",
+      "namespace": "official",
+      "manifest_id": "resilientgeo-demo:manifest:136",
+      "missing_chunks": [
+        {
+          "chunk_id": "resilientgeo-demo:chunk:136:dahu:shelter:000",
+          "chunk_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "size_bytes": 982,
+          "priority": "HIGH"
+        }
+      ],
+      "stale_chunks": []
+    },
+    {
+      "direction": "A_TO_B",
+      "type": "REQUEST",
+      "message_id": "request-a-0001",
+      "reply_to": "diff-a-0001",
+      "dataset_id": "resilientgeo-demo",
+      "namespace": "official",
+      "manifest_id": "resilientgeo-demo:manifest:136",
+      "chunks": [
+        {
+          "chunk_id": "resilientgeo-demo:chunk:136:dahu:shelter:000",
+          "chunk_hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "priority": "HIGH",
+          "offset_bytes": 0,
+          "max_bytes": 982
+        }
+      ],
+      "resume": true,
+      "max_total_bytes": 982
+    }
+  ],
+  "expected": {
+    "a_missing_chunks_before_sync": [
+      "resilientgeo-demo:chunk:136:dahu:shelter:000"
+    ],
+    "a_missing_chunks_after_sync": [],
+    "apply_order": [
+      "resilientgeo-demo:chunk:136:dahu:shelter:000"
+    ],
+    "verification_required_before_apply": true
+  }
+}

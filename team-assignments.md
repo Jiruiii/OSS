@@ -38,11 +38,17 @@
 
 ## 乙：協定邏輯、UI 與量測分析（不需要 Android 手機的一切）
 
-**現況**：真實資料源（TDX／CWA／NCDR／醫療／避難所）與 `simulator/` 四指標報告都已完成到可維護狀態。接下來的工作全部可以在自己電腦上完成，不需要實機也不需要模擬器。
+## 乙：協定邏輯、UI 與量測分析（不需要 Android 手機的一切）
+
+**現況**：真實資料源（TDX／CWA／NCDR／醫療／避難所）與 `simulator/` 四指標報告都已完成到可維護狀態。Kotlin 版 Peer Sync 協定邏輯已完成並通過 JVM 單元測試（見下方），甲可以開始接上 `BleGattTransport`。接下來的工作全部可以在自己電腦上完成，不需要實機也不需要模擬器。
 
 **待辦（依序）**
 
-- [ ] **把 `pipeline/lib/peer-sync.mjs` 的 `computeDiff`／`buildRequest` 邏輯搬成 Kotlin**，對應 `schemas/peer-summary-v0.schema.json`；比照 `android/app/src/test/.../trust/EventVerifierTest.kt` 的作法，用 JVM 單元測試對著 `fixtures/protocol-exchange-v0.json` 跟 `pipeline/test/peer-sync.test.mjs` 裡新增的跨 manifest_id 案例驗證邏輯一致——**這項最優先，甲在等**
+- [x] **把 `pipeline/lib/peer-sync.mjs` 的 `computeDiff`／`buildRequest` 邏輯搬成 Kotlin**，對應 `schemas/peer-summary-v0.schema.json`；比照 `android/app/src/test/.../trust/EventVerifierTest.kt` 的作法，用 JVM 單元測試對著 `fixtures/protocol-exchange-v0.json` 跟 `pipeline/test/peer-sync.test.mjs` 裡新增的跨 manifest_id 案例驗證邏輯一致——**已完成，2026-09-05**
+  - 新增 `android/app/src/main/java/com/resilientgeo/mesh/protocol/{PeerSummary,PeerSync}.kt`
+  - 新增 `android/app/src/test/java/com/resilientgeo/mesh/protocol/{PeerSyncTest,PeerSyncTestFixtures}.kt`
+  - `PeerSyncTest`：6 個案例全過（`./gradlew testDebugUnitTest --tests "com.resilientgeo.mesh.protocol.PeerSyncTest"`），對照 JS 版 `pipeline/test/peer-sync.test.mjs` 逐項核對，包含跨 manifest_id 的 DTN supersession 情境
+  - **交給甲**：`PeerSync.computeDiff()`／`PeerSync.buildRequest()` 可直接呼叫，取代 `BleGattTransport` spike activity 裡目前寫死的 `randomPayload()`
 - [ ] 把 Emergency Mode 從目前寫死的「Emergency Mode: ON」label 改成使用者手動開關的 UI（純狀態切換，不涉及 BLE，可以用 emulator 或純程式碼審查驗證）
 - [ ] 撰寫 Emergency Mode foreground service 的程式骨架（Service 類別、通知欄、生命週期），背景存活的實機驗證交給甲
 - [ ] 用甲交付的接觸窗與相容性數據，校準 `simulator/fixtures/sim-config.json`，重跑 `npm run sim:check` 確認位元相同
@@ -58,7 +64,7 @@
 
 | 時序 | 檢查點 | 負責人 |
 | --- | --- | --- |
-| 立刻 | Kotlin 協定邏輯 + JVM 單元測試交付（甲要接上真傳輸層的前提） | 乙 |
+| 已完成 2026-09-05 | Kotlin 協定邏輯 + JVM 單元測試交付（甲要接上真傳輸層的前提） | 乙 |
 | 立刻（並行） | 接觸窗量測、跨機型相容性測試 | 甲 |
 | 第 3–4 週 | Stage 3a：兩機交換一個真 chunk，驗證後寫進 Room | 甲 |
 | 第 3–4 週 | Stage 3b：續傳、Peer 上限、foreground service 實機驗證 | 甲（乙先交付 Emergency Mode UI + Service 骨架） |
