@@ -1,0 +1,67 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "resilientgeo-demo:chunk:136:dahu:medical:000",
+  "manifest_id": "resilientgeo-demo:manifest:136",
+  "dataset_id": "resilientgeo-demo",
+  "namespace": "official",
+  "dataset_version": 136,
+  "sequence": 0,
+  "priority": "LOW",
+  "area_id": "neihu.dahu",
+  "theme": "medical",
+  "bbox": [
+    121.6001,
+    25.0831,
+    121.6001,
+    25.0831
+  ],
+  "created_at": "2026-09-05T15:00:00Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "issued_at": "2026-09-05T15:00:00Z",
+      "expires_at": "2099-01-01T00:00:00Z",
+      "signing_key_id": "peer-sync-priority-demo-2026",
+      "provenance": {
+        "original_source": "fixture-peer-sync-priority-chunks",
+        "received_at": "2026-09-05T15:00:10Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "fixture-ingest"
+        }
+      },
+      "namespace": "official.medical",
+      "event_id": "medical:dahu-02",
+      "event_type": "MEDICAL_STATION_STATUS",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.6001,
+          25.0831
+        ]
+      },
+      "severity": "LOW",
+      "source": "HEALTH_BUREAU",
+      "source_version": "2026-09-05",
+      "event_version": 1,
+      "attributes": {
+        "status": "OPEN",
+        "note": "routine staffing update",
+        "area_id": "neihu.dahu",
+        "theme": "medical"
+      },
+      "payload_hash": "sha256:e037b7a4532e0ceb45d016ee3d9865dbe6da55524fdcd3b096dcdf264351f012",
+      "signature_algorithm": "Ed25519",
+      "signature": "+UA53ma1f8GzqENO4EKPw/GI9WXmWQ5CPatCmjOnjYcRYWDWu1GNn5YOwD4y3V1bGNVzrLnJhV4Nz1YYrRH4AA=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "peer-sync-priority-demo-2026",
+  "byte_length": 1165,
+  "chunk_hash": "sha256:44a6ce80c751c664b1d737b92ddfda3f68fd3423acf68ce8129cc1b14126fd4b",
+  "manifest_hash": "sha256:7a8854c874825560bb0360c2cee1ffd62bd122d49e229e44999ed8603d080eed",
+  "signature": "1pNDBBBEczIaHQ3gwXx5Qy6+XcjDr+Au8VIIQDhwS+Qg8x5nhmUit0sMNGEaMTbAcY81UTSZS+csdvlBKax2CQ=="
+}
