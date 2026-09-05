@@ -16,7 +16,7 @@
 | Android 實機傳輸 Spike | 已完成 | 兩台實機（Pixel 7 + Pixel 8a）比較 Nearby Connections（已否決，Google 側 INTERNAL_ERROR）、Wi-Fi Direct（已否決，TCP 傳輸層卡住）、BLE GATT（採用，discovery/連線/傳輸/斷點續傳皆驗證通過）。ADR-001 已定案，見 `docs/adr/ADR-001-transport-layer.md`；條件通過，pending 跨品牌相容性（見階段 0） |
 | Simulator／實驗報告 | 進行中 | `simulator/` 決定性模擬 10／20／50／100 節點 × 三策略 × 地理過濾；`experiments/` 有可重現的四指標報告（Coverage／Freshness／Cellular Savings／Transfer Efficiency）。部分傳輸參數仍待實機校準；Energy Cost 已完成 Pixel 7 持續發現量測，但尚未涵蓋同步傳輸 |
 
-狀態證據：`npm test` 的 Node 測試（pipeline + simulator）122 項全數通過；Python 測試 6 項全數通過，離線地圖資產驗證通過（5,804 features、1,035 tiles，zoom 12–17）；Flutter map module 已接上 Android Room／EventChannel，Google／OSM renderer 與三頁 shell 已完成；Android `testDebugUnitTest` 與 host `assembleDebug` 仍需以最新工作樹重跑。Google 線上地圖需 Android-restricted key 與實機網路，沒有 key 時的離線路徑可直接驗證。
+狀態證據：`npm test` 的 Node 測試（pipeline + simulator）122 項全數通過；Python 測試 6 項全數通過，離線地圖資產驗證通過（5,804 features、1,035 tiles，zoom 12–17）；Flutter map module 已接上 Android Room／EventChannel，Google／OSM renderer 與三頁 shell 已完成；host `assembleDebug` 通過。`testDebugUnitTest` 的全量 Gradle 流程目前在 `geolocator_android` 外掛自身的 3 個 Mockito inline mock 測試失敗，原因是 JDK 21／Mockito agent 相容性警告後的外掛測試初始化，不是本專案測試程式碼；Google 線上地圖需 Android-restricted key 與實機網路，沒有 key 時的離線路徑可直接驗證。
 
 > 2026-09-05 修正：先前記錄的「16 項通過」是 pipeline 測試的舊數字，且當時 Windows checkout 出來的 `fixtures/neihu/*.json` 因 `core.autocrlf=true` 又沒有 `.gitattributes` 而帶 CRLF，跟決定性生成器輸出的 LF 逐位元組比對必然 MISMATCH——這是假失敗，不是生成器不決定性。根目錄 `.gitattributes`（`* text=auto eol=lf`）已修掉這個問題。
 
