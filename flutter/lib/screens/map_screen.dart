@@ -203,16 +203,30 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _openLayerPanel() => showModalBottomSheet<void>(
     context: context,
     builder:
-        (context) => LayerFilterPanel(
-          showShelters: _showShelters,
-          showMedical: _showMedical,
-          showEvents: _showEvents,
-          emergencyModeEnabled: _emergencyModeEnabled,
-          onSheltersChanged: (value) => setState(() => _showShelters = value),
-          onMedicalChanged: (value) => setState(() => _showMedical = value),
-          onEventsChanged: (value) => setState(() => _showEvents = value),
-          onEmergencyModeChanged: _setEmergencyMode,
-          onLoadFixture: _loadFixture,
+        (context) => StatefulBuilder(
+          builder: (context, modalSetState) => LayerFilterPanel(
+            showShelters: _showShelters,
+            showMedical: _showMedical,
+            showEvents: _showEvents,
+            emergencyModeEnabled: _emergencyModeEnabled,
+            onSheltersChanged: (value) {
+              modalSetState(() {});
+              setState(() => _showShelters = value);
+            },
+            onMedicalChanged: (value) {
+              modalSetState(() {});
+              setState(() => _showMedical = value);
+            },
+            onEventsChanged: (value) {
+              modalSetState(() {});
+              setState(() => _showEvents = value);
+            },
+            onEmergencyModeChanged: (value) async {
+              await _setEmergencyMode(value);
+              if (context.mounted) modalSetState(() {});
+            },
+            onLoadFixture: _loadFixture,
+          ),
         ),
   );
 
@@ -273,6 +287,9 @@ class _MapScreenState extends State<MapScreen> {
               ),
               minZoom: 12,
               maxZoom: 17,
+              cameraConstraint: CameraConstraint.containCenter(
+                bounds: _neihuBounds,
+              ),
               onTap: (_, _) => _closeDetails(),
             ),
             children: <Widget>[
