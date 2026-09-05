@@ -26,6 +26,11 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
+  # 2.14.0 is the newest supported release for this checkout's Dart 3.7.2.
+  google_maps_flutter: 2.14.0
+  connectivity_plus: 6.1.4
+  geolocator: 13.0.2
+  shared_preferences: 2.5.3
   flutter_map: 8.3.2
   latlong2: 0.10.1
 
@@ -46,6 +51,8 @@ flutter:
   assets:
     - assets/data/neihu/static-features.json
     - assets/data/neihu/demo-events.json
+    - assets/map/google-map-light.json
+    - assets/map/google-map-dark.json
     - assets/map/tiles/12/3430/
     - assets/map/tiles/12/3431/
     - assets/map/tiles/13/6861/

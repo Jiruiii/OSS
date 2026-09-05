@@ -1,8 +1,25 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
 }
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+
+if (localPropertiesFile.isFile) {
+    localPropertiesFile.inputStream().use(localProperties::load)
+}
+
+// A shell/CI environment value wins over the ignored developer-local file.
+// Empty is intentional: the Flutter renderer detects it and keeps the OSM
+// asset map available when a Google Maps key has not been configured yet.
+val googleMapsApiKey = System.getenv("GOOGLE_MAPS_API_KEY")
+    ?.trim()
+    .takeUnless { it.isNullOrEmpty() }
+    ?: localProperties.getProperty("GOOGLE_MAPS_API_KEY")?.trim().orEmpty()
 
 android {
     namespace = "com.resilientgeo.mesh"
@@ -16,6 +33,7 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = googleMapsApiKey
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

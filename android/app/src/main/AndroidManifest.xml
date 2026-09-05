@@ -3,29 +3,26 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!--
-      Bluetooth is the only radio this app uses.
+      The Google Maps provider is an optional online presentation layer. It
+      requires INTERNET only while available; the Flutter renderer falls back
+      to packaged OSM tiles when it has no network or no configured key.
 
-      ADR-001 rejected both Wi-Fi-based candidates after real-device
-      testing (Nearby Connections returned a Google-side INTERNAL_ERROR;
-      native Wi-Fi Direct's TCP transfer never completed), and their
-      implementations have been removed along with the permissions they
-      required — ACCESS_WIFI_STATE, CHANGE_WIFI_STATE, NEARBY_WIFI_DEVICES,
-      CHANGE_WIFI_MULTICAST_STATE and INTERNET are deliberately absent. The
-      rejected code remains in git history and the full measurement record
-      is in docs/adr/ADR-001-transport-layer.md; keeping the permissions
-      installed for code nothing calls would contradict this project's
-      central claim that it works with no network infrastructure at all.
+      ADR-001 still rejects Wi-Fi transport: ACCESS_WIFI_STATE,
+      CHANGE_WIFI_STATE, NEARBY_WIFI_DEVICES and CHANGE_WIFI_MULTICAST_STATE
+      remain absent. BLE and Room continue to work with no network
+      infrastructure.
 
-      ACCESS_FINE_LOCATION is retained because BLE scanning still requires
-      it on API 30 and below (minSdk here is 26); on API 31+ the
-      neverForLocation flag on BLUETOOTH_SCAN is what applies.
+      Fine/coarse location is requested only after the person selects the
+      current-location control. Fine location also remains necessary for BLE
+      scanning on API 30 and below; BLUETOOTH_SCAN's neverForLocation flag
+      applies on API 31+.
     -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission
-        android:name="android.permission.ACCESS_FINE_LOCATION"
-        android:maxSdkVersion="30" />
 
     <!-- Emergency Mode foreground service: holds the process up so BLE
          discovery keeps running with the screen off. ADR-001 measured 0/19
@@ -43,6 +40,10 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ResilientGeoMesh">
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${GOOGLE_MAPS_API_KEY}" />
 
         <!--
           MainActivity (the offline-GIS screen) is the product surface and
