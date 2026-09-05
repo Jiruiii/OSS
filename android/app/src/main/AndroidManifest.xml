@@ -79,6 +79,23 @@
         <activity
             android:name=".transport.BleGattTransportSpikeActivity"
             android:exported="true" />
+
+        <!-- Phase 0 measurement harness (docs/jia-task-sequence.md items 1/3/4):
+             contact-window sizing, connection success rate, energy capture.
+             Launched the same way as the other spike activities — via
+             `adb shell am start` — not wired into MainActivity. -->
+        <activity
+            android:name=".transport.BleGattMeasurementActivity"
+            android:exported="true" />
+
+        <!-- Phase 1 item 7 (docs/jia-task-sequence.md), the 3a milestone:
+             two devices run HELLO/DIFF/REQUEST/TRANSFER/VERIFY-APPLY over
+             BleGattTransport using 乙's PeerSync Kotlin port. Same
+             adb-launch convention as the other spike/measurement
+             activities. -->
+        <activity
+            android:name=".transport.PeerSyncMilestoneActivity"
+            android:exported="true" />
     </application>
 
 </manifest>

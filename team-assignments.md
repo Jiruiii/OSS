@@ -18,18 +18,18 @@
 
 ## 甲：實機整合與量測（需要 Android 手機的一切）
 
-**現況**：BLE GATT 傳輸層已驗證通過（`transport/BleGattTransport.kt`，discovery/連線/傳輸/位元組級續傳皆成功），但完全沒有協定層接上去——`send()`/`resume()` 傳的仍是 `randomPayload()`／`SecureRandom` 產生的假資料。`EventVerifier` → `EventIngestor` → Room 這條驗證寫入路徑已經打通，但目前唯一入口是讀 App 內建 fixture 的 `MeshRepository.ingestBundledFixture()`，還沒有東西從 Peer Sync 真的傳進來。
+**現況（2026-09-05 更新）**：BLE GATT 傳輸層已驗證通過（`transport/BleGattTransport.kt`）。乙交付 Kotlin 版 `PeerSync`（`computeDiff`/`buildRequest`）後，甲已把協定邏輯接上真傳輸層並在 Pixel 7 + Pixel 8a 上跑通完整的 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY（`transport/PeerSyncMilestoneActivity.kt`），並接上跨接觸續傳——**3a 里程碑已達成**，細節見下方。過程中在真機上抓到並修好三個 `BleGattTransport` 的真 bug（MTU 協商 race、`connect()`/`send()` 缺少序列化保護、**續傳會把多餘的 4-byte header 誤插進資料中間，靠 chunk_hash 驗證失敗才抓到**——這代表 Stage 0 spike 當時「驗證通過」的續傳測試其實從未真的比對過收到的位元組是否跟原始資料一致），修法與根因記錄在程式碼註解裡。
 
 **待辦（依序）**
 
-- [ ] **接觸窗量測**：用兩台實機模擬 opportunistic contact（10–60 秒隨機擦身而過），實測「一次接觸平均能傳幾 bytes」，回填 `docs/adr/ADR-001-transport-layer.md` 與 `pipeline/lib/bundle.mjs` 的 `targetSizeBytes` 決策（現在是拍腦袋定的 4096）——這項可以在等乙交付協定邏輯的同時先做，不互相卡
-- [ ] **跨機型相容性測試**：3 台裡若有非 Pixel／不同 API 版本的機型（`C_BLEbroadcast.md` 記錄的 Samsung SM-S731B），拿來重跑 discovery／connect／transfer，把階段 0 從「條件通過」轉正
-- [ ] 把乙交付的 Kotlin 協定邏輯接上 `BleGattTransport`，取代 spike activity 裡的隨機測試 payload
-- [ ] 兩機交換**一個**真的簽章 chunk，接進 `MeshRepository` → `EventVerifier` → Room（取代目前只能餵 `ingestBundledFixture()` 的呼叫路徑）— **3a 里程碑，唯一的整合風險點**
-- [ ] 接上跨接觸續傳：`buildRequest()` 目前硬寫 `offset_bytes: 0`，`BleGattTransport` 已驗證的位元組級續傳要真的用上，實機測中斷後能否接續
+- [x] **接觸窗量測**：harness 已完成（`transport/BleGattMeasurementActivity.kt`），Pixel 7 + Pixel 8a 實測 30 秒窗口 = 122,880 bytes acked（4105 B/s），與 ADR-001 既有 3–6 KB/s 量級吻合——**尚需**：多輪次數據 + 正式回填 ADR-001／`pipeline/lib/bundle.mjs` 的 `targetSizeBytes` 決策段落
+- [ ] **跨機型相容性測試**：本輪只用了兩台 Pixel，尚未拿 Samsung SM-S731B 重跑
+- [x] 把乙交付的 Kotlin 協定邏輯接上 `BleGattTransport`（`transport/PeerSyncMilestoneActivity.kt`），取代 spike activity 裡的隨機測試 payload
+- [x] 兩機交換**一個**真的簽章 chunk，接進 `MeshRepository.ingestChunk()`（新增）→ `ChunkVerifier`（新增，chunk_hash + chunk 級 Ed25519 簽章）→ `EventVerifier`/`EventIngestor` → Room —— **3a 里程碑，2026-09-05 在 Pixel 7 ↔ Pixel 8a 上通過**，直接讀出裝置上 Room 的 `.db-wal` 檔案確認 event 真的寫入（`applyState=CURRENT`），不只是信 log。chunk fixture 由 `pipeline/tools/generate-peer-sync-chunk-fixture.mjs` 產生（真實 Ed25519 簽章，key_id `peer-sync-demo-2026`）
+- [x] 接上跨接觸續傳：Node B 故意在傳送中途模擬「接觸窗關閉」中斷（真機重現在 508/1735 bytes），透過新增的 CONTROL characteristic（獨立於 DATA，避免中斷通知被誤判成前一則訊息的延續字節——真機上實測撞到這個問題）告知 Node A 中斷位置，A 帶著正確 `offset_bytes` 重新送 REQUEST，B 用 `transport.resume()` 續傳，chunk_hash 驗證通過，證明續傳後的資料位元組完全正確。過程中修好 `transfer()` 一個資料損毀 bug（見上）
 - [ ] Peer 上限與 critical-first 排程的實機驗證
 - [ ] Emergency Mode foreground service 的背景／鎖屏實機驗證（乙會先把 Service 骨架寫好，甲負責證明它在背景真的存活）
-- [ ] Connection success rate（20 次，分亮屏／鎖屏）與 Energy Cost 量測，記錄 `elapsed_s,power_mw` CSV 交給乙分析
+- [x] Connection success rate（分亮屏／鎖屏）與 Energy Cost 量測 harness 已完成（`transport/BleGattMeasurementActivity.kt`，輸出 `elapsed_s,power_mw` CSV）——**尚需**：正式跑滿 20 次 + 交給乙分析
 - [ ] 三機 Store-Carry-Forward 驗證：A 不直接連到 C 時，更新仍能經 B 到達 C（正好用自己的 3 台，不用跟人借）
 
 **通過條件**：兩台測試機重複完成 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY，且只交換缺少的分片並通過簽章驗證；三機情境下 A 不連 C 也能經 B 同步到最新資料；階段 0 相容性轉正。
@@ -38,11 +38,17 @@
 
 ## 乙：協定邏輯、UI 與量測分析（不需要 Android 手機的一切）
 
-**現況**：真實資料源（TDX／CWA／NCDR／醫療／避難所）與 `simulator/` 四指標報告都已完成到可維護狀態。接下來的工作全部可以在自己電腦上完成，不需要實機也不需要模擬器。
+## 乙：協定邏輯、UI 與量測分析（不需要 Android 手機的一切）
+
+**現況**：真實資料源（TDX／CWA／NCDR／醫療／避難所）與 `simulator/` 四指標報告都已完成到可維護狀態。Kotlin 版 Peer Sync 協定邏輯已完成並通過 JVM 單元測試（見下方），甲可以開始接上 `BleGattTransport`。接下來的工作全部可以在自己電腦上完成，不需要實機也不需要模擬器。
 
 **待辦（依序）**
 
-- [ ] **把 `pipeline/lib/peer-sync.mjs` 的 `computeDiff`／`buildRequest` 邏輯搬成 Kotlin**，對應 `schemas/peer-summary-v0.schema.json`；比照 `android/app/src/test/.../trust/EventVerifierTest.kt` 的作法，用 JVM 單元測試對著 `fixtures/protocol-exchange-v0.json` 跟 `pipeline/test/peer-sync.test.mjs` 裡新增的跨 manifest_id 案例驗證邏輯一致——**這項最優先，甲在等**
+- [x] **把 `pipeline/lib/peer-sync.mjs` 的 `computeDiff`／`buildRequest` 邏輯搬成 Kotlin**，對應 `schemas/peer-summary-v0.schema.json`；比照 `android/app/src/test/.../trust/EventVerifierTest.kt` 的作法，用 JVM 單元測試對著 `fixtures/protocol-exchange-v0.json` 跟 `pipeline/test/peer-sync.test.mjs` 裡新增的跨 manifest_id 案例驗證邏輯一致——**已完成，2026-09-05**
+  - 新增 `android/app/src/main/java/com/resilientgeo/mesh/protocol/{PeerSummary,PeerSync}.kt`
+  - 新增 `android/app/src/test/java/com/resilientgeo/mesh/protocol/{PeerSyncTest,PeerSyncTestFixtures}.kt`
+  - `PeerSyncTest`：6 個案例全過（`./gradlew testDebugUnitTest --tests "com.resilientgeo.mesh.protocol.PeerSyncTest"`），對照 JS 版 `pipeline/test/peer-sync.test.mjs` 逐項核對，包含跨 manifest_id 的 DTN supersession 情境
+  - **交給甲**：`PeerSync.computeDiff()`／`PeerSync.buildRequest()` 可直接呼叫，取代 `BleGattTransport` spike activity 裡目前寫死的 `randomPayload()`
 - [ ] 把 Emergency Mode 從目前寫死的「Emergency Mode: ON」label 改成使用者手動開關的 UI（純狀態切換，不涉及 BLE，可以用 emulator 或純程式碼審查驗證）
 - [ ] 撰寫 Emergency Mode foreground service 的程式骨架（Service 類別、通知欄、生命週期），背景存活的實機驗證交給甲
 - [ ] 用甲交付的接觸窗與相容性數據，校準 `simulator/fixtures/sim-config.json`，重跑 `npm run sim:check` 確認位元相同
@@ -58,7 +64,7 @@
 
 | 時序 | 檢查點 | 負責人 |
 | --- | --- | --- |
-| 立刻 | Kotlin 協定邏輯 + JVM 單元測試交付（甲要接上真傳輸層的前提） | 乙 |
+| 已完成 2026-09-05 | Kotlin 協定邏輯 + JVM 單元測試交付（甲要接上真傳輸層的前提） | 乙 |
 | 立刻（並行） | 接觸窗量測、跨機型相容性測試 | 甲 |
 | 第 3–4 週 | Stage 3a：兩機交換一個真 chunk，驗證後寫進 Room | 甲 |
 | 第 3–4 週 | Stage 3b：續傳、Peer 上限、foreground service 實機驗證 | 甲（乙先交付 Emergency Mode UI + Service 骨架） |
