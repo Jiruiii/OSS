@@ -1,6 +1,6 @@
 # ResilientGeo Mesh — Android
 
-> 2026-09-05 更新：Android 現在是原生資料與服務的 host，`MainActivity` 直接嵌入 Flutter 內湖離線地圖。下方較早的 native-only baseline 驗證紀錄仍保留作為歷史證據；Flutter 整合後的目前編譯狀態見「Current Flutter integration note」。
+> 2026-09-06 更新：Android 現在是原生資料與服務的 host，`MainActivity` 直接嵌入 Flutter 內湖地圖。線上且有 key 時使用 Google Maps Android SDK，無網路或無 key 時回退 OSM 離線 tiles。下方較早的 native-only baseline 驗證紀錄仍保留作為歷史證據。
 
 Single Android project, jointly owned:
 
@@ -19,10 +19,38 @@ under `flutter/` and is included as the `:flutter` source-code subproject by
 `flutter/.android/include_flutter.groovy`; generated `.android/` files are not
 hand-edited. The user-facing surface is `flutter/lib/screens/map_screen.dart`.
 
-The map uses only committed assets: `flutter_map`'s `AssetTileProvider` loads
-the versioned Neihu tiles at zoom 12–17, with no online tile fallback. The
-snapshot contains 5,774 OSM road geometries, 26 shelters and 4 medical
-facilities. Zoom 17 is the street-level display limit for this snapshot.
+The fallback map uses only committed assets: `flutter_map`'s
+`AssetTileProvider` loads the versioned Neihu tiles at zoom 12–17. When an
+Android-restricted key is supplied at build time and the device has network,
+`google_maps_flutter` renders the online Google Maps SDK instead. The snapshot
+contains 5,774 OSM road geometries, 26 shelters and 4 medical facilities.
+The UI shows zoom as 0–100%: 0% is the full Neihu extent, 100% is the maximum
+street detail available from the active provider.
+
+### Google Maps Demo key
+
+Google tiles are not downloaded or cached by this project. For a demo, create
+an Android-restricted key in Google Cloud, restrict it by package name
+`com.resilientgeo.mesh` and the debug/release SHA-1, then enable Maps SDK for
+Android. Put the key only in the ignored file `android/local.properties`:
+
+```properties
+GOOGLE_MAPS_API_KEY=AIza...
+```
+
+The Gradle manifest placeholder reads that value (or the
+`GOOGLE_MAPS_API_KEY` environment variable). Flutter's provider decision also
+needs the Dart define when running the module:
+
+```bash
+cd flutter
+flutter run --dart-define=GOOGLE_MAPS_API_KEY="$GOOGLE_MAPS_API_KEY"
+```
+
+If the define is omitted, or network is unavailable, the app intentionally
+uses the bundled OSM map. The supplied Google Maps JavaScript sample is not
+used by this Android Flutter implementation; this app uses
+`google_maps_flutter` and the native Android SDK.
 
 Flutter reads native state through `FlutterMapBridge`:
 
@@ -55,7 +83,9 @@ phone before release.
 1. 用 Android Studio 開啟 `<repo>/android`，不要把 `flutter/.android/`
    當成要編輯的專案。
 2. 確認 `android/local.properties` 指向 Android SDK 與 Flutter SDK；這個檔案
-   已被 gitignore，不會提交。
+   已被 gitignore，不會提交。需要線上 Google 地圖時，另外在此檔加入
+   `GOOGLE_MAPS_API_KEY`，並在 Flutter run configuration 加上同值的
+   `--dart-define`。
 3. 啟動 Android Emulator 或連接手機，在 Android Studio 選 `app` 設定並執行
    debug。App 啟動後會直接進入 Flutter 內湖地圖。
 4. Flutter 畫面程式在 `flutter/lib/`；要使用 Dart hot reload，可另外在

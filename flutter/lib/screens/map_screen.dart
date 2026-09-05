@@ -25,6 +25,8 @@ class MapScreen extends StatefulWidget {
     this.networkAvailable = false,
     this.configuredGoogleMapsKey = MapCanvas.compileTimeGoogleMapsKey,
     this.locationController,
+    this.themeMode = ThemeMode.system,
+    this.animationEnabled = true,
   });
 
   /// Optional deterministic inputs keep widget tests independent of channels.
@@ -39,6 +41,8 @@ class MapScreen extends StatefulWidget {
   final bool networkAvailable;
   final String configuredGoogleMapsKey;
   final LocationController? locationController;
+  final ThemeMode themeMode;
+  final bool animationEnabled;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -49,6 +53,7 @@ class _MapScreenState extends State<MapScreen> {
   late final LocationController _locationController;
   final TextEditingController _searchController = TextEditingController();
   StreamSubscription<List<MeshEvent>>? _eventSubscription;
+  StreamSubscription<GeoPoint>? _locationSubscription;
   StaticFeatureCollection? _staticFeatures;
   List<MeshEvent> _demoEvents = const <MeshEvent>[];
   List<MeshEvent> _persistedEvents = const <MeshEvent>[];
@@ -74,18 +79,48 @@ class _MapScreenState extends State<MapScreen> {
     super.initState();
     _bridge = widget.bridge ?? MapBridge();
     _locationController = widget.locationController ?? LocationController();
-    if (widget.networkAvailable &&
-        widget.configuredGoogleMapsKey.trim().isNotEmpty) {
-      _runtimeState = _runtimeState.copyWith(
-        providerMode: MapProviderMode.googleOnline,
-      );
-    }
+    _locationSubscription = _locationController.locations.listen((location) {
+      if (!mounted) return;
+      setState(() {
+        _runtimeState = _runtimeState.copyWith(currentLocation: location);
+      });
+    });
+    _runtimeState = _runtimeState.copyWith(
+      providerMode: _requestedProvider,
+      themeMode: widget.themeMode,
+      animationEnabled: widget.animationEnabled,
+    );
     _load();
+  }
+
+  MapProviderMode get _requestedProvider =>
+      widget.networkAvailable && widget.configuredGoogleMapsKey.trim().isNotEmpty
+          ? MapProviderMode.googleOnline
+          : MapProviderMode.offline;
+
+  @override
+  void didUpdateWidget(covariant MapScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final providerChanged =
+        oldWidget.networkAvailable != widget.networkAvailable ||
+        oldWidget.configuredGoogleMapsKey != widget.configuredGoogleMapsKey;
+    final preferencesChanged =
+        oldWidget.themeMode != widget.themeMode ||
+        oldWidget.animationEnabled != widget.animationEnabled;
+    if (!providerChanged && !preferencesChanged) return;
+    setState(() {
+      _runtimeState = _runtimeState.copyWith(
+        providerMode: providerChanged ? _requestedProvider : null,
+        themeMode: preferencesChanged ? widget.themeMode : null,
+        animationEnabled: preferencesChanged ? widget.animationEnabled : null,
+      );
+    });
   }
 
   @override
   void dispose() {
     _eventSubscription?.cancel();
+    _locationSubscription?.cancel();
     _searchController.dispose();
     if (widget.locationController == null) {
       unawaited(_locationController.dispose());

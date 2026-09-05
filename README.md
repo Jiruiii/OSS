@@ -59,7 +59,7 @@ flowchart LR
 
 **協作方式**：後端（`pipeline/`）是純 Node.js CLI，負責把多來源資料正規化成統一的 `event-v0` 格式，依 `(area_id, theme)` 分組切片、計算 canonical SHA-256 並以 Ed25519 簽章，輸出 manifest + chunks。**私鑰只存在伺服器端**。行動端（`android/`）在收到任何分片時，先由 `ChunkVerifier` 驗證 chunk hash 與簽章、再由 `EventVerifier` 逐筆驗證事件，最後才交給 `EventIngestor` 套用版本／TTL／namespace 規則寫入 Room；驗證不過的資料絕不進入 APPLY，也不覆蓋既有資料。傳輸層藏在 `PeerTransport` 介面後方（實作為 `BleGattTransport`），同步邏輯不綁死任何單一 Android API。模擬器（`simulator/`）刻意**共用手機端同一套 `computeDiff`／`buildRequest`／驗證邏輯**，只把傳輸層換成種子化的接觸模型，因此模擬結果與實機行為出自同一份決策程式碼。
 
-沒有雲端資料庫、沒有外部服務相依。**App 沒有宣告 `INTERNET` 權限**——安裝後的 APK 只要求藍牙、前景服務與通知權限（可用 `aapt2 dump permissions` 驗證），peer 交換只需要藍牙。ADR-001 否決的 Nearby Connections 與 Wi-Fi Direct 實作已連同它們所需的 Wi-Fi／Play Services 權限一併移除，只保留在 git 歷史與 ADR 記錄中。
+沒有雲端資料庫、沒有後端服務相依。App 的地圖有兩種 renderer：有網路且配置 Google key 時由 `google_maps_flutter` 使用 Google Maps Android SDK；否則使用打包的 OSM asset tiles。Google SDK 的 `INTERNET` 權限只服務線上底圖，Room／BLE 與 OSM fallback 仍可離線運作。ADR-001 否決的 Nearby Connections 與 Wi-Fi Direct 實作已連同它們所需的 Wi-Fi／Play Services 權限一併移除，只保留在 git 歷史與 ADR 記錄中。
 
 ## 使用技術
 
@@ -67,7 +67,7 @@ flowchart LR
 | --- | --- | --- |
 | AI 模型 | 未使用 | 本專案為協定與傳輸層研究，不涉及模型推論；所有排程決策（critical-first、rarest-first、地理過濾）皆為決定性規則，以利可重現量測 |
 | 前端（行動端） | Kotlin Android host（minSdk 26／targetSdk 37）+ Flutter module | Flutter launcher、Room／BLE bridge、Emergency Mode 權限與原生服務 |
-| 前端（地圖） | Flutter `flutter_map` + `latlong2` + `AssetTileProvider` | 內湖區版本化 raster tiles、道路、避難所、醫療院所與事件圖層，無線上 tile fallback |
+| 前端（地圖） | Flutter `google_maps_flutter` + `flutter_map` + `latlong2` | 線上 Google Maps；無網路／無 key 時回退內湖 OSM raster tiles，疊加道路、避難所、醫療院所與事件 |
 | 後端（資料管線） | Node.js（零外部相依，僅用內建模組）、`node:crypto` Ed25519 | 來源擷取、正規化、分片、簽章與驗證 CLI |
 | 後端（模擬與分析） | Node.js 決定性模擬器、`node:test` | DTN 擴散模擬、四指標報告、位元級可重現性檢查 |
 | 資料庫 | Room 2.6.1 / SQLite（KSP 註解處理） | 手機本機事件、版本、到期時間儲存 |
@@ -118,19 +118,19 @@ node simulator/cli.mjs matrix --check      # 位元比對已提交的 experiment
 # ---------- 4. Flutter 內湖地圖 ----------
 cd flutter
 flutter pub get
-flutter analyze
-flutter test                                 # 19 項通過
+flutter run --dart-define=GOOGLE_MAPS_API_KEY=<你的 Android 限制金鑰>
+# 未配置 key 或沒有網路時仍會自動顯示 OSM 離線底圖
 
 # ---------- 5. Android App（需實機或模擬器） ----------
 # 先建立 android/local.properties，內容為 sdk.dir=<Android SDK 路徑>
-cd android
+cd ../android
 ./gradlew testDebugUnitTest                # 48 項 JVM 單元測試
 ./gradlew connectedDebugAndroidTest        # 14 項 instrumented 測試（需接實機）
 ./gradlew assembleDebug                    # 產生含 Flutter 地圖的 debug APK
 ./gradlew installDebug                     # 安裝到已連線的裝置
 ```
 
-App 主畫面直接進入 Flutter 內湖離線地圖，提供道路底圖、避難所／醫療院所／事件圖層、圖層設定、回到內湖範圍、點位詳情與重疊點位選擇；「載入內建 fixture」與 Emergency Mode 仍由 Android bridge 執行。Peer Sync、BLE spike 與量測畫面是 debug-only 的原生測試 harness，不放在一般地圖主畫面。
+App 主畫面直接進入 Flutter 內湖地圖，提供 Google 線上底圖、OSM 離線 fallback、道路／避難所／醫療院所／事件圖層、本機搜尋、百分比縮放、目前位置、圖層設定、點位詳情與重疊點位選擇；下方另有首頁、通知、個人設定三個頁籤。「載入內建 fixture」與 Emergency Mode 仍由 Android bridge 執行。Peer Sync、BLE spike 與量測畫面是 debug-only 的原生測試 harness，不放在一般地圖主畫面。
 
 **兩機 peer sync 實測**需要兩台開啟藍牙的 Android 裝置，debug APK 可由 Android Studio 啟動對應的 `PeerSyncMilestoneActivity`，再分別指定 NODE_A（requester）／NODE_B（server）角色。逐步 demo 講稿見 [`experiments/demo.md`](experiments/demo.md)；Android 端建置細節與踩雷紀錄見 [`android/README.md`](android/README.md)。
 
