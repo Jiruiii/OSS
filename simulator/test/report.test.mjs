@@ -40,7 +40,15 @@ test('the report has a Limitations section with the no-whole-city disclaimer', (
   assert.match(REPORT, /\n## Limitations\n/);
   const limitations = sectionBody('Limitations');
   assert.match(limitations, /不宣稱.*固定時間.*全城/);
-  assert.match(limitations, /Energy Cost 未建模/);
+  assert.match(limitations, /Energy Cost.*(單一機型|單一 60 秒視窗)/);
+});
+
+test('the report has an Energy Cost section with real-device sample sizes and caveats', () => {
+  const energy = sectionBody('5. Energy Cost');
+  assert.match(energy, /Pixel 7/);
+  assert.match(energy, /scan-only/);
+  assert.match(energy, /n=59|n=58/);
+  assert.match(energy, /(限制|樣本數)/);
 });
 
 test('no whole-city / fixed-time claim appears outside the disclaimer', () => {

@@ -25,8 +25,11 @@
 - [ ] **5. Energy Cost 分析補進報告**（階段 4 通過條件之一）
   原始 CSV（60 秒 scan-only 22.35 mW、scan+傳輸 26.78 mW）已收集，只差整理進 `experiments/results/report.md` 的 Energy Cost 欄位。
 
-- [ ] **6. 回填 ADR-001 與 targetSizeBytes 決策**
-  把上述所有真機數據（多輪接觸窗、connection rate 含鎖屏、energy cost）正式寫進 `docs/adr/ADR-001-transport-layer.md` 的實測記錄段落；同時把 `pipeline/lib/bundle.mjs` 的 `targetSizeBytes = 4096`（目前是憑感覺定的數字）換成用「一次典型接觸窗能傳多少 bytes」反推的理由。
+- [x] **6. 回填 ADR-001 與 targetSizeBytes 決策**（2026-09-05 完成）
+  多輪接觸窗（3.8–4.4 KB/s）、connection rate（亮屏 17/20、鎖屏 0/19）、energy cost（22.35→26.78 mW）都已寫進 `docs/adr/ADR-001-transport-layer.md`「回填」段落；`pipeline/lib/bundle.mjs` 的 `targetSizeBytes = 4096` 保留原值，但補上用接觸窗吞吐量反推的理由（4096 bytes 在 3.8–4.4 KB/s 下約 1–1.5 秒傳完，符合最短 10 秒接觸窗的需求）。
+
+- [x] **（額外修復，不在原始清單內）BleGattTransport 訊息序號 race bug**（2026-09-05 完成）
+  team-assignments.md 記錄的「跨接觸續傳疊加 critical-first 時收到雜訊 payload、後續 chunk ack 逾時」的深層限制已修好：每個 GATT write 加 1-byte 訊息序號，接收端用 `(peer address, seq)` 取代單一 peer 一個 slot。修復過程中在真機上又抓到一個新 bug（sender 端記錄中斷 seq 的表被無關的後續訊息成功清掉）並修正。兩輪 Pixel 7 ↔ Pixel 8a 實機驗證，logcat 佐證 `interrupted → 其他 3 個 chunk 正常送達 → resume 成功組出完整訊息`，無雜訊、無逾時。細節見 `team-assignments.md` 該條目與 commit `cabf6ca`。
 
 ---
 

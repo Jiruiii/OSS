@@ -102,6 +102,17 @@ export function buildBundle(events, options) {
     signingKeyId,
     privateKey,
     previousManifestHash,
+    // Backfilled 2026-09-05 (was picked with no justification — see
+    // docs/adr/ADR-001-transport-layer.md's "targetSizeBytes 回填" section
+    // for the full derivation and the real BLE GATT throughput numbers this
+    // is based on): at the measured 3.8-4.4 KB/s single-contact throughput,
+    // a 4096-byte chunk transfers in ~1-1.5s — small enough that even a
+    // short (10s) opportunistic contact window can move several chunks with
+    // room for an interruption/resume, while staying well under
+    // BleGattTransport's WRITE_TIMEOUT_MS (10s) and ACK_TIMEOUT_MS (30s) per
+    // chunk. Kept at 4096 rather than changed: it already lines up with the
+    // real Neihu scale dataset's average chunk size (6.5 KB across 183
+    // chunks), so the number turned out to be reasonable in hindsight.
     targetSizeBytes = 4096,
     manifestId = `${datasetId}:manifest:${datasetVersion}`,
   } = options;

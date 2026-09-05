@@ -8,8 +8,37 @@ import { canonicalize, sha256Canonical } from '../../pipeline/lib/canonical.mjs'
 export const LIMITATIONS = `本報告不宣稱在任何固定時間覆蓋全城。所有數字僅適用於下方參數描述的
 模擬內湖五區情境、指定節點數與接觸模型，並附各區塊標註的樣本數。接觸機率、P2P 傳輸速率與
 失敗率是工程估計值，尚未由實機 spike 校準（見 \`simulator/fixtures/sim-config.json\` 的
-\`transport_params_source\`）。**Energy Cost 未建模** —— 依 system.md §7 需指定機型實機量測。
+\`transport_params_source\`）。**Energy Cost 已用 Pixel 7 實機量測（見上方第 5 節），但只有單一機型、單一 60 秒視窗，且只涵蓋持續傳輸情境**，不是多輪重複量測，也不是模擬器輸出的一部分。
 災情事件為虛構（真實 OSM 地物 + 合成事件），不代表任何真實災況。`;
+
+// Real-device measurement, not simulator output — hardcoded rather than
+// computed from `results`/`scenario`/`config` like the other sections,
+// since it doesn't come from a matrix run. Source CSVs:
+// experiments/results/energy-raw/pixel7-{scan-only,scan-plus-transfer}-2026-09-05.csv.
+export const ENERGY_COST = `Emergency Mode 每小時額外耗電。不是模擬器輸出——這一項 system.md §7 本來就要求指定機型實機量測，模擬器不建模功耗。
+
+**方法**：Pixel 7，Android 電池歷史 API 取樣，每秒一筆 \`elapsed_s,power_mw\`，各跑 60 秒：
+
+1. \`scan-only\`：只跑 BLE advertise/scan（\`BleDiscovery\`），不建立連線、不傳輸。
+2. \`scan+transfer\`：scan 的同時建立 GATT 連線並持續傳輸資料。
+
+原始 CSV：\`experiments/results/energy-raw/pixel7-{scan-only,scan-plus-transfer}-2026-09-05.csv\`（各 59 筆取樣，n=59）。
+
+| 情境 | 平均功率 | 最小值 | 最大值 | 樣本數 |
+| --- | ---: | ---: | ---: | ---: |
+| scan-only | 22.35 mW | 1.35 mW | 69.06 mW | 59 |
+| scan+transfer（含連線瞬間尖峰） | 57.01 mW | 1.35 mW | 1810.38 mW | 59 |
+| scan+transfer（扣除連線瞬間尖峰，見下） | **26.78 mW** | 1.35 mW | 144.88 mW | 58 |
+
+\`scan+transfer\` 原始序列第一筆取樣是 1810.38 mW——GATT 連線建立瞬間的功率尖峰，不是傳輸期間的穩態耗電，計算平均時扣除這一筆（n=58）才能反映「持續傳輸中」的實際耗電，否則單一尖峰會把 60 秒平均拉高超過 2 倍、失真。
+
+**結論**：持續傳輸相對 scan-only baseline 增加約 **4.4 mW**（26.78 − 22.35），約 20% 的增幅；連線建立瞬間另有一次性尖峰（約 1.8 W），與穩態耗電分開報告。
+
+**樣本數與限制（如實揭露，不是藉口）**：
+- 只有 1 台機型（Pixel 7）、1 次 60 秒視窗，不是多輪重複量測，數字有多少統計雜訊未知。
+- 只涵蓋「持續傳輸」情境，沒有量測 Emergency Mode 實際運作型態（間歇性接觸、掃描退避、critical-first 排程下的間歇傳輸）的耗電，兩者功率曲線形狀可能不同。
+- 未涵蓋鎖屏情境下 foreground service 的耗電（鎖屏連線成功率本身是 0%，見 \`docs/adr/ADR-001-transport-layer.md\` 的回填段落，這組耗電數字是亮屏量到的）。
+- 是否代表「Emergency Mode 每小時額外耗電」需要換算：以 26.78 mW 持續一小時計算約 26.78 mWh，但這假設全程都在傳輸，不是真實使用模式下的間歇性接觸——換算成「每小時」前，這個假設本身要在 demo 或文件裡講清楚，不要直接報一個聽起來精確的每小時數字。`;
 
 const TICKS = '▁▂▃▄▅▆▇█';
 
@@ -129,6 +158,9 @@ export function renderReport(results, scenario, config) {
     `> 條件：seed ${seed}；「有效」= chunk 通過 verify 且至少一個事件被新套用；樣本 = transfers 欄（成功傳輸次數）。`,
     '',
   );
+
+  // 5. Energy Cost — real-device measurement, not derived from `results`.
+  push('## 5. Energy Cost', '', ENERGY_COST, '');
 
   push('## Limitations', '', LIMITATIONS, '');
 
