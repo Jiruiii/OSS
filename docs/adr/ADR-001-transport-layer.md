@@ -1,6 +1,6 @@
 # ADR-001：MVP 傳輸層選擇
 
-- 狀態：**Accepted（BLE GATT）**，2026-09-05 實機 Spike 後定案
+- 狀態：**Accepted（BLE GATT），條件接受（pending 裝置相容性）**，2026-09-05 實機 Spike 後定案
 - 日期：2026-09-01（定案：2026-09-05）
 - 範圍：階段 0 的 Peer discovery 與 chunk transfer
 
@@ -8,7 +8,19 @@
 
 三個候選在同一晚的實機 Spike 中都跑過：**Nearby Connections 跟原生 Wi-Fi Direct 都在系統/平台層卡死（見下方實測記錄），只有 BLE GATT 端到端跑通**——discovery、連線、傳輸、位元組級斷點續傳全部在兩台真機上驗證成功。MVP 採用 BLE GATT 作為傳輸層，`PeerTransport` 介面維持不變（見下方 `BleGattTransport`）。
 
-同時修正了原始 Spike 設計的一個假設：「1MB／10MB」是拿來壓力測試候選方案的數字，不是本專案實際酬載大小——`schemas/` 的 chunk 設計本來就是「固定大小或內容導向的小分片」，實際事件記錄是幾百 bytes 到幾 KB。BLE 的吞吐量（實測 3–6 KB/s）對這個真實酬載範圍是夠用的，即使它在「10MB 壓力測試」這個數字上不會贏過 Wi-Fi 類方案。
+同時修正了原始 Spike 設計的一個假設：「1MB／10MB」是拿來壓力測試候選方案的數字，不是本專案實際酬載大小——`schemas/` 的 chunk 設計本來就是「固定大小或內容導向的小分片」，實際事件記錄是幾百 bytes 到幾 KB。
+
+**2026-09-05 修正「夠用」的論證方式**：原本的推論是「單筆事件是 KB 級 → BLE 3–6 KB/s 夠用」，但這個比較單位錯了——真正決定夠不夠用的不是單筆事件多大，而是**一次 opportunistic contact（擦身、同車廂、排隊）的典型接觸窗（約 10–60 秒）內能傳完多少 bytes**。用 repo 自己的 pipeline 對 `fixtures/neihu/scale-v136.json`（500 筆事件）實測：
+
+| 項目 | 實測 | BLE @ 4 KB/s |
+| --- | --- | --- |
+| 簽章後 chunk 總量 | 1.18 MB（183 片，平均 6.5 KB，最大 46.6 KB） | ≈ 289 秒（4.8 分） |
+| `manifest.json` | 104 KB | ≈ 26 秒 |
+| HELLO peer summary（183 條 chunk） | 36 KB | ≈ 9 秒單向 |
+
+把 30 秒接觸窗拆開看：雙方都已有 manifest 時，HELLO 雙向 18 秒 + 剩下 12 秒約只夠傳 4% 的 chunk；**首次相遇（對方尚無 manifest）時，manifest 26 秒 + HELLO 雙向 18 秒 = 44 秒，已經超出 30 秒窗——連握手都做不完**，而首次相遇恰好是最需要成功的一次（對方什麼都沒有）。
+
+這不代表 BLE GATT 的選擇錯誤——DTN 本來就是漸進擴散——但代表兩個接下來要做的決定：`pipeline/lib/bundle.mjs` 的 `targetSizeBytes = 4096` 應該從接觸窗口回推，而不是拍一個數字；`pipeline/lib/peer-sync.mjs` 的 `buildRequest()` 目前硬寫 `offset_bytes: 0`（v0 尚未接上跨接觸續傳），在這個吞吐量下，**跨接觸續傳**才是決定同步能不能推進的關鍵能力，見 `docs/peer-sync-v0.md`。
 
 ## 背景
 
@@ -108,8 +120,10 @@ close(connection)
 
 **已達成（BLE GATT）**：兩台測試機重複完成 discovery、連線、KB 級傳輸與位元組級斷點續傳。
 
+**條件通過，pending 裝置相容性**：目前兩台測試機都是 Pixel、同一 API 37，還沒有證據排除 `system.md` §8 的停止條件「傳輸層只能在單一機型運作」。`C_BLEbroadcast.md` 已記錄一台 Samsung SM-S731B（Android 16, API 36）在手——用它補測 discovery/connect/transfer 是目前最低成本的高價值驗證，應排進本週，通過後才把階段 0 標為完全通過。
+
 **尚未涵蓋、需要後續驗證**：
-- 裝置相容性：目前只測過兩台 Pixel、同一 API 版本，未涵蓋「至少兩個品牌、兩個 Android 版本」
+- 裝置相容性：目前只測過兩台 Pixel、同一 API 版本，未涵蓋「至少兩個品牌、兩個 Android 版本」（見上）
 - Connection success rate：尚未跑滿 20 次連線成功率統計，也未分亮屏／鎖屏情境
 - Energy：尚未量測 BLE GATT 傳輸的額外耗電
 - Background behavior：BLE discovery 驗證過鎖屏 15 秒內存活，但 GATT 連線本身尚未測試背景/鎖屏行為

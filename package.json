@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test pipeline/test/*.test.mjs"
+    "test": "node --test pipeline/test/*.test.mjs",
+    "generate:android-fixture": "node pipeline/tools/generate-android-fixture.mjs"
   }
 }

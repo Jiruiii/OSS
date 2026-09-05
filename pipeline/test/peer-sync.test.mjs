@@ -76,7 +76,7 @@ test('after applying the request, node-a is missing nothing', () => {
   );
 });
 
-test('computeDiff rejects mismatched manifests instead of guessing', () => {
+test('computeDiff rejects two manifests that both claim the same dataset_version', () => {
   const peerBWrongManifest = {
     ...peerB,
     datasets: [{ ...peerB.datasets[0], manifest_id: 'demo:official:999' }],
@@ -89,4 +89,77 @@ test('computeDiff rejects mismatched manifests instead of guessing', () => {
     }),
     /manifest mismatch/,
   );
+});
+
+test('computeDiff treats a peer carrying a newer manifest_id as a DTN supersession, not an error', () => {
+  // A walks into a shelter carrying v137; everyone there (peerB) is still on
+  // v136. This is the exact scenario opportunistic contact exists for, so it
+  // must produce a REQUEST instead of throwing.
+  const peerNewerManifest = {
+    ...peerA,
+    datasets: [{
+      ...peerA.datasets[0],
+      manifest_id: 'resilientgeo-demo:manifest:137',
+      manifest_hash: 'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+      dataset_version: 137,
+      chunks: [
+        {
+          chunk_id: 'resilientgeo-demo:chunk:137:dahu:road:000',
+          chunk_hash: 'sha256:1111111111111111111111111111111111111111111111111111111111111111',
+          size_bytes: 512,
+          priority: 'CRITICAL',
+          state: 'available',
+        },
+      ],
+    }],
+  };
+
+  const diff = computeDiff(peerNewerManifest, peerB, {
+    datasetId: diffMessage.dataset_id,
+    namespace: diffMessage.namespace,
+  });
+
+  // Remote (peerB, v136) has nothing local doesn't already have for this
+  // dataset -- local's own newer manifest_id (v137) stays current.
+  assert.equal(diff.manifest_id, 'resilientgeo-demo:manifest:137');
+  assert.equal(diff.superseded_manifest_id, null);
+  assert.deepEqual(diff.missing_chunks, []);
+  assert.deepEqual(diff.stale_chunks, []);
+});
+
+test('computeDiff requests every chunk from a peer carrying a newer manifest_id', () => {
+  const peerBNewerManifest = {
+    ...peerB,
+    datasets: [{
+      ...peerB.datasets[0],
+      manifest_id: 'resilientgeo-demo:manifest:137',
+      manifest_hash: 'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+      dataset_version: 137,
+      chunks: [
+        {
+          chunk_id: 'resilientgeo-demo:chunk:137:dahu:road:000',
+          chunk_hash: 'sha256:1111111111111111111111111111111111111111111111111111111111111111',
+          size_bytes: 512,
+          priority: 'CRITICAL',
+          state: 'available',
+        },
+      ],
+    }],
+  };
+
+  const diff = computeDiff(peerA, peerBNewerManifest, {
+    datasetId: diffMessage.dataset_id,
+    namespace: diffMessage.namespace,
+  });
+
+  assert.equal(diff.manifest_id, 'resilientgeo-demo:manifest:137');
+  assert.equal(diff.superseded_manifest_id, 'resilientgeo-demo:manifest:136');
+  assert.deepEqual(diff.stale_chunks, []);
+  assert.deepEqual(
+    diff.missing_chunks.map((chunk) => chunk.chunk_id),
+    ['resilientgeo-demo:chunk:137:dahu:road:000'],
+  );
+
+  const request = buildRequest(diff);
+  assert.equal(request.superseded_manifest_id, 'resilientgeo-demo:manifest:136');
 });
