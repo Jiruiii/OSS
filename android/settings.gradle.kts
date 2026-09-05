@@ -24,3 +24,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "ResilientGeoMesh"
 include(":app")
+
+// Flutter's generated include script owns the :flutter source-code
+// subproject and its plugin loader. Do not edit flutter/.android manually.
+apply(from = file("../flutter/.android/include_flutter.groovy"))
