@@ -5,30 +5,16 @@
     android:orientation="vertical"
     android:background="#0B141C">
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/emergencyModeLabel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
         android:paddingStart="12dp"
         android:paddingTop="12dp"
-        android:paddingEnd="12dp">
-
-        <TextView
-            android:id="@+id/emergencyModeLabel"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/emergency_mode_off"
-            android:textColor="#78909C"
-            android:textStyle="bold" />
-
-        <Switch
-            android:id="@+id/emergencyModeSwitch"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:contentDescription="@string/emergency_mode_switch_description" />
-    </LinearLayout>
+        android:paddingEnd="12dp"
+        android:text="@string/emergency_mode_on"
+        android:textColor="#4FC3F7"
+        android:textStyle="bold" />
 
     <HorizontalScrollView
         android:layout_width="match_parent"
