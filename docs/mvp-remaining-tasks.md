@@ -10,17 +10,17 @@
 
 ## A. 阻塞 MVP 通過條件（必須完成才能宣告 MVP 達標）
 
-- [ ] **1. Samsung SM-S731B 跨機型相容性補測**（階段 0）
-  目前兩台測試機都是 Pixel、同 API 37，尚未排除「傳輸層只能在單一機型運作」的停止條件。用手上已有的 Samsung 重跑 discovery／connect／transfer，階段 0 才能從「條件通過」轉正。
+- [x] **1. 跨機型相容性補測**（階段 0，2026-09-05 完成，用 Sharp SH-M32 取代 Samsung）
+  裝置持有狀況變動，改用 Sharp SH-M32（Android 15, API 35）取代原計畫的 Samsung——品牌與 API 版本都跟兩台 Pixel（Android 17, API 37）不同，滿足「至少兩個品牌、兩個 Android 版本」的排除標準。discovery/connect/transfer 與完整 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY 序列（含中斷續傳）一次到位。過程中踩到兩個 Windows 端環境問題（USB 線材只能充電、Windows 自動配對錯誤的通用驅動導致 adb 看不到裝置）並排除，記錄在 `team-assignments.md`。**階段 0 相容性正式轉正**。
 
-- [ ] **2. Connection success rate 跨機型 + 正式 service 重跑**
-  先前 17/20（85%，亮屏）與鎖屏 0/19（0%）的數字是用 Pixel + 甲的 stub service 量到的。要在 Samsung 上重跑一次，並改用正式 `EmergencyModeService`（非 stub）重跑鎖屏情境，確認結論不是機型或 stub 版本特有的偶然現象。
+- [ ] **2. Connection success rate 跨機型正式統計 + 鎖屏情境換正式 service 重跑**
+  先前 17/20（85%，亮屏）與鎖屏 0/19（0%）的數字只在兩台 Pixel 之間跑過，用的是甲的 stub service。Sharp 目前只有三機 SCF 過程中的零星 ad-hoc 連線數據，沒有正式跑滿 20 次的統計；鎖屏情境也還沒換成正式 `EmergencyModeService` 重跑，確認結論不是機型或 stub 版本特有的偶然現象。
 
 - [ ] **3. 背景／鎖屏存活驗證換版重跑**
-  正式骨架把「App 啟動就常駐」改成「開關驅動啟停」，生命週期改變後要重跑一次鎖屏心跳測試，確認先前 176 秒不間斷心跳的存活結論仍成立。
+  正式骨架把「App 啟動就常駐」改成「開關驅動啟停」，生命週期改變後要重跑一次鎖屏心跳測試，確認先前 176 秒不間斷心跳的存活結論仍成立。**2026-09-05 曾嘗試重跑，心跳連續跑了 251 秒看似更好，但事後發現 `mWakefulness` 全程是 Awake（adb daemon 因為插入第三台裝置重啟，把螢幕喚醒了）——測到的是「螢幕亮著、App 在背景」的存活，不是真正的鎖屏/Doze 存活，結果無效，需要在確認螢幕真的進入 Dozing 狀態的前提下重來。**
 
-- [ ] **4. 三機 Store-Carry-Forward 驗證**（階段 3 的核心通過條件，目前完全還沒測）
-  用 Samsung 當第三台裝置，驗證 A 不直接連 C 時，更新仍能經 B 到達 C，且全程通過簽章驗證、沒有重複從伺服器下載完整資料集。
+- [x] **4. 三機 Store-Carry-Forward 驗證**（階段 3 的核心通過條件，2026-09-05 完成）
+  Pixel 8a（A/Origin，持有全部資料）→ Pixel 7（B/Relay，一開始空的）→ Sharp SH-M32（C/Far，一開始空的）。第一段完成後直接讀 B 的 Room `.db-wal` 確認 4 筆事件皆 `CURRENT`；接著 **force-stop A 的 App、用 `pidof` 確認程序完全沒在跑**，B 換演 server 角色對 C 重跑一次同樣的流程（含一個 chunk 中斷於 1529/1735 bytes 又用 `resume()` 續傳），再次直接讀 C 的 Room `.db-wal` 確認同樣 4 筆事件皆 `CURRENT`。全程 A 不可能跟 C 建立連線（程序沒在跑），資料完全靠 B 中繼，**符合通過條件**。已知簡化：B 對外廣播的摘要是寫死的 fixture，不是動態讀自己 Room 內容組出來的，兩次都用直接讀 Room 的方式驗證內容正確、不受這個簡化影響。細節見 `team-assignments.md`。
 
 - [x] **5. Energy Cost 分析補進報告**（2026-09-05 完成，階段 4 通過條件之一）
   已整理進 `experiments/results/report.md` 第 5 節（透過 `simulator/lib/report.mjs` 的 `ENERGY_COST` 常數生成，而非手改 report.md——那個檔案是 `matrix --check` 位元比對的對象，手改會被下次重跑蓋掉），含樣本數與「單一機型、單一視窗」的限制揭露。

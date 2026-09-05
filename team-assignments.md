@@ -20,13 +20,10 @@
 
 **現況（2026-09-05 更新）**：BLE GATT 傳輸層已驗證通過（`transport/BleGattTransport.kt`）。乙交付 Kotlin 版 `PeerSync`（`computeDiff`/`buildRequest`）後，甲已把協定邏輯接上真傳輸層並在 Pixel 7 + Pixel 8a 上跑通完整的 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY（`transport/PeerSyncMilestoneActivity.kt`），並接上跨接觸續傳與 critical-first 排程——**3a 里程碑已達成**，細節見下方「已完成」清單。過程中在真機上抓到並修好四個真 bug（`BleGattTransport` 的 MTU 協商 race、`connect()`/`send()` 缺少序列化保護、續傳誤插 header 導致資料損毀、協定層 HELLO 早到被永久丟棄的 race），修法與根因記錄在程式碼註解裡。乙的 Emergency Mode 手動開關 UI 與正式 foreground service 骨架已交付並合併進 `main`，取代了甲原本墊的 stub。
 
-**現在剩下待辦（2026-09-05 整理，兩人分工兩邊都清空後剩下的）**
+**現在剩下待辦（2026-09-05 更新，跨機型相容性與三機 SCF 都已用 Sharp SH-M32 完成，見下方已完成清單）**
 
-1. **跨機型相容性測試**：把 Samsung SM-S731B（`C_BLEbroadcast.md` 記錄在手的那台）拉進來，重跑 discovery／connect／transfer，把階段 0 從「條件通過」轉正
-2. **Connection success rate 跨機型重跑**：用 Samsung 補一輪；另外改用乙剛交付的正式 `EmergencyModeService` 骨架重跑一次鎖屏情境，確認跟先前兩台 Pixel 上量到的 0/19（0%）結論一致，不是甲 stub 版本才有的偶然現象
-3. **Emergency Mode 背景／鎖屏驗證換版重跑**：乙的正式骨架把「App 啟動就常駐」改成「開關驅動啟停」，要重跑一次背景/鎖屏驗證確認這個生命週期改動沒有打破先前 176 秒不間斷心跳的存活結論
-4. **三機 Store-Carry-Forward 驗證**：正好用 Samsung 當第三台（不用跟人借），A 不直接連到 C 時，更新仍能經 B 到達 C
-5. **回填 ADR-001**：把這輪所有真機數據（接觸窗多輪、connection rate 含鎖屏、energy cost）正式寫進 `docs/adr/ADR-001-transport-layer.md` 的實測記錄段落，並回填 `pipeline/lib/bundle.mjs` 的 `targetSizeBytes` 決策
+1. **Connection success rate 用正式 `EmergencyModeService` 重跑鎖屏情境**：確認跟先前兩台 Pixel 上量到的 0/19（0%）結論一致，不是甲 stub 版本才有的偶然現象（跨機型的 20 次連線成功率統計本身還沒補，目前只有零星的 ad-hoc 連線數據，見下方已完成清單）
+2. **Emergency Mode 背景／鎖屏驗證換版重跑**：乙的正式骨架把「App 啟動就常駐」改成「開關驅動啟停」，要重跑一次背景/鎖屏驗證確認這個生命週期改動沒有打破先前 176 秒不間斷心跳的存活結論——**2026-09-05 曾嘗試重跑，但過程中 adb daemon 因為插入第三台裝置重啟、把螢幕喚醒了，跑出來的 251 秒心跳其實是「螢幕亮著」而非「鎖屏」的存活結果，無效，需要在確定螢幕真的進入 Dozing 狀態的情況下重來**
 
 **已完成（依序，細節與數據）**
 
@@ -39,9 +36,12 @@
   **2026-09-05 後續修好**：`BleGattTransport` 每個 GATT write 現在多帶 1 byte 訊息序號（`seq`），接收端改成用 `(peer address, seq)` 當 key 存 in-flight message，不再是單一 peer 一個 slot——這樣被中斷的 chunk 即使之後有其他不相關的 chunk 在同一條連線上先完成，也不會互相污染彼此的重組緩衝區。在 Pixel 7 ↔ Pixel 8a 上重跑「shelter 中斷 + flood/road/medical 照常送」的組合情境兩次：第一次跑出一個新 bug（sender 端記錄「哪個 seq 被中斷」的表是用 connectionId 當 key，後面 flood 成功送完時把它清掉了，導致 resume 時抓不到正確 seq、retry 用了個新 seq、對端收到沒有 header 的續傳位元組後解析失敗，30 秒 ack timeout）；修好那個記帳 bug（只在「剛完成的訊息 seq」等於「記錄的中斷 seq」時才清除）後第二次重跑：shelter 在 1018/1735 bytes 處中斷 → flood/road/medical 三個全部正常送達 → shelter 的 resume REQUEST 送出、B 用 `resume()` 補上剩下 717 bytes、A 端組出完整 1735 bytes 且完整跑完 VERIFY/APPLY，全程無雜訊 payload、無 ack timeout。兩次真機驗證的完整 logcat 佐證這個修復是根治而非碰巧沒觸發。
 - [x] Emergency Mode foreground service 的背景／鎖屏實機驗證（甲的 stub 版本，重跑見上方待辦 3）：Pixel 7 上鎖屏 **176 秒不間斷心跳**（遠超 `C_BLEbroadcast.md` 先前只驗證過 15 秒），背景/鎖屏存活證實。乙的正式骨架已交付（`emergency/EmergencyModeService.kt` + `EmergencyStatusText.kt`），取代了這個 stub，且把「App 啟動就常駐」改成「開關驅動啟停」
 - [x] **Connection success rate**：Pixel 7 → Pixel 8a 亮屏正式跑滿 20 次，**17/20 成功（85%）**，成功案例 latency p50=289ms／p95=566ms，最後 3 次連續失敗（`service discovery failed`，各逾時 10 秒）——懷疑連續高頻重連後 BLE stack／對端 GATT server 需要更長恢復時間。**鎖屏情境另跑 20 次：19/19（扣除按下按鈕當下仍亮屏的第 1 次）全部失敗，0% 成功率**——證實沒有 foreground service 保護的一般 App，鎖屏後幾乎無法完成 BLE 連線，直接印證了 Emergency Mode 為何需要 foreground service（跨機型與換乙的正式骨架重跑見上方待辦 2）
-- [x] **Energy Cost**：60 秒 scan-only baseline 平均 **22.35 mW**；60 秒 scan+持續傳輸平均 **26.78 mW**（已扣除連線瞬間的尖峰）——傳輸本身增加約 4.4 mW。原始 CSV 存在 `experiments/results/energy-raw/`，**交給乙分析**補進 `experiments/results/report.md`
+- [x] **Energy Cost**：60 秒 scan-only baseline 平均 **22.35 mW**；60 秒 scan+持續傳輸平均 **26.78 mW**（已扣除連線瞬間的尖峰）——傳輸本身增加約 4.4 mW。原始 CSV 存在 `experiments/results/energy-raw/`，已由乙整理進 `experiments/results/report.md` 第 5 節（透過 `simulator/lib/report.mjs` 生成，非手改）
+- [x] **回填 ADR-001**：上面所有真機數據（多輪接觸窗、connection rate 含鎖屏、energy cost）已寫進 `docs/adr/ADR-001-transport-layer.md`「回填」段落；`pipeline/lib/bundle.mjs` 的 `targetSizeBytes` 決策也已補上依接觸窗吞吐量反推的理由
+- [x] **跨機型相容性測試——階段 0 轉正**（2026-09-05，用 Sharp SH-M32 而非原計畫的 Samsung SM-S731B，裝置持有狀況變動）：Sharp SH-M32（Android 15, API 35）同時滿足「至少兩個品牌、兩個 Android 版本」的排除標準——品牌不同（SHARP vs Google）、API 版本不同（35 vs 兩台 Pixel 的 37）。中途踩到兩個純環境問題並排除：(1) Windows 端一開始完全偵測不到手機，追到是 USB 資料線問題（原本插的線只能充電）換線後才被 Windows 看到；(2) 换線後 Windows 幫這台非 Pixel 手機自動配對了通用 `winusb.inf` 驅動而非 Google 官方 `android_winusb.inf`，導致該驅動雖顯示「正常運作」但沒有註冊 adb 認的裝置介面 GUID（`{f72fe0d4-cbcb-407d-8814-9ed673d0dd6b}`，用 `adb -a nodaemon server` 加 trace 才挖出來），adb 因此完全看不到裝置——後來換一次線材接口後 Windows 才重新正確列舉。**這兩個問題都是這台 Windows 電腦端的環境問題，不是手機或 App 的相容性問題**，記錄下來是因為排查過程花了不少時間，下次遇到同樣「Windows 看得到手機但 adb 看不到」的狀況可以直接跳過重裝驅動，先換一條確定能傳資料的線。裝置辨識後，discovery／connect／transfer／完整 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY 序列在 Sharp 上一次到位（唯一一次重試發生在 Pixel 7 ↔ Pixel 8a 那對，不涉及 Sharp，屬於已知的 BLE 連線基礎失敗率）。**階段 0 相容性正式轉正**，`system.md` §8 的停止條件（「傳輸層只能在單一機型運作」）已排除。
+- [x] **三機 Store-Carry-Forward 驗證**（2026-09-05，Pixel 8a=Origin/A、Pixel 7=Relay/B、Sharp SH-M32=Far/C）：A 先把 4 個簽章 chunk（含被故意中斷又續傳的 shelter chunk）完整同步給 B，直接讀出 B 的 Room `.db-wal` 確認 4 筆事件皆為 `CURRENT`（不只信 log）；接著**force-stop A 的 App、用 `pidof` 確認程序完全沒在跑**，再讓 B 換演 NODE_B（server）角色、C 演 NODE_A（requester），B→C 同樣完整跑完 HELLO→DIFF→REQUEST→TRANSFER（含中斷於 1529/1735 bytes 又用 `resume()` 續傳）→VERIFY/APPLY，再次直接讀出 C 的 Room `.db-wal` 確認同樣 4 筆事件皆為 `CURRENT`。全程 A 沒有、也不可能跟 C 建立任何連線（程序沒在跑），資料完全靠 B 中繼——**符合「A 不直接連 C 時，更新仍能經 B 到達 C」的通過條件**。誠實揭露一個簡化：B 對 C 廣播的 `PeerSummary`（`NODE_B_SUMMARY` 常數）跟 B 對 A 的 REQUEST 是同一份寫死的 fixture，不是從 B 的 Room 動態組出來的「B 現在實際持有什麼」——這對本次驗證的結論成立沒有影響（兩次驗證分別直接讀 Room 確認內容一致），但表示 B 的摘要生成尚未做到「真的動態讀自己持有的資料」，是下一步若要做正式產品化時要補的。
 
-**通過條件**：兩台測試機重複完成 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY，且只交換缺少的分片並通過簽章驗證；三機情境下 A 不連 C 也能經 B 同步到最新資料；階段 0 相容性轉正。
+**通過條件**：兩台測試機重複完成 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY，且只交換缺少的分片並通過簽章驗證——**已達成**；三機情境下 A 不連 C 也能經 B 同步到最新資料——**已達成**；階段 0 相容性轉正——**已達成**。
 
 ---
 
