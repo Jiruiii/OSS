@@ -2,7 +2,12 @@
     <string name="app_name">ResilientGeoMesh</string>
 
     <!-- Module B: offline-GIS screen strings. -->
+    <!-- Manual toggle (乙): user must explicitly turn this on; it does not
+         default to on and nothing infers it from network state. See
+         team-assignments.md's MVP boundary: "使用者手動開啟有明顯狀態提示". -->
     <string name="emergency_mode_on">Emergency Mode: ON (offline)</string>
+    <string name="emergency_mode_off">Emergency Mode: OFF</string>
+    <string name="emergency_mode_switch_description">Toggle Emergency Mode</string>
     <string name="load_fixture_bundle">Load bundled test events</string>
     <string name="event_list_title">Events (local database)</string>
     <string name="open_ble_spike">BLE Spike (Stage 0)</string>
