@@ -7,9 +7,9 @@
  *   node tools/generate-neihu-fixtures.mjs [--check]
  *
  * Outputs (TDX-shaped source files consumed by `pipeline/cli.mjs build`):
- *   fixtures/neihu/demo-v136.json   ~30 curated events, 5 areas x 6 themes
- *   fixtures/neihu/demo-v137.json   the v137 delta of demo-v136
- *   fixtures/neihu/scale-v136.json  ~500 events for multi-chunk + simulation
+ *   data/fixtures/neihu/demo-v136.json   ~30 curated events, 5 areas x 6 themes
+ *   data/fixtures/neihu/demo-v137.json   the v137 delta of demo-v136
+ *   data/fixtures/neihu/scale-v136.json  ~500 events for multi-chunk + simulation
  *
  * Real OSM geometry, synthetic incident content. The generator is fully
  * deterministic: a fixed seed produces byte-identical output. `--check` writes
@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
-const NEIHU_DIR = path.join(ROOT, 'fixtures', 'neihu');
+const NEIHU_DIR = path.join(ROOT, 'data', 'fixtures', 'neihu');
 
 const SEVERITY_BY_INDEX = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const CATEGORY_THEME = {
@@ -112,8 +112,14 @@ function statusProperties(theme, feature, status, rng) {
   return { status };
 }
 
-function syntheticFloodGeometry(waterway) {
-  const line = waterway.geometry.type === 'LineString' ? waterway.geometry.coordinates : [representativePoint(waterway.geometry)];
+// A hazard warning covers a small zone, not the whole river or ridge road it is
+// anchored to. Take one representative point of the donor feature and draw a
+// compact polygon around it so the chunk bbox stays local (this matters for the
+// geographic relevance filter the simulator models).
+function syntheticHazardGeometry(feature) {
+  const line = feature.geometry.type === 'LineString'
+    ? feature.geometry.coordinates
+    : [representativePoint(feature.geometry)];
   const mid = line[Math.floor(line.length / 2)];
   const d = 0.0016;
   return {
@@ -156,9 +162,9 @@ function buildRecords(snapshot, scenario, { versionOf, rng }) {
     records.push(record);
   }
 
-  // Synthetic hazard events: one flood polygon per flood-hazard area drawn from a
-  // nearby river segment, one landslide line per landslide-hazard area from a
-  // hillside road. Deterministic pick: closest feature to the area seed.
+  // Synthetic hazard events: one compact flood zone per flood-hazard area drawn
+  // from a nearby river segment, one compact landslide zone per landslide-hazard
+  // area from a hillside road. Deterministic pick: closest feature to the area seed.
   const waterways = snapshot.features.filter((feature) => feature.category === 'waterway');
   const hillsides = hillsideRoads(snapshot.features);
   for (const [areaId, area] of Object.entries(areas)) {
@@ -170,7 +176,7 @@ function buildRecords(snapshot, scenario, { versionOf, rng }) {
           distanceSquared(representativePoint(a.geometry), area.seed) -
           distanceSquared(representativePoint(b.geometry), area.seed),
       )[0];
-      const geometry = hazard === 'flood' ? syntheticFloodGeometry(near) : near.geometry;
+      const geometry = syntheticHazardGeometry(near);
       records.push({
         baseId: `${areaId.split('.').pop()}-${hazard}`,
         theme: hazard,
@@ -326,14 +332,16 @@ function padToTarget(records, snapshot, scenario, rng) {
   const target = scenario.scale.target_event_count;
   if (records.length >= target) return records.slice(0, target);
   const waterways = snapshot.features.filter((feature) => feature.category === 'waterway');
+  const hillsides = hillsideRoads(snapshot.features);
   const areaIds = Object.keys(scenario.areas);
   const padded = [...records];
   let i = 0;
   while (padded.length < target) {
     const areaId = areaIds[i % areaIds.length];
     const hazard = scenario.areas[areaId].hazards[0];
-    const donor = waterways[i % waterways.length];
     const theme = scenario.themes[hazard];
+    const pool = hazard === 'flood' ? waterways : hillsides;
+    const donor = pool[i % pool.length];
     padded.push({
       id: `${areaId.split('.').pop()}-${hazard}-${i}`,
       event_id: `${hazard}:${areaId.split('.').pop()}-${hazard}-${i}`,
@@ -343,7 +351,7 @@ function padToTarget(records, snapshot, scenario, rng) {
       event_version: rng() < 0.15 ? 2 : 1,
       area_id: areaId,
       theme: hazard,
-      geometry: hazard === 'flood' ? syntheticFloodGeometry(donor) : donor.geometry,
+      geometry: syntheticHazardGeometry(donor),
       severity: SEVERITY_BY_INDEX[Math.floor(rng() * 4)],
       properties: statusProperties(hazard, donor, 'ACTIVE', rng),
     });
@@ -368,7 +376,7 @@ async function main() {
       const expected = await readFile(path.join(NEIHU_DIR, name), 'utf8').catch(() => null);
       if (expected !== stableStringify(value)) {
         mismatch = true;
-        console.error(`MISMATCH: fixtures/neihu/${name} is stale; re-run without --check`);
+        console.error(`MISMATCH: data/fixtures/neihu/${name} is stale; re-run without --check`);
       }
     }
     if (mismatch) process.exitCode = 1;

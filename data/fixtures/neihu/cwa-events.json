@@ -1,0 +1,49 @@
+{
+  "schema_version": "event-batch-v0",
+  "source_id": "cwa-earthquake",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.cwa",
+      "event_id": "cwa:earthquake:115001:neihu-001",
+      "event_type": "EARTHQUAKE_INTENSITY",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.58, 25.08]
+      },
+      "severity": "UNKNOWN",
+      "source": "CWA",
+      "source_version": "2026-09-04T12:05:00+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-04T04:01:00.000Z",
+      "expires_at": "2026-09-05T04:05:00.000Z",
+      "attributes": {
+        "area_id": "neihu",
+        "theme": "earthquake",
+        "coverage_level": "district",
+        "alert_id": "115001",
+        "source_description": "臺北市地區地震觀測",
+        "affected_area": "臺北市",
+        "original_unit": "gal",
+        "source_record": {
+          "EarthquakeNo": "115001",
+          "StationID": "NEIHU-001",
+          "StationName": "內湖測站",
+          "SeismicIntensity": "3級",
+          "MagnitudeValue": "4.2"
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "cwa-source-2026",
+      "provenance": {
+        "original_source": "https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001",
+        "received_at": "2026-09-04T04:00:00Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "cwa-collector"
+        }
+      }
+    }
+  ]
+}

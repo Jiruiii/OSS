@@ -1,0 +1,111 @@
+{
+  "git_rev": "45443f2",
+  "key": "100-replication",
+  "params": {
+    "scenario_id": "neihu-meiyu-front-v1",
+    "node_count": 100,
+    "strategy": "replication",
+    "geo_filter": false,
+    "seed": 20260904,
+    "rounds": 24,
+    "seconds_per_round": 30,
+    "rarity_scope": "global"
+  },
+  "sample_sizes": {
+    "nodes": 100,
+    "events": 500,
+    "event_holdings": 50000,
+    "freshness_pairs": 50000
+  },
+  "coverage": {
+    "t_minutes": [
+      1,
+      3,
+      5,
+      10
+    ],
+    "rounds_at_t": [
+      2,
+      6,
+      10,
+      20
+    ],
+    "curve": [
+      0.1614,
+      0.4773,
+      0.7711,
+      0.9979
+    ],
+    "final": 1,
+    "strict_curve": [
+      0,
+      0,
+      0,
+      0.97
+    ],
+    "strict_final": 1,
+    "relevant_curve": [
+      0.1614,
+      0.4773,
+      0.7711,
+      0.9979
+    ],
+    "relevant_final": 1,
+    "per_round": [
+      0.0219,
+      0.0753,
+      0.1614,
+      0.2417,
+      0.315,
+      0.3772,
+      0.4773,
+      0.5713,
+      0.6374,
+      0.7033,
+      0.7711,
+      0.8177,
+      0.848,
+      0.8829,
+      0.9219,
+      0.9551,
+      0.9735,
+      0.9837,
+      0.9899,
+      0.9943,
+      0.9979,
+      0.9991,
+      1,
+      1
+    ],
+    "sample_event_holdings": 50000
+  },
+  "freshness": {
+    "p50_seconds": 210,
+    "p95_seconds": 450,
+    "p50_minutes": 3.5,
+    "p95_minutes": 7.5,
+    "applied_pairs": 50000,
+    "unreached_pairs": 0
+  },
+  "cellular": {
+    "baseline_bytes": 55074200,
+    "actual_bytes": 10416950,
+    "savings": 0.8109,
+    "bytes_saved": 44657250,
+    "baseline_full_bytes": 55074200,
+    "total_vs_full": 0.8109,
+    "server_fetches": 1430
+  },
+  "transfer": {
+    "efficiency": 0.599,
+    "duplicate_ratio": 0.3437,
+    "failure_ratio": 0.0573,
+    "useful_bytes": 44657250,
+    "duplicate_bytes": 25621801,
+    "failed_bytes": 4273677,
+    "useful_event_bytes": 42698728,
+    "total_p2p_bytes": 74552728,
+    "transfers": 10954,
+    "failed_transfers": 669
+  }
+}

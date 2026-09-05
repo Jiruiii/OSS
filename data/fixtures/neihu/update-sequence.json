@@ -1,0 +1,368 @@
+{
+  "schema_version": "neihu-update-sequence-v0",
+  "fixture_id": "neihu-replay-20260904",
+  "raw_snapshots": [
+    {
+      "snapshot_id": "tdx-raw-20260904-0001",
+      "source_id": "tdx-road-events",
+      "retrieved_at": "2026-09-04T00:05:00Z",
+      "records": [
+        {
+          "raw_id": "road:382",
+          "event_id": "road:382",
+          "area_id": "neihu.dahu",
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [[121.5952185, 25.0841055], [121.5972202, 25.0845303], [121.6005135, 25.0845461]]
+          },
+          "in_neihu": true
+        },
+        {
+          "raw_id": "road:outside-001",
+          "event_id": "road:outside-001",
+          "area_id": "taipei.other",
+          "geometry": {"type": "Point", "coordinates": [121.5001, 25.0001]},
+          "in_neihu": false
+        }
+      ]
+    },
+    {
+      "snapshot_id": "cwa-raw-20260904-0001",
+      "source_id": "cwa-weather-warning",
+      "retrieved_at": "2026-09-04T00:06:00Z",
+      "records": [
+        {
+          "raw_id": "warning:001",
+          "event_id": "warning:001",
+          "coverage": "臺北市",
+          "in_neihu": true
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.tdx",
+      "event_id": "road:382",
+      "event_type": "ROAD_STATUS",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[121.5952185, 25.0841055], [121.5972202, 25.0845303], [121.6005135, 25.0845461]]
+      },
+      "severity": "HIGH",
+      "source": "TDX",
+      "source_version": "tdx-20260904-v1",
+      "event_version": 1,
+      "issued_at": "2026-09-04T00:10:00Z",
+      "expires_at": "2026-09-04T09:00:00Z",
+      "attributes": {"area_id": "neihu.dahu", "theme": "road", "status": "OPEN", "road_name": "成功路四段"},
+      "payload_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "signature": "Zml4dHVyZS1uZWlodS1ldmVudA==",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "fixture-neihu-2026",
+      "provenance": {
+        "original_source": "tdx-neihu-replay-fixture",
+        "received_at": "2026-09-04T00:11:00Z",
+        "transport_source": {"kind": "local_fixture", "node_id": "neihu-replay"}
+      }
+    },
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.cwa",
+      "event_id": "warning:001",
+      "event_type": "HEAVY_RAIN_WARNING",
+      "geometry": {"type": "Point", "coordinates": [121.58, 25.08]},
+      "severity": "HIGH",
+      "source": "CWA",
+      "source_version": "cwa-20260904-warning-v1",
+      "event_version": 1,
+      "issued_at": "2026-09-04T00:20:00Z",
+      "expires_at": "2026-09-04T05:00:00Z",
+      "attributes": {"area_id": "neihu.xihu", "theme": "flood", "status": "ACTIVE", "coverage_level": "city"},
+      "payload_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "signature": "Zml4dHVyZS1uZWlodS1ldmVudA==",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "fixture-neihu-2026",
+      "provenance": {
+        "original_source": "cwa-neihu-replay-fixture",
+        "received_at": "2026-09-04T00:21:00Z",
+        "transport_source": {"kind": "local_fixture", "node_id": "neihu-replay"}
+      }
+    },
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "flood:001",
+      "event_type": "FLOOD_HAZARD",
+      "geometry": {"type": "Point", "coordinates": [121.59, 25.08]},
+      "severity": "CRITICAL",
+      "source": "NCDR",
+      "source_version": "ncdr-20260904-flood-v1",
+      "event_version": 1,
+      "issued_at": "2026-09-04T00:30:00Z",
+      "expires_at": "2026-09-04T10:00:00Z",
+      "attributes": {"area_id": "neihu.donghu", "theme": "flood", "status": "WATCH", "water_level_cm": 40},
+      "payload_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "signature": "Zml4dHVyZS1uZWlodS1ldmVudA==",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "fixture-neihu-2026",
+      "provenance": {
+        "original_source": "ncdr-neihu-replay-fixture",
+        "received_at": "2026-09-04T00:31:00Z",
+        "transport_source": {"kind": "local_fixture", "node_id": "neihu-replay"}
+      }
+    },
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.fire",
+      "event_id": "shelter:001",
+      "event_type": "SHELTER_STATUS",
+      "geometry": {"type": "Point", "coordinates": [121.600697, 25.087809]},
+      "severity": "HIGH",
+      "source": "FIRE_AGENCY",
+      "source_version": "fire-20260904-shelter-v1",
+      "event_version": 1,
+      "issued_at": "2026-09-04T00:40:00Z",
+      "expires_at": "2026-09-04T10:00:00Z",
+      "attributes": {"area_id": "neihu.dahu", "theme": "shelter", "status": "OPEN", "capacity": 300, "available": 300},
+      "payload_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "signature": "Zml4dHVyZS1uZWlodS1ldmVudA==",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "fixture-neihu-2026",
+      "provenance": {
+        "original_source": "fire-neihu-replay-fixture",
+        "received_at": "2026-09-04T00:41:00Z",
+        "transport_source": {"kind": "local_fixture", "node_id": "neihu-replay"}
+      }
+    },
+    {
+      "schema_version": "event-v0",
+      "namespace": "crowd.road",
+      "event_id": "road:382",
+      "event_type": "ROAD_STATUS",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[121.5952185, 25.0841055], [121.5972202, 25.0845303], [121.6005135, 25.0845461]]
+      },
+      "severity": "MEDIUM",
+      "source": "COMMUNITY",
+      "source_version": "crowd-20260904-road-v1",
+      "event_version": 1,
+      "issued_at": "2026-09-04T00:50:00Z",
+      "expires_at": "2026-09-04T10:00:00Z",
+      "attributes": {"area_id": "neihu.dahu", "theme": "road", "status": "OPEN", "confidence": "UNVERIFIED"},
+      "payload_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "signature": "Zml4dHVyZS1uZWlodS1ldmVudA==",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "fixture-neihu-2026",
+      "provenance": {
+        "original_source": "crowd-neihu-replay-fixture",
+        "received_at": "2026-09-04T00:51:00Z",
+        "transport_source": {"kind": "peer", "node_id": "crowd-node-001"}
+      }
+    }
+  ],
+  "features": [
+    {
+      "schema_version": "feature-v0",
+      "namespace": "official.taipei",
+      "dataset_id": "resilientgeo-neihu",
+      "layer_id": "medical",
+      "feature_id": "hospital:001",
+      "feature_type": "HOSPITAL",
+      "geometry": {"type": "Point", "coordinates": [121.59, 25.08]},
+      "properties": {"name": "內湖醫院", "facility_type": "醫院", "emergency": true},
+      "source": "taipei-medical",
+      "source_version": "medical-snapshot-1",
+      "issued_at": "2026-09-04T01:00:00Z",
+      "expires_at": "2026-10-04T01:00:00Z",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "fixture-neihu-2026",
+      "provenance": {
+        "original_source": "medical-neihu-replay-fixture",
+        "received_at": "2026-09-04T01:01:00Z",
+        "transport_source": {"kind": "local_fixture", "node_id": "neihu-replay"}
+      }
+    }
+  ],
+  "updates": [
+    {
+      "update_id": "road-382-v2",
+      "kind": "event",
+      "event": {
+        "schema_version": "event-v0",
+        "namespace": "official.tdx",
+        "event_id": "road:382",
+        "event_type": "ROAD_STATUS",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [[121.5952185, 25.0841055], [121.5972202, 25.0845303], [121.6005135, 25.0845461]]
+        },
+        "severity": "CRITICAL",
+        "source": "TDX",
+        "source_version": "tdx-20260904-v2",
+        "event_version": 2,
+        "issued_at": "2026-09-04T02:00:00Z",
+        "expires_at": "2026-09-04T09:00:00Z",
+        "attributes": {"area_id": "neihu.dahu", "theme": "road", "status": "CLOSED", "road_name": "成功路四段", "reason": "debris"},
+        "payload_hash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+        "signature": "Zml4dHVyZS1uZWlodS1ldmVudA==",
+        "signature_algorithm": "Ed25519",
+        "signing_key_id": "fixture-neihu-2026",
+        "provenance": {
+          "original_source": "tdx-neihu-replay-fixture",
+          "received_at": "2026-09-04T02:01:00Z",
+          "transport_source": {"kind": "local_fixture", "node_id": "neihu-replay"}
+        }
+      }
+    },
+    {
+      "update_id": "road-382-rollback",
+      "kind": "event",
+      "event": {
+        "schema_version": "event-v0",
+        "namespace": "official.tdx",
+        "event_id": "road:382",
+        "event_type": "ROAD_STATUS",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [[121.5952185, 25.0841055], [121.5972202, 25.0845303], [121.6005135, 25.0845461]]
+        },
+        "severity": "HIGH",
+        "source": "TDX",
+        "source_version": "tdx-20260904-v1-replayed",
+        "event_version": 1,
+        "issued_at": "2026-09-04T02:10:00Z",
+        "expires_at": "2026-09-04T09:00:00Z",
+        "attributes": {"area_id": "neihu.dahu", "theme": "road", "status": "OPEN", "road_name": "成功路四段", "reason": "stale replay"},
+        "payload_hash": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+        "signature": "Zml4dHVyZS1uZWlodS1ldmVudA==",
+        "signature_algorithm": "Ed25519",
+        "signing_key_id": "fixture-neihu-2026",
+        "provenance": {
+          "original_source": "tdx-neihu-replay-fixture",
+          "received_at": "2026-09-04T02:11:00Z",
+          "transport_source": {"kind": "peer", "node_id": "replay-node-001"}
+        }
+      }
+    },
+    {
+      "update_id": "flood-001-v2",
+      "kind": "event",
+      "event": {
+        "schema_version": "event-v0",
+        "namespace": "official.ncdr",
+        "event_id": "flood:001",
+        "event_type": "FLOOD_HAZARD",
+        "geometry": {"type": "Point", "coordinates": [121.59, 25.08]},
+        "severity": "CRITICAL",
+        "source": "NCDR",
+        "source_version": "ncdr-20260904-flood-v2",
+        "event_version": 2,
+        "issued_at": "2026-09-04T02:20:00Z",
+        "expires_at": "2026-09-04T10:00:00Z",
+        "attributes": {"area_id": "neihu.donghu", "theme": "flood", "status": "ACTIVE", "water_level_cm": 75},
+        "payload_hash": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+        "signature": "Zml4dHVyZS1uZWlodS1ldmVudA==",
+        "signature_algorithm": "Ed25519",
+        "signing_key_id": "fixture-neihu-2026",
+        "provenance": {
+          "original_source": "ncdr-neihu-replay-fixture",
+          "received_at": "2026-09-04T02:21:00Z",
+          "transport_source": {"kind": "local_fixture", "node_id": "neihu-replay"}
+        }
+      }
+    },
+    {
+      "update_id": "shelter-001-full",
+      "kind": "event",
+      "event": {
+        "schema_version": "event-v0",
+        "namespace": "official.fire",
+        "event_id": "shelter:001",
+        "event_type": "SHELTER_STATUS",
+        "geometry": {"type": "Point", "coordinates": [121.600697, 25.087809]},
+        "severity": "HIGH",
+        "source": "FIRE_AGENCY",
+        "source_version": "fire-20260904-shelter-v2",
+        "event_version": 2,
+        "issued_at": "2026-09-04T02:30:00Z",
+        "expires_at": "2026-09-04T10:00:00Z",
+        "attributes": {"area_id": "neihu.dahu", "theme": "shelter", "status": "FULL", "capacity": 300, "available": 0},
+        "payload_hash": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+        "signature": "Zml4dHVyZS1uZWlodS1ldmVudA==",
+        "signature_algorithm": "Ed25519",
+        "signing_key_id": "fixture-neihu-2026",
+        "provenance": {
+          "original_source": "fire-neihu-replay-fixture",
+          "received_at": "2026-09-04T02:31:00Z",
+          "transport_source": {"kind": "local_fixture", "node_id": "neihu-replay"}
+        }
+      }
+    },
+    {
+      "update_id": "shelter-001-closed",
+      "kind": "event",
+      "event": {
+        "schema_version": "event-v0",
+        "namespace": "official.fire",
+        "event_id": "shelter:001",
+        "event_type": "SHELTER_STATUS",
+        "geometry": {"type": "Point", "coordinates": [121.600697, 25.087809]},
+        "severity": "HIGH",
+        "source": "FIRE_AGENCY",
+        "source_version": "fire-20260904-shelter-v3",
+        "event_version": 3,
+        "issued_at": "2026-09-04T02:40:00Z",
+        "expires_at": "2026-09-04T10:00:00Z",
+        "attributes": {"area_id": "neihu.dahu", "theme": "shelter", "status": "CLOSED", "capacity": 300, "available": 0},
+        "payload_hash": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "signature": "Zml4dHVyZS1uZWlodS1ldmVudA==",
+        "signature_algorithm": "Ed25519",
+        "signing_key_id": "fixture-neihu-2026",
+        "provenance": {
+          "original_source": "fire-neihu-replay-fixture",
+          "received_at": "2026-09-04T02:41:00Z",
+          "transport_source": {"kind": "local_fixture", "node_id": "neihu-replay"}
+        }
+      }
+    },
+    {
+      "update_id": "medical-snapshot-2",
+      "kind": "feature_snapshot",
+      "snapshot_version": 2,
+      "features": [
+        {
+          "schema_version": "feature-v0",
+          "namespace": "official.taipei",
+          "dataset_id": "resilientgeo-neihu",
+          "layer_id": "medical",
+          "feature_id": "hospital:001",
+          "feature_type": "HOSPITAL",
+          "geometry": {"type": "Point", "coordinates": [121.59, 25.08]},
+          "properties": {"name": "內湖醫院", "facility_type": "醫院", "emergency": true},
+          "source": "taipei-medical",
+          "source_version": "medical-snapshot-2",
+          "issued_at": "2026-09-04T03:00:00Z",
+          "expires_at": "2026-10-04T03:00:00Z",
+          "signature_algorithm": "Ed25519",
+          "signing_key_id": "fixture-neihu-2026",
+          "provenance": {
+            "original_source": "medical-neihu-replay-fixture",
+            "received_at": "2026-09-04T03:01:00Z",
+            "transport_source": {"kind": "local_fixture", "node_id": "neihu-replay"}
+          }
+        }
+      ]
+    }
+  ],
+  "expansion": {
+    "target_event_record_count": 100,
+    "area_ids": ["neihu.xihu", "neihu.tech-park", "neihu.wende", "neihu.donghu", "neihu.dahu"],
+    "issued_at": "2026-09-04T03:00:00Z",
+    "expires_at": "2026-09-05T03:00:00Z",
+    "source_version": "tdx-neihu-replay-scale-1",
+    "description": "由固定 ID、固定座標偏移與固定時間產生的 deterministic road records。"
+  }
+}

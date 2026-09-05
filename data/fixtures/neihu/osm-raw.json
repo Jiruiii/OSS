@@ -1,0 +1,62 @@
+{
+  "schema_version": "raw-snapshot-v0",
+  "source_id": "osm-neihu",
+  "request": {
+    "method": "GET",
+    "url": "https://overpass-api.de/api/interpreter",
+    "query": {
+      "data": "[out:json][timeout:60];area(3602905065)->.neihu;(way(area.neihu)[highway];node(area.neihu)[amenity~\"hospital|clinic|shelter\"];way(area.neihu)[amenity~\"hospital|clinic|shelter\"];);out body geom;"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "etag": "\"fixture-osm-1\"",
+      "content_type": "application/json"
+    }
+  },
+  "retrieved_at": "2026-09-04T04:00:00Z",
+  "payload": {
+    "version": 0.6,
+    "generator": "Overpass API",
+    "osm3s": {
+      "timestamp_osm_base": "2026-09-04T03:30:00Z"
+    },
+    "elements": [
+      {
+        "type": "way",
+        "id": 1001,
+        "version": 4,
+        "timestamp": "2026-09-04T03:30:00Z",
+        "tags": {
+          "highway": "primary",
+          "name": "成功路"
+        },
+        "geometry": [
+          {"lat": 25.079, "lon": 121.57},
+          {"lat": 25.081, "lon": 121.58}
+        ]
+      },
+      {
+        "type": "node",
+        "id": 2001,
+        "lat": 25.08,
+        "lon": 121.58,
+        "tags": {
+          "amenity": "hospital",
+          "name": "內湖醫院"
+        }
+      },
+      {
+        "type": "node",
+        "id": 2002,
+        "lat": 25,
+        "lon": 121.5,
+        "tags": {
+          "amenity": "hospital",
+          "name": "外部醫院"
+        }
+      }
+    ]
+  }
+}

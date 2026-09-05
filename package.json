@@ -3,7 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test pipeline/test/*.test.mjs",
+    "test": "node --test pipeline/test/*.test.mjs simulator/test/*.test.mjs",
+    "test:sim": "node --test simulator/test/*.test.mjs",
+    "sim:matrix": "node simulator/cli.mjs matrix --out experiments/results",
+    "sim:check": "node simulator/cli.mjs matrix --check",
     "generate:android-fixture": "node pipeline/tools/generate-android-fixture.mjs"
   }
 }

@@ -183,14 +183,14 @@ combination:
 - **Demo geography moved from Hualien to Neihu.** B's original fixtures
   and `OfflineMapView`'s hardcoded bounding box used placeholder
   coordinates from before the team standardized the whole project's demo
-  area on Taipei's Neihu district (`fixtures/neihu/scenario.json`, module
+  area on Taipei's Neihu district (`data/fixtures/neihu/scenario.json`, module
   A). Both have been updated: `pipeline/tools/generate-android-fixture.mjs`
   now signs events near the `neihu.dahu` / `neihu.wende` seed points, and
   `OfflineMapView`'s bounding box covers all five `neihu.*` areas with
   margin. The event IDs, hashes, and signatures are freshly generated
   (re-run `npm run generate:android-fixture` any time this needs to
   change) — this is still B's own small demo dataset, distinct from and
-  much smaller than module A's real `fixtures/neihu/*.json` datasets.
+  much smaller than module A's real `data/fixtures/neihu/*.json` datasets.
 
 ## What's implemented (module B)
 
@@ -216,7 +216,7 @@ geometry, nothing else. No binary tile assets, no map SDK, no API keys,
 no network access of any kind. What you see is exactly what's in the
 local database, which is exactly what passed `EventVerifier`. Swapping in
 a real tiled basemap for Neihu is a reasonable follow-up (module A
-already has real OSM geometry in `fixtures/neihu/osm-snapshot.json`) but
+already has real OSM geometry in `data/fixtures/neihu/osm-snapshot.json`) but
 is additive — it wouldn't change `EventEntity`, `EventIngestor`, or the
 trust adapter, only what `MainActivity` hands to the map view.
 

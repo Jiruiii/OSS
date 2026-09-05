@@ -1,0 +1,111 @@
+{
+  "git_rev": "45443f2",
+  "key": "20-replication-geo",
+  "params": {
+    "scenario_id": "neihu-meiyu-front-v1",
+    "node_count": 20,
+    "strategy": "replication",
+    "geo_filter": true,
+    "seed": 20260904,
+    "rounds": 24,
+    "seconds_per_round": 30,
+    "rarity_scope": "global"
+  },
+  "sample_sizes": {
+    "nodes": 20,
+    "events": 500,
+    "event_holdings": 10000,
+    "freshness_pairs": 6173
+  },
+  "coverage": {
+    "t_minutes": [
+      1,
+      3,
+      5,
+      10
+    ],
+    "rounds_at_t": [
+      2,
+      6,
+      10,
+      20
+    ],
+    "curve": [
+      0.0923,
+      0.2915,
+      0.5068,
+      0.6173
+    ],
+    "final": 0.6173,
+    "strict_curve": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "strict_final": 0,
+    "relevant_curve": [
+      0.15,
+      0.4872,
+      0.8438,
+      1
+    ],
+    "relevant_final": 1,
+    "per_round": [
+      0.0201,
+      0.0569,
+      0.0923,
+      0.1342,
+      0.169,
+      0.203,
+      0.2915,
+      0.3671,
+      0.4225,
+      0.4596,
+      0.5068,
+      0.5293,
+      0.5524,
+      0.5731,
+      0.5901,
+      0.6054,
+      0.6119,
+      0.6164,
+      0.617,
+      0.6173,
+      0.6173,
+      0.6173,
+      0.6173,
+      0.6173
+    ],
+    "sample_event_holdings": 10000
+  },
+  "freshness": {
+    "p50_seconds": 210,
+    "p95_seconds": 420,
+    "p50_minutes": 3.5,
+    "p95_minutes": 7,
+    "applied_pairs": 6173,
+    "unreached_pairs": 3827
+  },
+  "cellular": {
+    "baseline_bytes": 6750432,
+    "actual_bytes": 1725183,
+    "savings": 0.7444,
+    "bytes_saved": 5025249,
+    "baseline_full_bytes": 11014840,
+    "total_vs_full": 0.8434,
+    "server_fetches": 243
+  },
+  "transfer": {
+    "efficiency": 0.6447,
+    "duplicate_ratio": 0.2857,
+    "failure_ratio": 0.0696,
+    "useful_bytes": 5025249,
+    "duplicate_bytes": 2226711,
+    "failed_bytes": 542419,
+    "useful_event_bytes": 4808689,
+    "total_p2p_bytes": 7794379,
+    "transfers": 1100,
+    "failed_transfers": 83
+  }
+}

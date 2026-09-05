@@ -1,0 +1,92 @@
+{
+  "schema_version": "static-normalized-v0",
+  "dataset_id": "resilientgeo-neihu",
+  "retrieved_at": "2026-09-04T04:00:00Z",
+  "feature_count": 3,
+  "status_event_count": 1,
+  "features": [
+    {
+      "schema_version": "feature-v0",
+      "namespace": "official.osm",
+      "dataset_id": "resilientgeo-neihu",
+      "layer_id": "osm-road",
+      "feature_id": "osm:way:1001",
+      "feature_type": "ROAD",
+      "geometry": {"type": "LineString", "coordinates": [[121.57, 25.079], [121.58, 25.081]]},
+      "properties": {
+        "name": "成功路",
+        "tags": {"highway": "primary", "name": "成功路"},
+        "osm_type": "way",
+        "osm_id": 1001,
+        "source_record": {"type": "way", "id": 1001}
+      },
+      "source": "osm-neihu",
+      "source_version": "2026-09-04T03:30:00Z",
+      "issued_at": "2026-09-04T04:00:00Z",
+      "expires_at": "2026-10-04T04:00:00Z",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "osm-neihu-source-2026",
+      "provenance": {
+        "original_source": "https://overpass-api.de/api/interpreter",
+        "received_at": "2026-09-04T04:00:00Z",
+        "transport_source": {"kind": "local_fixture", "node_id": "osm-collector"}
+      }
+    },
+    {
+      "schema_version": "feature-v0",
+      "namespace": "official.taipei",
+      "dataset_id": "resilientgeo-neihu",
+      "layer_id": "shelter",
+      "feature_id": "shelter:s001",
+      "feature_type": "SHELTER",
+      "geometry": {"type": "Point", "coordinates": [121.58, 25.08]},
+      "properties": {
+        "name": "內湖國小",
+        "address": "內湖路一段1號",
+        "capacity": 300,
+        "disaster_types": ["地震", "水災"],
+        "administrative_area": "臺北市內湖區",
+        "source_record": {"序號": "S001", "預計收容人數": "300"}
+      },
+      "source": "taipei-shelter",
+      "source_version": "2026-09-04T04:00:00Z",
+      "issued_at": "2026-09-04T04:00:00Z",
+      "expires_at": "2026-10-04T04:00:00Z",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taipei-shelter-source-2026",
+      "provenance": {
+        "original_source": "https://data.gov.tw/dataset/73242",
+        "received_at": "2026-09-04T04:00:00Z",
+        "transport_source": {"kind": "local_fixture", "node_id": "shelter-collector"}
+      }
+    },
+    {
+      "schema_version": "feature-v0",
+      "namespace": "official.taipei",
+      "dataset_id": "resilientgeo-neihu",
+      "layer_id": "medical",
+      "feature_id": "medical:h001",
+      "feature_type": "HOSPITAL",
+      "geometry": {"type": "Point", "coordinates": [121.58, 25.08]},
+      "properties": {
+        "name": "內湖醫院",
+        "address": "臺北市內湖區成功路1號",
+        "administrative_area": "內湖區",
+        "facility_type": "醫院",
+        "source_record": {"機構代碼": "H001", "機構名稱": "內湖醫院"}
+      },
+      "source": "taipei-medical",
+      "source_version": "2026-09-04T04:00:00Z",
+      "issued_at": "2026-09-04T04:00:00Z",
+      "expires_at": "2026-10-04T04:00:00Z",
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taipei-medical-source-2026",
+      "provenance": {
+        "original_source": "https://data.taipei/dataset/detail?id=ffdd5753-30db-4c38-b65f-b77892773d60",
+        "received_at": "2026-09-04T04:00:00Z",
+        "transport_source": {"kind": "local_fixture", "node_id": "medical-collector"}
+      }
+    }
+  ],
+  "status_events": []
+}

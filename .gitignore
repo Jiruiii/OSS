@@ -3,6 +3,18 @@
 .stage2-bundle/
 .neihu-bundle/
 .neihu-scale/
+.sim-out/
+.sim-out*/
+
+# Downloaded live snapshots and future analytics outputs. Keep deterministic
+# demo fixtures under data/fixtures/ versioned and reviewable.
+/data/live/
+/data/derived/
+
+# Local API credentials. Never commit real values.
+.env
+.env.*
+!.env.example
 
 # Python test/runtime artifacts.
 __pycache__/

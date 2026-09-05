@@ -13,12 +13,12 @@
 | 階段 2：安全測試 | 已完成 | Node 測試涵蓋竄改、版本 replay、TTL、incomplete chunk |
 | 真實資料源 | 尚未開始 | 目前沒有呼叫 TDX／CWA／NCDR 即時 API |
 | Android 驗證器與 App | 尚未開始 | 目前是 platform-neutral Node verifier，尚無 Android project、離線 DB 或地圖 UI |
-| Android 實機傳輸 Spike | 已完成 | 兩台實機（Pixel 7 + Pixel 8a）比較 Nearby Connections（已否決，Google 側 INTERNAL_ERROR）、Wi-Fi Direct（已否決，TCP 傳輸層卡住）、BLE GATT（採用，discovery/連線/傳輸/斷點續傳皆驗證通過）。ADR-001 已定案，見 `docs/adr/ADR-001-transport-layer.md` |
-| Simulator／實驗報告 | 尚未開始 | 尚未建立 10／20／50／100 節點情境與耗電、延遲、流量報告 |
+| Android 實機傳輸 Spike | 已完成 | 兩台實機（Pixel 7 + Pixel 8a）比較 Nearby Connections（已否決，Google 側 INTERNAL_ERROR）、Wi-Fi Direct（已否決，TCP 傳輸層卡住）、BLE GATT（採用，discovery/連線/傳輸/斷點續傳皆驗證通過）。ADR-001 已定案，見 `docs/adr/ADR-001-transport-layer.md`；條件通過，pending 跨品牌相容性（見階段 0） |
+| Simulator／實驗報告 | 進行中 | `simulator/` 決定性模擬 10／20／50／100 節點 × 三策略 × 地理過濾；`experiments/` 有可重現的四指標報告（Coverage／Freshness／Cellular Savings／Transfer Efficiency）。傳輸參數待實機校準；Energy Cost 未建模 |
 
-狀態證據：`npm test` 的 Node 測試 20 項全數通過（含地理分片、bbox 竄改偵測、生成器決定性），`python -m unittest discover -s tests -v` 的 Python 測試 4 項通過；CLI 也已完成 keygen → build → verify 端到端測試（`demo-v136` 產生 22 個帶 area／theme 的已驗證分片）。正式 Android 驗簽、實機傳輸與真實來源接入仍不能視為完成。
+狀態證據：`npm test` 的 Node 測試（pipeline + simulator）全數通過（含地理分片、bbox 竄改偵測、生成器與模擬器決定性、`matrix --check` 位元比對、跨 manifest_id 的 DTN diff），`python -m unittest discover -s tests -v` 的 Python 測試 4 項通過；CLI 也已完成 keygen → build → verify 端到端測試（`demo-v136` 產生 22 個帶 area／theme 的已驗證分片）。正式 Android 驗簽、實機傳輸、真實來源接入與 Emergency Mode 實機耗電量測仍不能視為完成。
 
-> 2026-09-05 修正：先前記錄的「16 項通過」是舊數字，且當時 Windows checkout 出來的 `fixtures/neihu/*.json` 因 `core.autocrlf=true` 又沒有 `.gitattributes` 而帶 CRLF，跟決定性生成器輸出的 LF 逐位元組比對必然 MISMATCH——這是假失敗，不是生成器不決定性。已新增根目錄 `.gitattributes`（`*.json`／`*.mjs`／`*.md` 固定 `eol=lf`）並重新 checkout 正規化，`npm test` 現在 20 項全過。
+> 2026-09-05 修正：先前記錄的「16 項通過」是 pipeline 測試的舊數字，且當時 Windows checkout 出來的 `fixtures/neihu/*.json` 因 `core.autocrlf=true` 又沒有 `.gitattributes` 而帶 CRLF，跟決定性生成器輸出的 LF 逐位元組比對必然 MISMATCH——這是假失敗，不是生成器不決定性。根目錄 `.gitattributes`（`* text=auto eol=lf`）已修掉這個問題。
 
 ## 1. 專案目標
 
@@ -124,7 +124,7 @@ flowchart LR
 ### 階段 0：證明關鍵假設（2–3 天）
 
 - [x] 定義 Event、Manifest、Chunk 與 Peer Summary 的 v0 格式。（`schemas/`）
-- [x] 準備 100–1,000 筆道路／避難所測試事件與更新序列。（`fixtures/neihu/scale-v136.json` ~500 筆，`demo-v136/137` 為更新序列；由 `tools/generate-neihu-fixtures.mjs` 從 OSM 快照決定性生成）
+- [x] 準備 100–1,000 筆道路／避難所測試事件與更新序列。（`data/fixtures/neihu/scale-v136.json` ~500 筆，`demo-v136/137` 為更新序列；由 `tools/generate-neihu-fixtures.mjs` 從 OSM 快照決定性生成）
 - [x] 用兩台 Android 實機測 BLE 發現及傳輸。（BLE GATT，見下方說明——非原規劃的「高速 P2P」方案，實測後 Nearby Connections／Wi-Fi Direct 皆否決，改採 BLE GATT）
 - [x] 紀錄連線時間、傳輸速度、斷線恢復結果。（KB 級酬載：10KB/100KB 傳輸與位元組級斷點續傳皆成功，吞吐量 3–6 KB/s；原規劃的 1MB/10MB 是壓力測試數字，非實際酬載大小，見 ADR-001）
 - [x] 寫出 ADR-001：MVP 傳輸層選擇與未選方案的原因。（狀態已定案為 Accepted，BLE GATT）
@@ -176,12 +176,14 @@ flowchart LR
 
 ### 階段 4：實驗與展示（第 5 週）
 
-- [ ] 建立 10、20、50、100 節點的可重播模擬情境。
-- [ ] 比較無協作、一般 replication、rarest-first 三種策略。
-- [ ] 實機量測 Emergency Mode 的耗電與傳輸量。
-- [ ] 產生 Demo 腳本、限制說明與結果圖表。
+- [x] 建立 10、20、50、100 節點的可重播模擬情境。（`simulator/`，固定 seed ＋ `sim-config.json` ⇒ 位元相同，`matrix --check` 守住）
+- [x] 比較無協作、一般 replication、rarest-first 三種策略。（外加正交的地理相關性過濾開關）
+- [ ] 實機量測 Emergency Mode 的耗電與傳輸量。（Energy Cost 尚未建模，需指定機型實機量測）
+- [x] 產生 Demo 腳本、限制說明與結果圖表。（`experiments/{demo,limitations}.md`、`results/report.md` 含 ASCII 曲線、`analysis/*.csv`）
 
 **通過條件**：報告可重現，不宣稱固定時間覆蓋全城；所有成果都附測試條件與樣本數。
+
+**目前狀態**：四個指標（Data Coverage、Freshness Lag、Cellular Savings、Transfer Efficiency）已在 `experiments/results/report.md` 產出且可重現（`matrix --check` PASS），每個區塊帶樣本數與 Limitations。接觸機率與 P2P 傳輸參數是工程估計值，待組員 C 的兩台實機 spike 校準（改 `simulator/fixtures/sim-config.json` 一檔即可重跑）。Energy Cost 因需實機量測，本階段尚未宣告完成。
 
 ## 7. 必須量測的指標
 
@@ -209,9 +211,9 @@ flowchart LR
 docs/                 決策紀錄、協定、實驗設計
 schemas/              Event、Manifest、Chunk schema
 pipeline/             資料擷取、正規化、分片、簽章
-android/              Android App、離線 GIS、Peer Sync
-simulator/            DTN／擴散模擬與情境設定
-experiments/          原始結果、分析腳本與圖表
+android/              Android App、離線 GIS、Peer Sync（尚未建立）
+simulator/            DTN／擴散模擬與情境設定（已建立）
+experiments/          原始結果、分析腳本與圖表（已建立）
 fixtures/             可重播的測試資料，不放正式私鑰
 ```
 

@@ -1,0 +1,111 @@
+{
+  "git_rev": "45443f2",
+  "key": "50-no-coop",
+  "params": {
+    "scenario_id": "neihu-meiyu-front-v1",
+    "node_count": 50,
+    "strategy": "no-coop",
+    "geo_filter": false,
+    "seed": 20260904,
+    "rounds": 24,
+    "seconds_per_round": 30,
+    "rarity_scope": "global"
+  },
+  "sample_sizes": {
+    "nodes": 50,
+    "events": 500,
+    "event_holdings": 25000,
+    "freshness_pairs": 16270
+  },
+  "coverage": {
+    "t_minutes": [
+      1,
+      3,
+      5,
+      10
+    ],
+    "rounds_at_t": [
+      2,
+      6,
+      10,
+      20
+    ],
+    "curve": [
+      0.0816,
+      0.1886,
+      0.2957,
+      0.5682
+    ],
+    "final": 0.6508,
+    "strict_curve": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "strict_final": 0,
+    "relevant_curve": [
+      0.0816,
+      0.1886,
+      0.2957,
+      0.5682
+    ],
+    "relevant_final": 0.6508,
+    "per_round": [
+      0.0276,
+      0.0547,
+      0.0816,
+      0.1085,
+      0.1353,
+      0.1618,
+      0.1886,
+      0.2167,
+      0.2426,
+      0.2685,
+      0.2957,
+      0.3232,
+      0.3502,
+      0.3776,
+      0.4052,
+      0.4313,
+      0.4586,
+      0.486,
+      0.5129,
+      0.5403,
+      0.5682,
+      0.5958,
+      0.6228,
+      0.6508
+    ],
+    "sample_event_holdings": 25000
+  },
+  "freshness": {
+    "p50_seconds": 360,
+    "p95_seconds": 660,
+    "p50_minutes": 6,
+    "p95_minutes": 11,
+    "applied_pairs": 16270,
+    "unreached_pairs": 8730
+  },
+  "cellular": {
+    "baseline_bytes": 17542893,
+    "actual_bytes": 17542893,
+    "savings": 0,
+    "bytes_saved": 0,
+    "baseline_full_bytes": 27537100,
+    "total_vs_full": 0.3629,
+    "server_fetches": 2400
+  },
+  "transfer": {
+    "efficiency": null,
+    "duplicate_ratio": null,
+    "failure_ratio": null,
+    "useful_bytes": 0,
+    "duplicate_bytes": 0,
+    "failed_bytes": 0,
+    "useful_event_bytes": 0,
+    "total_p2p_bytes": 0,
+    "transfers": 0,
+    "failed_transfers": 0
+  }
+}

@@ -3,7 +3,7 @@
 /**
  * One-shot Overpass fetch for the Neihu (內湖區) demo dataset.
  *
- * The output is written to fixtures/neihu/osm-snapshot.json and committed to
+ * The output is written to data/fixtures/neihu/osm-snapshot.json and committed to
  * the repository. Every fixture generator reads that snapshot; nothing else in
  * the build path touches the network. Re-running this tool is only needed when
  * we deliberately want to refresh the geometry (and accept the data drift).
@@ -22,7 +22,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 
 const DEFAULT_ENDPOINT = 'https://overpass-api.de/api/interpreter';
-const DEFAULT_OUT = path.join(ROOT, 'fixtures', 'neihu', 'osm-snapshot.json');
+const DEFAULT_OUT = path.join(ROOT, 'data', 'fixtures', 'neihu', 'osm-snapshot.json');
 
 // Coarse pre-filter around 內湖區. The administrative boundary polygon below is
 // the authoritative extent; this box only bounds the feature scan.
