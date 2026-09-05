@@ -152,8 +152,8 @@ Expected: PASS, with the same real nested payload and controller assertions.
 ### Task 3: UI-independent Dart models and typed bridge
 
 **Files:**
-- Create: `flutter/lib/map_models.dart`
-- Create: `flutter/lib/map_bridge.dart`
+- Create: `flutter/lib/data/map_models.dart`
+- Create: `flutter/lib/data/map_bridge.dart`
 - Test: `flutter/test/map_models_test.dart`
 
 **Interfaces:**

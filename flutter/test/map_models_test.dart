@@ -1,7 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:resilientgeo_flutter/map_models.dart';
+import 'package:flutter/services.dart';
+import 'package:resilientgeo_flutter/data/map_bridge.dart';
+import 'package:resilientgeo_flutter/data/map_models.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('parses a static LineString feature with its exact coordinates', () {
     final feature = StaticFeature.fromJson(<String, dynamic>{
       'id': 'osm:way:1014301596',
@@ -106,5 +110,113 @@ void main() {
     expect(event.geometry, isNull);
     expect(event.applyState, 'EXPIRED');
     expect(event.isExpired, isTrue);
+  });
+
+  test('treats Android apply state as authoritative over raw expiry text', () {
+    final event = MeshEvent.fromJson(<String, dynamic>{
+      'namespace': 'official.tdx',
+      'event_id': 'road:dahu-01',
+      'event_version': 2,
+      'event_type': 'ROAD_STATUS',
+      'severity': 'HIGH',
+      'expires_at': '2020-01-01T00:00:00Z',
+      'apply_state': 'CURRENT',
+    });
+
+    expect(event.expiresAt, '2020-01-01T00:00:00Z');
+    expect(event.applyState, 'CURRENT');
+    expect(event.isExpired, isFalse);
+  });
+
+  test('preserves real shelter root metadata and nullable availability', () {
+    final shelter = StaticFeature.fromJson(<String, dynamic>{
+      'id': 'shelter:5427',
+      'kind': 'shelter',
+      'name': '潭美國小',
+      'address': '內湖區新明路22號',
+      'capacity': 81,
+      'available_count': null,
+      'disaster_types': <String>['水災', '震災'],
+      'facility_type': null,
+      'geometry': <String, dynamic>{
+        'type': 'Point',
+        'coordinates': <double>[121.5908, 25.0609],
+      },
+      'properties': null,
+    });
+
+    expect(shelter.fields['name'], '潭美國小');
+    expect(shelter.fields['address'], '內湖區新明路22號');
+    expect(shelter.fields['capacity'], 81);
+    expect(shelter.fields['available_count'], isNull);
+    expect(shelter.fields['disaster_types'], <String>['水災', '震災']);
+    expect(shelter.fields['facility_type'], isNull);
+    expect(shelter.details['available_count'], isNull);
+    expect(shelter.details['name'], '潭美國小');
+  });
+
+  test('rejects a non-map getInitialState reply', () async {
+    const channel = MethodChannel('test/map-bridge/non-map');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(channel, (call) async => 'not a map');
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+    await expectLater(
+      MapBridge(methodChannel: channel).getInitialState(),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
+  test('rejects a getInitialState reply missing emergency state', () async {
+    const channel = MethodChannel('test/map-bridge/missing-emergency');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(
+      channel,
+      (call) async => <String, dynamic>{'events': <dynamic>[]},
+    );
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+    await expectLater(
+      MapBridge(methodChannel: channel).getInitialState(),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
+  test('rejects a fixture summary reply missing a required count', () async {
+    const channel = MethodChannel('test/map-bridge/missing-summary');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(
+      channel,
+      (call) async => <String, dynamic>{
+        'processed': 2,
+        'inserted': 1,
+        'updated': 1,
+      },
+    );
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+    await expectLater(
+      MapBridge(methodChannel: channel).loadBundledFixture(),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
+  test('rejects an emergency reply missing enabled', () async {
+    const channel = MethodChannel('test/map-bridge/missing-enabled');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(
+      channel,
+      (call) async => <String, dynamic>{},
+    );
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+
+    await expectLater(
+      MapBridge(methodChannel: channel).setEmergencyMode(enabled: true),
+      throwsA(isA<FormatException>()),
+    );
   });
 }

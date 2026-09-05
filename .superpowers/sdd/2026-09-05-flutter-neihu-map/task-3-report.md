@@ -34,8 +34,8 @@ rules, or modify BLE/transport activities or generated `flutter/.android`.
 
 - `map_models.dart` is UI-independent and parses static features plus event
   Point, LineString, and Polygon geometries. Nullable contract fields stay
-  nullable; `MeshEvent.isExpired` keeps the Android `EXPIRED` apply state and
-  also recognises a passed expiry timestamp.
+  nullable; `MeshEvent.isExpired` uses Android's persisted `EXPIRED` apply
+  state while raw `expires_at` remains display data.
 - `map_bridge.dart` exposes typed `getInitialState`, `loadBundledFixture`,
   `setEmergencyMode`, and event-snapshot APIs. It has no database or Android
   storage access.
@@ -103,8 +103,59 @@ rules, or modify BLE/transport activities or generated `flutter/.android`.
 - `android/app/src/main/java/com/resilientgeo/mesh/bridge/FlutterMapBridge.kt`
 - `android/app/src/test/java/com/resilientgeo/mesh/bridge/EventPayloadMapperTest.kt`
 - `android/app/src/test/java/com/resilientgeo/mesh/bridge/EmergencyModeControllerTest.kt`
-- `flutter/lib/map_models.dart`
-- `flutter/lib/map_bridge.dart`
+- `flutter/lib/data/map_models.dart`
+- `flutter/lib/data/map_bridge.dart`
+- `flutter/test/map_models_test.dart`
+- `docs/superpowers/plans/2026-09-05-android-flutter-data-bridge.md`
+- `.superpowers/sdd/2026-09-05-flutter-neihu-map/task-3-report.md`
+
+## Reviewer fix report
+
+### Changes
+
+- Moved the Dart data boundary to `flutter/lib/data/`; the former
+  `flutter/lib/map_models.dart` and `flutter/lib/map_bridge.dart` paths were
+  removed, so there are no duplicate source copies.
+- `MeshEvent.isExpired` now returns true only when Android supplied
+  `apply_state == "EXPIRED"`. It no longer re-evaluates `expires_at` against
+  the Flutter device clock.
+- `StaticFeature.fields` retains every non-structural root value from Task 2,
+  including `name`, `address`, `capacity`, `available_count`,
+  `disaster_types`, and `facility_type`; JSON null remains null. `details`
+  merges optional nested `properties` with root fields taking precedence.
+- `MapBridge` rejects non-map method replies and missing/invalid required
+  fields with `FormatException`; it no longer converts malformed initial,
+  summary, or Emergency Mode replies to empty data or false.
+- Added `MapBridgeProtocol` and a pure JUnit contract test for the three
+  MethodChannel reply payloads plus the EventChannel snapshot payload.
+  `FlutterMapBridge` now delegates both reply and snapshot construction to
+  that tested protocol helper.
+
+### TDD and verification
+
+- Flutter RED: the updated parser/bridge test first failed because
+  `StaticFeature.fields`/`details` did not exist. The final emergency reply
+  test also failed against the old fallback with `emitted <false>` instead of
+  `FormatException`.
+- Flutter GREEN:
+  `/Users/ray/Development/flutter/bin/flutter test test/map_models_test.dart`
+  passed 9/9. Coverage includes authoritative Android expiry state, the real
+  `shelter:5427` root shape and nullable availability, and malformed
+  `getInitialState`, fixture-summary, and `setEmergencyMode` replies.
+- Android focused protocol test:
+  `bash ./gradlew testDebugUnitTest --tests
+  com.resilientgeo.mesh.bridge.MapBridgeProtocolTest --no-daemon
+  --console=plain` still fails before Kotlin compilation at the existing
+  Flutter SDK plugin `flutter.groovy:9` / `groovy.xml.QName` error. No
+  Gradle, generated `.android`, or Flutter SDK integration files were changed.
+
+### Reviewer fix files
+
+- `android/app/src/main/java/com/resilientgeo/mesh/bridge/MapBridgeProtocol.kt`
+- `android/app/src/test/java/com/resilientgeo/mesh/bridge/MapBridgeProtocolTest.kt`
+- `android/app/src/main/java/com/resilientgeo/mesh/bridge/FlutterMapBridge.kt`
+- `flutter/lib/data/map_models.dart`
+- `flutter/lib/data/map_bridge.dart`
 - `flutter/test/map_models_test.dart`
 - `docs/superpowers/plans/2026-09-05-android-flutter-data-bridge.md`
 - `.superpowers/sdd/2026-09-05-flutter-neihu-map/task-3-report.md`

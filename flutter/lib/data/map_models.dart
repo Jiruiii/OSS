@@ -85,18 +85,32 @@ class StaticFeature {
     required this.id,
     required this.kind,
     required this.geometry,
+    required this.fields,
     required this.properties,
   });
 
   final String? id;
   final String? kind;
   final MapGeometry? geometry;
+
+  /// Root-level Task 2 fields such as name, address and available_count.
+  /// Values intentionally retain JSON null when the source has no value.
+  final Map<String, dynamic> fields;
+
+  /// Optional nested GeoJSON-style properties, kept separate from root fields.
   final Map<String, dynamic>? properties;
+
+  /// A Task 4-ready view of nested properties plus authoritative root fields.
+  /// Root fields win on a key collision because they are the Task 2 contract.
+  Map<String, dynamic> get details => Map<String, dynamic>.unmodifiable(
+    <String, dynamic>{...?properties, ...fields},
+  );
 
   factory StaticFeature.fromJson(Map<String, dynamic> json) => StaticFeature(
     id: _asString(json['id']),
     kind: _asString(json['kind']),
     geometry: MapGeometry.fromJson(json['geometry']),
+    fields: _staticFeatureFields(json),
     properties: _asStringMap(json['properties']),
   );
 }
@@ -142,13 +156,8 @@ class MeshEvent {
     attributes: _asStringMap(json['attributes']),
   );
 
-  bool get isExpired {
-    if (applyState == 'EXPIRED') return true;
-    final expiresAtValue = expiresAt;
-    if (expiresAtValue == null) return false;
-    final expiry = DateTime.tryParse(expiresAtValue);
-    return expiry != null && expiry.isBefore(DateTime.now().toUtc());
-  }
+  /// Android's persisted apply_state is authoritative; expires_at is display data.
+  bool get isExpired => applyState == 'EXPIRED';
 }
 
 class MapInitialState {
@@ -160,14 +169,22 @@ class MapInitialState {
   final List<MeshEvent> events;
   final bool emergencyModeEnabled;
 
-  factory MapInitialState.fromJson(Map<String, dynamic> json) =>
-      MapInitialState(
-        events: _eventsFromValue(json['events']),
-        emergencyModeEnabled:
-            json['emergency_mode_enabled'] is bool
-                ? json['emergency_mode_enabled'] as bool
-                : false,
+  factory MapInitialState.fromJson(Map<String, dynamic> json) {
+    if (!json.containsKey('events')) {
+      throw const FormatException('getInitialState response is missing events');
+    }
+    if (!json.containsKey('emergency_mode_enabled') ||
+        json['emergency_mode_enabled'] is! bool) {
+      throw const FormatException(
+        'getInitialState response is missing boolean emergency_mode_enabled',
       );
+    }
+
+    return MapInitialState(
+      events: eventsFromMessage(json['events']),
+      emergencyModeEnabled: json['emergency_mode_enabled'] as bool,
+    );
+  }
 }
 
 class FixtureLoadSummary {
@@ -178,38 +195,66 @@ class FixtureLoadSummary {
     required this.rejected,
   });
 
-  final int? processed;
-  final int? inserted;
-  final int? updated;
-  final int? rejected;
+  final int processed;
+  final int inserted;
+  final int updated;
+  final int rejected;
 
   factory FixtureLoadSummary.fromJson(Map<String, dynamic> json) =>
       FixtureLoadSummary(
-        processed: _asInt(json['processed']),
-        inserted: _asInt(json['inserted']),
-        updated: _asInt(json['updated']),
-        rejected: _asInt(json['rejected']),
+        processed: _requiredInt(json, 'processed'),
+        inserted: _requiredInt(json, 'inserted'),
+        updated: _requiredInt(json, 'updated'),
+        rejected: _requiredInt(json, 'rejected'),
       );
 }
 
-List<MeshEvent> eventsFromMessage(Object? value) => _eventsFromValue(value);
+List<MeshEvent> eventsFromMessage(Object? value) {
+  if (value is! List) {
+    throw const FormatException('EventChannel payload must be a list');
+  }
 
-List<MeshEvent> _eventsFromValue(Object? value) {
-  if (value is! List) return const <MeshEvent>[];
-  return value
-      .map(_asStringMap)
-      .whereType<Map<String, dynamic>>()
-      .map(MeshEvent.fromJson)
-      .toList(growable: false);
+  return List<MeshEvent>.generate(value.length, (index) {
+    final event = _asStringMap(value[index]);
+    if (event == null) {
+      throw FormatException(
+        'EventChannel payload at index $index must be a map',
+      );
+    }
+    return MeshEvent.fromJson(event);
+  }, growable: false);
 }
 
-Map<String, dynamic>? mapFromMessage(Object? value) => _asStringMap(value);
+Map<String, dynamic> requireMapFromMessage(Object? value, String context) {
+  final map = _asStringMap(value);
+  if (map == null) throw FormatException('$context must be a map');
+  return map;
+}
+
+Map<String, dynamic> _staticFeatureFields(Map<String, dynamic> json) {
+  const structuralKeys = <String>{'id', 'kind', 'geometry', 'properties'};
+  final fields = Map<String, dynamic>.from(json)
+    ..removeWhere((key, _) => structuralKeys.contains(key));
+  return Map<String, dynamic>.unmodifiable(fields);
+}
 
 Map<String, dynamic>? _asStringMap(Object? value) {
   if (value is! Map) return null;
-  return Map<String, dynamic>.fromEntries(
-    value.entries.map((entry) => MapEntry(entry.key.toString(), entry.value)),
+  return Map<String, dynamic>.unmodifiable(
+    Map<String, dynamic>.fromEntries(
+      value.entries.map((entry) => MapEntry(entry.key.toString(), entry.value)),
+    ),
   );
+}
+
+int _requiredInt(Map<String, dynamic> json, String key) {
+  final value = _asInt(json[key]);
+  if (!json.containsKey(key) || value == null) {
+    throw FormatException(
+      'loadBundledFixture response is missing integer $key',
+    );
+  }
+  return value;
 }
 
 String? _asString(Object? value) => value is String ? value : null;

@@ -1,9 +1,7 @@
 package com.resilientgeo.mesh.bridge
 
 import android.content.Context
-import com.resilientgeo.mesh.data.EventEntity
 import com.resilientgeo.mesh.data.MeshRepository
-import com.resilientgeo.mesh.ingest.IngestResult
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -57,7 +55,7 @@ class FlutterMapBridge(
 
         eventObservation = scope.launch {
             repository.observeEvents()
-                .map { rows -> rows.toMessages() }
+                .map(MapBridgeProtocol::eventSnapshot)
                 .catch { error ->
                     events.error(EVENT_OBSERVATION_ERROR, error.message, null)
                 }
@@ -84,11 +82,10 @@ class FlutterMapBridge(
     private fun getInitialState(result: MethodChannel.Result) {
         scope.launch {
             try {
-                val events = repository.observeEvents().first().toMessages()
                 result.success(
-                    mapOf(
-                        "events" to events,
-                        "emergency_mode_enabled" to emergencyMode.isEnabled,
+                    MapBridgeProtocol.initialState(
+                        events = repository.observeEvents().first(),
+                        emergencyModeEnabled = emergencyMode.isEnabled,
                     ),
                 )
             } catch (error: Throwable) {
@@ -101,16 +98,7 @@ class FlutterMapBridge(
         scope.launch {
             try {
                 val results = repository.ingestBundledFixture()
-                val inserted = results.count { it is IngestResult.Inserted }
-                val updated = results.count { it is IngestResult.Updated }
-                result.success(
-                    mapOf(
-                        "processed" to results.size,
-                        "inserted" to inserted,
-                        "updated" to updated,
-                        "rejected" to results.size - inserted - updated,
-                    ),
-                )
+                result.success(MapBridgeProtocol.fixtureLoadSummary(results))
             } catch (error: Throwable) {
                 result.error(METHOD_ERROR, error.message, null)
             }
@@ -126,14 +114,11 @@ class FlutterMapBridge(
         }
 
         try {
-            result.success(mapOf("enabled" to emergencyMode.setEnabled(enabled)))
+            result.success(MapBridgeProtocol.emergencyModeResult(emergencyMode.setEnabled(enabled)))
         } catch (error: Throwable) {
             result.error(METHOD_ERROR, error.message, null)
         }
     }
-
-    private fun List<EventEntity>.toMessages(): List<Map<String, Any?>> =
-        map(EventPayloadMapper::toMessage)
 
     private companion object {
         const val METHOD_CHANNEL_NAME = "com.resilientgeo.mesh/map"

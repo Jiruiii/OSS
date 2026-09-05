@@ -15,27 +15,34 @@ class MapBridge {
   final EventChannel _eventChannel;
 
   Future<MapInitialState> getInitialState() async {
-    final response = await _invokeMap('getInitialState');
+    final response = await _invokeRequiredMap('getInitialState');
     return MapInitialState.fromJson(response);
   }
 
   Future<FixtureLoadSummary> loadBundledFixture() async {
-    final response = await _invokeMap('loadBundledFixture');
+    final response = await _invokeRequiredMap('loadBundledFixture');
     return FixtureLoadSummary.fromJson(response);
   }
 
   Future<bool> setEmergencyMode({required bool enabled}) async {
-    final response = await _invokeMap('setEmergencyMode', <String, dynamic>{
-      'enabled': enabled,
-    });
-    return response['enabled'] is bool ? response['enabled'] as bool : false;
+    final response = await _invokeRequiredMap(
+      'setEmergencyMode',
+      <String, dynamic>{'enabled': enabled},
+    );
+    final responseEnabled = response['enabled'];
+    if (responseEnabled is! bool) {
+      throw const FormatException(
+        'setEmergencyMode response is missing boolean enabled',
+      );
+    }
+    return responseEnabled;
   }
 
   Stream<List<MeshEvent>> get events => _eventChannel
       .receiveBroadcastStream()
       .map<List<MeshEvent>>(eventsFromMessage);
 
-  Future<Map<String, dynamic>> _invokeMap(
+  Future<Map<String, dynamic>> _invokeRequiredMap(
     String method, [
     Map<String, dynamic>? arguments,
   ]) async {
@@ -43,6 +50,6 @@ class MapBridge {
       method,
       arguments,
     );
-    return mapFromMessage(response) ?? const <String, dynamic>{};
+    return requireMapFromMessage(response, '$method response');
   }
 }
