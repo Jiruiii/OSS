@@ -44,14 +44,16 @@ class GoogleMapLayers {
 
     return GoogleMapOverlays(
       markers: <google.Marker>{
-        ..._facilityMarkers(
-          visibleFacilities,
-          onStaticFeatureSelected,
-          markerIcons,
-        ),
-        ...visibleEvents.map(
-          (event) => _eventMarker(event, onEventSelected, markerIcons),
-        ),
+        if (markerIcons != null) ...<google.Marker>{
+          ..._facilityMarkers(
+            visibleFacilities,
+            onStaticFeatureSelected,
+            markerIcons,
+          ),
+          ...visibleEvents.map(
+            (event) => _eventMarker(event, onEventSelected, markerIcons),
+          ),
+        },
         if (currentLocation != null)
           _locationMarker(currentLocation, markerIcons),
       },
@@ -76,7 +78,7 @@ class GoogleMapLayers {
   static Set<google.Marker> _facilityMarkers(
     List<StaticFeature> features,
     StaticFeatureSelection onSelected,
-    GoogleMarkerIcons? markerIcons,
+    GoogleMarkerIcons markerIcons,
   ) {
     final grouped = <String, List<StaticFeature>>{};
     for (final feature in features) {
@@ -98,10 +100,7 @@ class GoogleMapLayers {
       return google.Marker(
         markerId: google.MarkerId('facility-${first.id ?? title}'),
         position: _latLng(point),
-        icon:
-            medicalOnly
-                ? (markerIcons?.medical ?? _fallbackMedicalMarker)
-                : (markerIcons?.shelter ?? _fallbackShelterMarker),
+        icon: medicalOnly ? markerIcons.medical : markerIcons.shelter,
         infoWindow: google.InfoWindow(title: title),
         consumeTapEvents: true,
         onTap: () => onSelected(group),
@@ -112,16 +111,13 @@ class GoogleMapLayers {
   static google.Marker _eventMarker(
     MeshEvent event,
     MeshEventSelection onSelected,
-    GoogleMarkerIcons? markerIcons,
+    GoogleMarkerIcons markerIcons,
   ) {
     final name = eventName(event);
     return google.Marker(
       markerId: google.MarkerId('event-${_eventKey(event)}'),
       position: _eventFocus(event),
-      icon:
-          event.isExpired
-              ? (markerIcons?.expiredEvent ?? _fallbackExpiredMarker)
-              : (markerIcons?.event ?? _fallbackEventMarker),
+      icon: event.isExpired ? markerIcons.expiredEvent : markerIcons.event,
       infoWindow: google.InfoWindow(
         title: name,
         snippet: event.isExpired ? '已過期' : event.severity,
@@ -215,14 +211,6 @@ class GoogleMapLayers {
   static google.LatLng _latLng(GeoPoint point) =>
       google.LatLng(point.latitude, point.longitude);
 
-  static final google.BitmapDescriptor _fallbackShelterMarker =
-      google.BitmapDescriptor.defaultMarker;
-  static final google.BitmapDescriptor _fallbackMedicalMarker =
-      google.BitmapDescriptor.defaultMarker;
-  static final google.BitmapDescriptor _fallbackEventMarker =
-      google.BitmapDescriptor.defaultMarker;
-  static final google.BitmapDescriptor _fallbackExpiredMarker =
-      google.BitmapDescriptor.defaultMarker;
   static final google.BitmapDescriptor _fallbackLocationMarker =
       google.BitmapDescriptor.defaultMarker;
 }
@@ -361,7 +349,7 @@ class GoogleMarkerIcons {
     image.dispose();
     final bytes = data?.buffer.asUint8List();
     if (bytes == null || bytes.isEmpty) {
-      return google.BitmapDescriptor.defaultMarker;
+      throw StateError('Unable to render a neutral Google Maps marker icon');
     }
     return google.BitmapDescriptor.bytes(
       Uint8List.fromList(bytes),

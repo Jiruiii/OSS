@@ -24,6 +24,7 @@ class MapAppController extends ChangeNotifier {
 
   final MapBridge bridge;
   final Connectivity _connectivity = Connectivity();
+  final Stopwatch _startupDemoEventClock = Stopwatch();
   final StreamController<List<MeshEvent>> _eventUpdates =
       StreamController<List<MeshEvent>>.broadcast();
 
@@ -65,6 +66,7 @@ class MapAppController extends ChangeNotifier {
   int get notificationCount => events.where((event) => !event.isExpired).length;
 
   Future<void> load() async {
+    _startStartupDemoEventClock();
     try {
       final rawStatic = await rootBundle.loadString(
         'assets/data/neihu/static-features.json',
@@ -141,15 +143,27 @@ class MapAppController extends ChangeNotifier {
     }, onError: (_) {});
   }
 
+  void _startStartupDemoEventClock() {
+    if (_startupDemoEventScheduled || _startupDemoEventClock.isRunning) return;
+    _startupDemoEventClock.start();
+  }
+
   void _scheduleStartupDemoEvent() {
-    if (_startupDemoEventScheduled ||
-        demoEvents.any(
-          (event) => event.eventId == MapDefaults.delayedDemoEventId,
-        )) {
+    if (_startupDemoEventScheduled) return;
+    _startupDemoEventScheduled = true;
+    if (demoEvents.any(
+      (event) => event.eventId == MapDefaults.delayedDemoEventId,
+    )) {
+      _startupDemoEventClock.stop();
       return;
     }
-    _startupDemoEventScheduled = true;
-    _startupDemoEventTimer = Timer(_startupDemoEventDelay, () {
+    final elapsed = _startupDemoEventClock.elapsed;
+    final remaining =
+        elapsed >= _startupDemoEventDelay
+            ? Duration.zero
+            : _startupDemoEventDelay - elapsed;
+    _startupDemoEventTimer = Timer(remaining, () {
+      _startupDemoEventClock.stop();
       if (_disposed ||
           demoEvents.any(
             (event) => event.eventId == MapDefaults.delayedDemoEventId,
@@ -167,7 +181,7 @@ class MapAppController extends ChangeNotifier {
         issuedAt: issuedAt.toIso8601String(),
         expiresAt: issuedAt.add(const Duration(hours: 1)).toIso8601String(),
         applyState: 'CURRENT',
-        geometry: const PointGeometry(MapDefaults.demoCurrentLocation),
+        geometry: const PointGeometry(MapDefaults.delayedDemoEventLocation),
         attributes: const <String, dynamic>{
           'name': '成功路二段積水模擬警示',
           'affected_area': '內湖區成功路二段附近',
@@ -200,6 +214,7 @@ class MapAppController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _startupDemoEventClock.stop();
     _startupDemoEventTimer?.cancel();
     _eventSubscription?.cancel();
     _connectivitySubscription?.cancel();

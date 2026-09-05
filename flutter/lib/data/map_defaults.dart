@@ -8,6 +8,10 @@ abstract final class MapDefaults {
     latitude: demoLatitude,
     longitude: demoLongitude,
   );
+  static const GeoPoint delayedDemoEventLocation = GeoPoint(
+    latitude: 25.07505,
+    longitude: 121.59170,
+  );
 
   static const String delayedDemoEventId = 'demo:startup:chenggong-road-2';
 
