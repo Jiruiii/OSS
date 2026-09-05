@@ -17,16 +17,22 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Minimal Emergency Mode foreground service stub (docs/jia-task-sequence.md
- * Phase 0.5 / team-assignments.md): 乙 was slated to write the real Service
- * skeleton (notification chrome, lifecycle) but hasn't delivered it yet.
- * Per the "soft dependency" call in jia-task-sequence.md — this isn't
- * something 甲 needs to wait on — this is the smallest thing that proves
- * "does a foreground service actually survive background/lock-screen on a
- * real device", so that question isn't blocked on 乙's timeline. It does no
- * real sync work; it only starts, logs a heartbeat every 5s (visible via
- * logcat and the notification text), and keeps running. When 乙's real
- * version lands, it replaces this class's body, not the survival proof.
+ * Emergency Mode foreground service skeleton (乙, per team-assignments.md).
+ *
+ * This replaces 甲's earlier stub (docs/jia-task-sequence.md Phase 0.5),
+ * which existed only to prove a foreground service survives
+ * background/lock-screen on a real device before this skeleton was ready
+ * — verified 176s uninterrupted on a Pixel 7. That survival proof is still
+ * the reason the heartbeat below exists: it gives 甲 something observable
+ * in Logcat/notification to confirm the service is genuinely alive, not a
+ * placeholder to delete. Real sync work (peer discovery, transfer
+ * scheduling) isn't wired in yet — that lands once 甲's `BleGattTransport`
+ * integration and this service's lifecycle are connected, a later task.
+ *
+ * `MainActivity` starts/stops this service directly from the Emergency
+ * Mode switch (`ContextCompat.startForegroundService` / `stopService`) —
+ * this class only manages its own notification and lifecycle, it does not
+ * decide when it should be running.
  */
 class EmergencyModeService : Service() {
 
@@ -85,8 +91,8 @@ class EmergencyModeService : Service() {
 
     private fun buildNotification(aliveSeconds: Long): Notification =
         NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Emergency Mode active")
-            .setContentText("Background sync standby — alive ${aliveSeconds}s")
+            .setContentTitle(EmergencyStatusText.title())
+            .setContentText(EmergencyStatusText.contentText(aliveSeconds))
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setOngoing(true)
             .build()

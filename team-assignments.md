@@ -28,8 +28,8 @@
 - [x] 兩機交換**一個**真的簽章 chunk，接進 `MeshRepository.ingestChunk()`（新增）→ `ChunkVerifier`（新增，chunk_hash + chunk 級 Ed25519 簽章）→ `EventVerifier`/`EventIngestor` → Room —— **3a 里程碑，2026-09-05 在 Pixel 7 ↔ Pixel 8a 上通過**，直接讀出裝置上 Room 的 `.db-wal` 檔案確認 event 真的寫入（`applyState=CURRENT`），不只是信 log。chunk fixture 由 `pipeline/tools/generate-peer-sync-chunk-fixture.mjs` 產生（真實 Ed25519 簽章，key_id `peer-sync-demo-2026`）
 - [x] 接上跨接觸續傳：Node B 故意在傳送中途模擬「接觸窗關閉」中斷（真機重現在 508/1735 bytes），透過新增的 CONTROL characteristic（獨立於 DATA，避免中斷通知被誤判成前一則訊息的延續字節——真機上實測撞到這個問題）告知 Node A 中斷位置，A 帶著正確 `offset_bytes` 重新送 REQUEST，B 用 `transport.resume()` 續傳，chunk_hash 驗證通過，證明續傳後的資料位元組完全正確。過程中修好 `transfer()` 一個資料損毀 bug（見上）
 - [x] **Critical-first 排程的實機驗證**（Peer 上限那半需要 3+ 裝置，跳過）：造 3 個不同優先度的真簽章 chunk（`pipeline/tools/generate-peer-sync-priority-chunks-fixture.mjs`，CRITICAL/HIGH/LOW），連同既有的 shelter chunk 一次全部 REQUEST，Pixel 7 送出的 REQUEST 順序實測為 `shelter(CRITICAL,1147B) → flood(CRITICAL,1148B) → road(HIGH,1163B) → medical(LOW,1165B)`——跨優先度排序正確，**同優先度內按 size 的 tie-break 也正確**。過程中修好一個真的協定 race：**B 只送一次 HELLO、不會重試，如果 HELLO 在 A 選定角色之前就抵達會被永久丟棄、卡死整個交握**（`PeerSyncMilestoneActivity.pendingRemoteSummaryJson` 機制修正）。另外發現一個**未修的深層限制**：把「跨接觸續傳」跟「critical-first」疊在同一次 REQUEST 裡測時（4 個 chunk 一次請求，其中一個故意中斷），A 在同時處理「中斷通知＋送 resume REQUEST」與「B 連續傳送後續 chunk」時收到過一次解析失敗的雜訊 payload，後續兩個 chunk ack 逾時——`BleGattTransport` 目前「一次只處理一則邏輯訊息」的假設在這種疊加情境下站不住腳，需要真正的訊息序號機制才能根治，超出本次驗證範圍，記錄待後續處理
-- [x] Emergency Mode foreground service 的背景／鎖屏實機驗證：乙的 Service 骨架尚未交付，甲照 `docs/jia-task-sequence.md` Phase 0.5 的說法自己先寫最小版本（`emergency/EmergencyModeService.kt`，5 秒心跳 + 前景通知，`MainActivity` 啟動時一併啟動）——Pixel 7 上鎖屏 **176 秒不間斷心跳**（遠超 `C_BLEbroadcast.md` 先前只驗證過 15 秒），背景/鎖屏存活證實。乙的真版本交付後可直接替換這個類別的內容，不影響已證明的存活結論
-- [x] **Connection success rate**：Pixel 7 → Pixel 8a 亮屏正式跑滿 20 次，**17/20 成功（85%）**，成功案例 latency p50=289ms／p95=566ms，最後 3 次連續失敗（`service discovery failed`，各逾時 10 秒）——懷疑連續高頻重連後 BLE stack／對端 GATT server 需要更長恢復時間。**鎖屏情境另跑 20 次：19/19（扣除按下按鈕當下仍亮屏的第 1 次）全部失敗，0% 成功率**——證實沒有 foreground service 保護的一般 App，鎖屏後幾乎無法完成 BLE 連線，直接印證了 Emergency Mode 為何需要 foreground service（對照上面「有 foreground service 時鎖屏 176 秒心跳不中斷」）。**尚需**：跨機型重跑
+- [x] Emergency Mode foreground service 的背景／鎖屏實機驗證：乙的正式 Service 骨架已交付（`emergency/EmergencyModeService.kt` + `EmergencyStatusText.kt`），取代甲原先為了不被卡住而寫的 stub 版本——心跳/通知邏輯保留，生命週期沒有變動，先前的存活結論（Pixel 7 鎖屏 176 秒不間斷心跳）不受影響。**唯一改變**：service 現在由 Emergency Mode 開關直接控制啟停（開關開才啟動、關掉就 `stopService()`），不再是 App 一啟動就無條件常駐——**尚需**：用乙的正式骨架重跑一次背景/鎖屏驗證，確認開關驅動的啟停時機沒有破壞存活結果
+- [x] **Connection success rate**：Pixel 7 → Pixel 8a 亮屏正式跑滿 20 次，**17/20 成功（85%）**，成功案例 latency p50=289ms／p95=566ms，最後 3 次連續失敗（`service discovery failed`，各逾時 10 秒）——懷疑連續高頻重連後 BLE stack／對端 GATT server 需要更長恢復時間。**鎖屏情境另跑 20 次：19/19（扣除按下按鈕當下仍亮屏的第 1 次）全部失敗，0% 成功率**——證實沒有 foreground service 保護的一般 App，鎖屏後幾乎無法完成 BLE 連線，直接印證了 Emergency Mode 為何需要 foreground service（對照上面「有 foreground service 時鎖屏 176 秒心跳不中斷」）。**尚需**：跨機型重跑、用乙的正式骨架重跑一次鎖屏連線率確認結論不變
 - [x] **Energy Cost**：60 秒 scan-only baseline 平均 **22.35 mW**；60 秒 scan+持續傳輸平均 **26.78 mW**（已扣除連線瞬間的尖峰）——傳輸本身增加約 4.4 mW。原始 CSV 存在 `experiments/results/energy-raw/`，**交給乙分析**補進 `experiments/results/report.md`
 - [ ] 三機 Store-Carry-Forward 驗證：A 不直接連到 C 時，更新仍能經 B 到達 C（正好用自己的 3 台，不用跟人借）
 
@@ -39,9 +39,7 @@
 
 ## 乙：協定邏輯、UI 與量測分析（不需要 Android 手機的一切）
 
-## 乙：協定邏輯、UI 與量測分析（不需要 Android 手機的一切）
-
-**現況**：真實資料源（TDX／CWA／NCDR／醫療／避難所）與 `simulator/` 四指標報告都已完成到可維護狀態。Kotlin 版 Peer Sync 協定邏輯已完成並通過 JVM 單元測試（見下方），甲可以開始接上 `BleGattTransport`。接下來的工作全部可以在自己電腦上完成，不需要實機也不需要模擬器。
+**現況（2026-09-05 更新）**：真實資料源（TDX／CWA／NCDR／醫療／避難所）與 `simulator/` 四指標報告都已完成到可維護狀態。Kotlin 版 Peer Sync 協定邏輯已完成並通過 JVM 單元測試，甲已接上 `BleGattTransport` 並完成 3a 里程碑。Emergency Mode 手動開關 UI 與 foreground service 正式骨架皆已完成（見下方），甲原本自己墊的 stub 版本可以直接被取代——**兩邊的交接點目前都已清空**。接下來剩下 simulator 校準、Energy Cost 分析、文件維護三項。
 
 **待辦（依序）**
 
@@ -50,8 +48,14 @@
   - 新增 `android/app/src/test/java/com/resilientgeo/mesh/protocol/{PeerSyncTest,PeerSyncTestFixtures}.kt`
   - `PeerSyncTest`：6 個案例全過（`./gradlew testDebugUnitTest --tests "com.resilientgeo.mesh.protocol.PeerSyncTest"`），對照 JS 版 `pipeline/test/peer-sync.test.mjs` 逐項核對，包含跨 manifest_id 的 DTN supersession 情境
   - **交給甲**：`PeerSync.computeDiff()`／`PeerSync.buildRequest()` 可直接呼叫，取代 `BleGattTransport` spike activity 裡目前寫死的 `randomPayload()`
-- [ ] 把 Emergency Mode 從目前寫死的「Emergency Mode: ON」label 改成使用者手動開關的 UI（純狀態切換，不涉及 BLE，可以用 emulator 或純程式碼審查驗證）
-- [ ] 撰寫 Emergency Mode foreground service 的程式骨架（Service 類別、通知欄、生命週期），背景存活的實機驗證交給甲
+- [x] **把 Emergency Mode 從寫死的「Emergency Mode: ON」label 改成使用者手動開關的 UI**——已完成，2026-09-05
+  - `MainActivity.kt`/`MainViewModel.kt`/`activity_main.xml`/`strings.xml`：新增 `emergencyModeEnabled: StateFlow<Boolean>`，預設 `false`，開關切換即時反映文字與顏色（ON 亮藍 / OFF 灰）
+  - 額外修正：Android 15+ 對 targetSdk 35+ 強制 edge-to-edge，`setDecorFitsSystemWindows` 已失效，改用 `WindowInsets` 監聽動態加 padding，避免狀態列文字重疊
+  - 已在 emulator（Pixel 9 Pro XL, API 36）驗證 ON/OFF 切換與旋轉螢幕狀態保留
+- [x] **撰寫 Emergency Mode foreground service 的正式骨架**——已完成，2026-09-05
+  - 取代甲先前為了不被卡住而寫的 `EmergencyModeService` stub（保留其心跳/通知邏輯，甲的背景存活驗證結論不受影響，因為生命週期沒有變動）
+  - 新增 `emergency/EmergencyStatusText.kt`：把通知文字格式化邏輯抽成純函式，JVM 可測試（5 個測試全過），不用等機器驗證
+  - **開關與 service 生命週期已串接**：`MainActivity` 現在是「開關打開才啟動 service、關掉就 `stopService()`」，不再是 App 一啟動就無條件常駐——這點跟甲同步過，因為改變了 service 的觸發時機
 - [ ] 用甲交付的接觸窗與相容性數據，校準 `simulator/fixtures/sim-config.json`，重跑 `npm run sim:check` 確認位元相同
 - [ ] 分析甲收集的 `elapsed_s,power_mw` Energy CSV，補進 `experiments/results/report.md` 的 Energy Cost 欄位
 - [ ] 維護 demo 腳本與限制說明（`experiments/{demo,limitations}.md`），確保跟甲最新的協定行為對得上
@@ -66,9 +70,9 @@
 | 時序 | 檢查點 | 負責人 |
 | --- | --- | --- |
 | 已完成 2026-09-05 | Kotlin 協定邏輯 + JVM 單元測試交付（甲要接上真傳輸層的前提） | 乙 |
-| 立刻（並行） | 接觸窗量測、跨機型相容性測試 | 甲 |
-| 第 3–4 週 | Stage 3a：兩機交換一個真 chunk，驗證後寫進 Room | 甲 |
-| 第 3–4 週 | Stage 3b：續傳、Peer 上限、foreground service 實機驗證 | 甲（乙先交付 Emergency Mode UI + Service 骨架） |
+| 已完成 2026-09-05 | 接觸窗量測、3a 里程碑（兩機交換一個真 chunk）、跨接觸續傳 | 甲 |
+| 已完成 2026-09-05 | Emergency Mode UI + Service 正式骨架交付（甲的 stub 可以退場） | 乙 |
+| 第 3–4 週 | Stage 3b：續傳、Peer 上限、foreground service 背景驗證（改用乙的正式骨架重跑一次，確認生命週期沒變、心跳依然存活） | 甲 |
 | 第 3–4 週 | Stage 3c：三機 Store-Carry-Forward | 甲 |
 | 第 5 週 | Energy Cost 補上、simulator 用實機數據重新校準 | 乙 |
 
