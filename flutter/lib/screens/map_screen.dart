@@ -208,10 +208,10 @@ class _MapScreenState extends State<MapScreen> {
   List<MeshEvent> get _visibleEvents {
     final byId = <String, MeshEvent>{};
     for (final event in _demoEvents) {
-      byId[event.eventId ?? 'demo-${byId.length}'] = event;
+      byId[meshEventIdentity(event)] = event;
     }
     for (final event in _persistedEvents) {
-      byId[event.eventId ?? 'persisted-${byId.length}'] = event;
+      byId[meshEventIdentity(event)] = event;
     }
     return byId.values.toList(growable: false);
   }

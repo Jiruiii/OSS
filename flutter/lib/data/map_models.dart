@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// UI-independent map data types shared by static assets and Android events.
 class GeoPoint {
   const GeoPoint({required this.longitude, required this.latitude});
@@ -159,6 +161,15 @@ class MeshEvent {
   /// Android's persisted apply_state is authoritative; expires_at is display data.
   bool get isExpired => applyState == 'EXPIRED';
 }
+
+/// Stable event identity shared by persistence presentation and map overlays.
+/// JSON encoding preserves the tuple boundaries when any field contains a
+/// delimiter character.
+String meshEventIdentity(MeshEvent event) => jsonEncode(<Object?>[
+  event.namespace,
+  event.eventId,
+  event.eventVersion,
+]);
 
 class MapInitialState {
   const MapInitialState({

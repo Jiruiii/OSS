@@ -206,7 +206,7 @@ class GoogleMapLayers {
   }
 
   static String _eventKey(MeshEvent event) =>
-      '${event.eventId ?? 'event'}:${event.eventVersion ?? 0}';
+      meshEventIdentity(event);
 
   static google.LatLng _latLng(GeoPoint point) =>
       google.LatLng(point.latitude, point.longitude);

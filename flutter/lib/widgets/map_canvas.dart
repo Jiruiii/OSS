@@ -94,6 +94,19 @@ class MapCanvas extends StatefulWidget {
 }
 
 class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
+  static const _googleMapCreationTimeout = Duration(seconds: 4);
+  static const ColorFilter _lightOsmTileFilter = ColorFilter.matrix(<double>[
+    1, 0, 0, 0, 0,
+    0, 1, 0, 0, 0,
+    0, 0, 1, 0, 0,
+    0, 0, 0, 1, 0,
+  ]);
+  static const ColorFilter _darkOsmTileFilter = ColorFilter.matrix(<double>[
+    0.48, 0, 0, 0, 0,
+    0, 0.48, 0, 0, 0,
+    0, 0, 0.48, 0, 0,
+    0, 0, 0, 1, 0,
+  ]);
   static const latlng.LatLng _demoCenter = latlng.LatLng(
     MapDefaults.demoLatitude,
     MapDefaults.demoLongitude,
@@ -113,15 +126,70 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   GoogleMarkerIcons? _googleMarkerIcons;
   String? _googleStyle;
   String? _lastFocusKey;
+  Timer? _googleMapWatchdog;
+  bool _googleMapCreated = false;
+  bool _googleMapCreationTimedOut = false;
   final Set<String> _knownEventKeys = <String>{};
   final Set<String> _pulsingEventKeys = <String>{};
   Timer? _pulseStopTimer;
 
-  MapProviderMode get _activeProvider => MapCanvas.resolveProvider(
-    requestedMode: widget.runtimeState.providerMode,
-    configuredGoogleMapsKey: widget.configuredGoogleMapsKey,
-    networkAvailable: widget.networkAvailable,
+  MapProviderMode _providerFor(MapCanvas canvas) => MapCanvas.resolveProvider(
+    requestedMode: canvas.runtimeState.providerMode,
+    configuredGoogleMapsKey: canvas.configuredGoogleMapsKey,
+    networkAvailable: canvas.networkAvailable,
   );
+
+  MapProviderMode get _activeProvider => _googleMapCreationTimedOut
+      ? MapProviderMode.offline
+      : _providerFor(widget);
+
+  void _startGoogleMapWatchdog() {
+    if (_googleMapCreated ||
+        _googleMapCreationTimedOut ||
+        _googleMapWatchdog != null ||
+        _providerFor(widget) != MapProviderMode.googleOnline) {
+      return;
+    }
+    _googleMapWatchdog = Timer(_googleMapCreationTimeout, () {
+      _googleMapWatchdog = null;
+      if (!mounted ||
+          _googleMapCreated ||
+          _providerFor(widget) != MapProviderMode.googleOnline) {
+        return;
+      }
+      setState(() {
+        _googleMapCreationTimedOut = true;
+        _googleController = null;
+      });
+    });
+  }
+
+  void _resetGoogleMapWatchdog() {
+    _googleMapWatchdog?.cancel();
+    _googleMapWatchdog = null;
+    _googleMapCreated = false;
+    _googleMapCreationTimedOut = false;
+    _googleController = null;
+  }
+
+  void _onGoogleMapCreated(google.GoogleMapController controller) {
+    _googleMapWatchdog?.cancel();
+    _googleMapWatchdog = null;
+    if (!mounted ||
+        _googleMapCreationTimedOut ||
+        _providerFor(widget) != MapProviderMode.googleOnline) {
+      return;
+    }
+    _googleMapCreated = true;
+    _googleController = controller;
+    final focus = widget.focusPoint ?? widget.searchSelection?.coordinate;
+    if (focus != null) _focus(focus);
+  }
+
+  bool get _isDarkAppTheme => Theme.of(context).brightness == Brightness.dark;
+
+  ColorFilter get _offlineOsmTileFilter =>
+      _isDarkAppTheme ? _darkOsmTileFilter : _lightOsmTileFilter;
 
   double get _minZoom =>
       _activeProvider == MapProviderMode.googleOnline
@@ -154,6 +222,9 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   @override
   void didUpdateWidget(covariant MapCanvas oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (_providerFor(oldWidget) != _providerFor(widget)) {
+      _resetGoogleMapWatchdog();
+    }
     if (oldWidget.runtimeState.themeMode != widget.runtimeState.themeMode) {
       _loadGoogleStyle();
     }
@@ -170,6 +241,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _resetGoogleMapWatchdog();
     _pulseStopTimer?.cancel();
     _pulseController.dispose();
     _offlineController.dispose();
@@ -183,8 +255,8 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       );
       if (mounted) setState(() => _googleMarkerIcons = icons);
     } on Object {
-      // The SDK fallback remains type/severity neutral if local bitmap
-      // generation is unavailable. This does not make a network request.
+      // Feature/event markers remain hidden if neutral bitmap generation is
+      // unavailable. The current-location marker has its own fallback.
     }
   }
 
@@ -345,6 +417,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   }
 
   Widget _buildGoogleMap({double pulseFraction = 0}) {
+    _startGoogleMapWatchdog();
     final overlays = GoogleMapLayers.build(
       features: widget.staticFeatures,
       events: widget.visibleEvents,
@@ -387,11 +460,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       polylines: overlays.polylines,
       polygons: overlays.polygons,
       circles: overlays.circles,
-      onMapCreated: (controller) {
-        _googleController = controller;
-        final focus = widget.focusPoint ?? widget.searchSelection?.coordinate;
-        if (focus != null) _focus(focus);
-      },
+      onMapCreated: _onGoogleMapCreated,
       onCameraMove: _onGoogleCameraMove,
       onTap: (_) => widget.onMapTap(),
     );
@@ -428,17 +497,20 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       },
     ),
     children: <Widget>[
-      TileLayer(
-        urlTemplate: 'assets/map/tiles/{z}/{x}/{y}.png',
-        tileProvider: AssetTileProvider(),
-        minZoom: MapCanvas.offlineMinZoom,
-        maxZoom: MapCanvas.offlineMaxZoom,
-        minNativeZoom: 12,
-        maxNativeZoom: 17,
-        tileBounds: _offlineBounds,
-        keepBuffer: 0,
-        panBuffer: 0,
-        tileDisplay: const TileDisplay.instantaneous(),
+      ColorFiltered(
+        colorFilter: _offlineOsmTileFilter,
+        child: TileLayer(
+          urlTemplate: 'assets/map/tiles/{z}/{x}/{y}.png',
+          tileProvider: AssetTileProvider(),
+          minZoom: MapCanvas.offlineMinZoom,
+          maxZoom: MapCanvas.offlineMaxZoom,
+          minNativeZoom: 12,
+          maxNativeZoom: 17,
+          tileBounds: _offlineBounds,
+          keepBuffer: 0,
+          panBuffer: 0,
+          tileDisplay: const TileDisplay.instantaneous(),
+        ),
       ),
       ...MapLayers.build(
         features: widget.staticFeatures,

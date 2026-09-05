@@ -109,7 +109,7 @@ class MapLayers {
     final point = _eventGeoPoint(event);
     final name = eventName(event);
     return Marker(
-      key: ValueKey<String>('event-marker-${event.eventId ?? name}'),
+      key: ValueKey<String>('event-marker-${meshEventIdentity(event)}'),
       point: _latLng(point),
       width: 34,
       height: 34,
@@ -323,4 +323,4 @@ class _MapMarkerButton extends StatelessWidget {
 }
 
 String eventKey(MeshEvent event) =>
-    '${event.eventId ?? 'event'}:${event.eventVersion ?? 0}';
+    meshEventIdentity(event);

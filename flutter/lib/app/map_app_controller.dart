@@ -55,10 +55,10 @@ class MapAppController extends ChangeNotifier {
   List<MeshEvent> get events {
     final byId = <String, MeshEvent>{};
     for (final event in demoEvents) {
-      byId[event.eventId ?? 'demo-${byId.length}'] = event;
+      byId[meshEventIdentity(event)] = event;
     }
     for (final event in persistedEvents) {
-      byId[event.eventId ?? 'persisted-${byId.length}'] = event;
+      byId[meshEventIdentity(event)] = event;
     }
     return byId.values.toList(growable: false);
   }
