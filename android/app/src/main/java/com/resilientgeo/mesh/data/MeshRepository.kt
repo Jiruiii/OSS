@@ -8,6 +8,7 @@ import com.resilientgeo.mesh.trust.TrustedKeyStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 
@@ -21,6 +22,7 @@ class MeshRepository(context: Context) {
     private val appContext = context.applicationContext
     private val db = AppDatabase.get(appContext)
     private val store = RoomEventStore(db.eventDao())
+    private val chunkDao = db.chunkDao()
 
     private val trustStore: TrustedKeyStore by lazy {
         val json = appContext.assets.open(TRUSTED_KEYS_ASSET).bufferedReader().use { it.readText() }
@@ -60,10 +62,85 @@ class MeshRepository(context: Context) {
             is ChunkVerifier.Result.Valid -> {
                 val now = Instant.now()
                 val results = verified.events.map { event -> EventIngestor.ingest(store, event, trustStore, now) }
+                // Record the chunk itself, not just its events, so this node
+                // can later describe its own inventory in HELLO. Written only
+                // after verification passes, so the inventory can never
+                // advertise a chunk that failed the trust check.
+                chunkDao.upsertSync(chunk.toChunkEntity(now))
                 ChunkIngestResult.Applied(results)
             }
         }
     }
+
+    /**
+     * Build this node's `peer-summary-v0` HELLO payload from what is
+     * actually in Room, rather than from a hand-written fixture.
+     *
+     * This is what makes the mesh able to sustain itself: a node that
+     * received a chunk can now tell the *next* peer it has it, so a third
+     * device can pull from a relay instead of only from the original
+     * source. `dataset_version` / `manifest_id` are taken from the newest
+     * chunk held for the dataset, matching the DTN supersession rule in
+     * `PeerSync.computeDiff` (a node advertises the newest manifest it has
+     * actually seen).
+     *
+     * Returns a summary with an empty chunk list when this node holds
+     * nothing for the dataset — that is a legitimate HELLO ("I have
+     * nothing, send me everything"), not an error.
+     */
+    suspend fun localPeerSummary(
+        nodeId: String,
+        datasetId: String,
+        namespace: String,
+        fallbackManifestId: String,
+        fallbackDatasetVersion: Int,
+    ): JSONObject = withContext(Dispatchers.IO) {
+        val held = chunkDao.forDatasetSync(datasetId, namespace)
+        val newest = held.maxByOrNull { it.datasetVersion }
+
+        val chunks = JSONArray()
+        held.filter { newest == null || it.datasetVersion == newest.datasetVersion }
+            .forEach { entity ->
+                chunks.put(
+                    JSONObject()
+                        .put("chunk_id", entity.chunkId)
+                        .put("chunk_hash", entity.chunkHash)
+                        .put("size_bytes", entity.sizeBytes)
+                        .put("priority", entity.priority)
+                        .put("state", "available"),
+                )
+            }
+
+        val dataset = JSONObject()
+            .put("dataset_id", datasetId)
+            .put("namespace", namespace)
+            .put("manifest_id", newest?.manifestId ?: fallbackManifestId)
+            .put("dataset_version", newest?.datasetVersion ?: fallbackDatasetVersion)
+            .put("chunks", chunks)
+
+        JSONObject()
+            .put("schema_version", "peer-summary-v0")
+            .put("node_id", nodeId)
+            .put("datasets", JSONArray().put(dataset))
+    }
+
+    /** How many verified chunks this node currently holds — for status UI/logs. */
+    suspend fun heldChunkCount(): Int = withContext(Dispatchers.IO) { chunkDao.countSync() }
+
+    private fun JSONObject.toChunkEntity(now: Instant) = ChunkEntity(
+        datasetId = getString("dataset_id"),
+        namespace = getString("namespace"),
+        chunkId = getString("chunk_id"),
+        manifestId = getString("manifest_id"),
+        datasetVersion = getInt("dataset_version"),
+        chunkHash = getString("chunk_hash"),
+        // byte_length is the signed, authoritative size; falling back to the
+        // serialized length would let two nodes disagree on size_bytes for
+        // the same chunk and see a phantom diff.
+        sizeBytes = optLong("byte_length", toString().toByteArray(Charsets.UTF_8).size.toLong()),
+        priority = getString("priority"),
+        receivedAtEpochMillis = now.toEpochMilli(),
+    )
 
     companion object {
         private const val FIXTURE_ASSET = "fixtures/signed-events.json"

@@ -163,3 +163,49 @@ test('computeDiff requests every chunk from a peer carrying a newer manifest_id'
   const request = buildRequest(diff);
   assert.equal(request.superseded_manifest_id, 'resilientgeo-demo:manifest:136');
 });
+
+test('buildRequest resumes from a per-chunk byte offset instead of restarting at 0', () => {
+  const diff = computeDiff(peerA, peerB, {
+    datasetId: diffMessage.dataset_id,
+    namespace: diffMessage.namespace,
+  });
+  const target = diff.missing_chunks[0];
+
+  const fresh = buildRequest(diff);
+  assert.equal(fresh.chunks[0].offset_bytes, 0);
+  assert.equal(fresh.chunks[0].max_bytes, target.size_bytes);
+
+  // Same DIFF, but this node already holds the first 400 bytes from an
+  // earlier contact that was cut short. Without this, every contact would
+  // re-request the whole chunk and never finish it at BLE throughput.
+  const resumed = buildRequest(diff, { offsets: { [target.chunk_id]: 400 } });
+  assert.equal(resumed.chunks[0].offset_bytes, 400);
+  assert.equal(resumed.chunks[0].max_bytes, target.size_bytes - 400);
+  assert.equal(resumed.max_total_bytes, target.size_bytes - 400);
+});
+
+test('buildRequest drops a chunk that is already fully held', () => {
+  const diff = computeDiff(peerA, peerB, {
+    datasetId: diffMessage.dataset_id,
+    namespace: diffMessage.namespace,
+  });
+  const target = diff.missing_chunks[0];
+
+  const request = buildRequest(diff, { offsets: { [target.chunk_id]: target.size_bytes } });
+  assert.deepEqual(request.chunks.map((chunk) => chunk.chunk_id), []);
+  assert.equal(request.max_total_bytes, 0);
+});
+
+test('buildRequest rejects an offset past the end of the chunk', () => {
+  const diff = computeDiff(peerA, peerB, {
+    datasetId: diffMessage.dataset_id,
+    namespace: diffMessage.namespace,
+  });
+  const target = diff.missing_chunks[0];
+
+  assert.throws(
+    () => buildRequest(diff, { offsets: { [target.chunk_id]: target.size_bytes + 1 } }),
+    RangeError,
+  );
+  assert.throws(() => buildRequest(diff, { offsets: { [target.chunk_id]: -1 } }), RangeError);
+});

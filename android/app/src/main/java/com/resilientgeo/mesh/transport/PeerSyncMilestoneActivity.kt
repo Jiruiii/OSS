@@ -59,6 +59,11 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
         private const val TAG = "ResilientGeoPeerSync"
         private const val DATASET_ID = "resilientgeo-demo"
         private const val NAMESPACE = "official"
+        // Identity a node advertises for this dataset before it holds any
+        // chunk of its own; once the inventory is non-empty, the values
+        // recorded on the received chunks win (see MeshRepository).
+        private const val MANIFEST_ID = "resilientgeo-demo:manifest:136"
+        private const val DATASET_VERSION = 136
         // Cross-contact resume demo chunk (item 8) — the only one that gets
         // the simulated mid-transfer interruption in [serveChunk].
         private const val SERVED_CHUNK_ID = "resilientgeo-demo:chunk:136:dahu:shelter:000"
@@ -150,6 +155,24 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
 
     private lateinit var transport: BleGattTransport
     private lateinit var repository: MeshRepository
+
+    /**
+     * This node's HELLO, built from the chunks actually verified into Room.
+     *
+     * Falls back to the demo manifest identity when the inventory is empty
+     * so a fresh device still emits a well-formed summary saying "I have
+     * nothing for this dataset" — which is exactly the state the two-device
+     * demo starts from, and now a state the node derives rather than
+     * asserts.
+     */
+    private suspend fun localSummaryFromDb(): JSONObject = repository.localPeerSummary(
+        nodeId = "node-a",
+        datasetId = DATASET_ID,
+        namespace = NAMESPACE,
+        fallbackManifestId = MANIFEST_ID,
+        fallbackDatasetVersion = DATASET_VERSION,
+    )
+
     private lateinit var statusText: TextView
     private lateinit var logText: TextView
 
@@ -278,7 +301,15 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
                 val conn = transport.connect(peerId)
                 connection = conn
                 appendLog("connected to $peerId as $chosen")
-                val summary = if (chosen == Role.NODE_A) NODE_A_SUMMARY else NODE_B_SUMMARY
+                // Node A (the requester) now describes what it *actually*
+                // holds, read from Room via the chunk inventory, instead of
+                // a hardcoded "I have nothing". This is what lets a device
+                // that already synced act as a relay for a third one: after
+                // a successful exchange its HELLO legitimately advertises
+                // the chunk it received. Node B stays fixture-backed — it
+                // serves chunk bodies from assets/, which the local
+                // inventory deliberately does not store (see ChunkEntity).
+                val summary = if (chosen == Role.NODE_A) localSummaryFromDb() else NODE_B_SUMMARY
                 sendEnvelope(conn, JSONObject().put("type", "HELLO").put("summary", summary))
                 appendLog("sent HELLO")
                 // Node B never resends HELLO — if it already arrived here
@@ -355,7 +386,7 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
             return
         }
 
-        val localSummary = PeerSummary.fromJson(NODE_A_SUMMARY)
+        val localSummary = PeerSummary.fromJson(localSummaryFromDb())
         val remoteSummary = PeerSummary.fromJson(remoteSummaryJson)
         remotePeerSummary = remoteSummary
         val diff = try {

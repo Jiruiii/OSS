@@ -8,6 +8,7 @@ import android.graphics.Path
 import android.util.AttributeSet
 import android.view.View
 import com.resilientgeo.mesh.ingest.ApplyState
+import java.time.Instant
 
 /**
  * A fully offline "basemap" for the test area: no tiles, no network, just
@@ -98,7 +99,15 @@ class OfflineMapView @JvmOverloads constructor(
     }
 
     private fun colorFor(feature: MapFeature): Int {
-        val state = feature.storedEvent.applyState
+        // Derived from the current clock rather than the stored applyState,
+        // which is only the state at ingest time — offline, an event can
+        // expire long after it was written and nothing re-ingests it. See
+        // ApplyState.at.
+        val state = ApplyState.at(
+            feature.storedEvent.namespace,
+            feature.storedEvent.expiresAt,
+            Instant.now(),
+        )
         if (state == ApplyState.EXPIRED) return Color.parseColor("#5C6B73")
         if (state == ApplyState.UNVERIFIED) return Color.parseColor("#AB47BC")
         return when {

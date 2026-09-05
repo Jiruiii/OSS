@@ -55,18 +55,11 @@
                 android:text="@string/open_ble_spike" />
 
             <Button
-                android:id="@+id/openNearbyTransportSpikeButton"
+                android:id="@+id/openPeerSyncButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:text="@string/open_nearby_transport_spike" />
-
-            <Button
-                android:id="@+id/openWifiDirectSpikeButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="@string/open_wifi_direct_spike" />
+                android:text="@string/open_peer_sync" />
         </LinearLayout>
     </HorizontalScrollView>
 

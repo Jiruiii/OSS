@@ -59,6 +59,22 @@
 
 ---
 
+## D. 2026-09-05 送件前程式碼審查修正
+
+對照程式碼而非文件自述，找出九項「文件說有、程式碼沒有」或「與自訂通過條件相違」的問題並修正。全部已驗證：40 項 JVM 單元測試、115 項 Node 測試、`npm run sim:check` PASS、`assembleDebug` 成功。
+
+- [x] **1. TTL 過期狀態永遠不更新（真 bug）** — `applyState` 原本只在 ingest 當下算一次就存進 Room，列表與地圖直接讀存下來的字串。事件離線放到過期後仍顯示 CURRENT，直接違反階段 2 通過條件「TTL 到期時不把它顯示為目前有效資料」。改為由 `ApplyState.at(namespace, expiresAt, now)` 單一來源在**繪製當下**推導，ingest 與顯示共用同一份定義；`MainActivity` 加 30 秒 ticker 讓 badge 會真的翻成 EXPIRED。新增 `ApplyStateTest`（7 例，含到期邊界與 crowd namespace 的優先序）。既有 fixture 只有「已過期」與「2099 過期」兩種，永遠踩不到中間，這是它沒被抓到的原因。
+- [x] **2. Emergency Mode 是空殼** — 服務原本只有心跳 log 與通知，沒有任何 BLE。已接上 `BleDiscovery` 廣播＋掃描、以 30 秒視窗統計附近節點數並顯示在通知列，權限或藍牙未就緒時如實顯示 "Discovery off" 而非假裝正常。**仍未做**：自動建立 GATT 連線與角色協商，已寫進 README 限制。
+- [x] **3. Peer Sync 在 App 裡按不到** — `PeerSyncMilestoneActivity` 原本只能 `adb shell am start`，裝了 APK 的人無法操作本專案核心功能。主畫面加上「Peer Sync (2 devices)」按鈕。
+- [x] **4. 節點不知道自己有什麼** — 新增 `chunks` 資料表（`ChunkEntity`/`ChunkDao`，Room v1→v2 真 migration，不用 destructive fallback 以免清掉離線持有的資料）。`MeshRepository.ingestChunk` 在驗證通過後記錄分片，`localPeerSummary()` 據此組出真正的 `peer-summary-v0`；requester 端 HELLO 已改用它，不再是寫死的「我什麼都沒有」。新增 5 項 instrumented 測試（未在本次執行，無裝置）。
+- [x] **5. 續傳沒有進協定層** — `buildRequest` 原本兩邊都硬寫 `offset_bytes: 0`，續傳訊息只能由 demo activity 手工組。JS 與 Kotlin 版皆加上 `offsets` 參數（超出範圍會拋錯、已完整持有的分片直接不請求），各補 3 項測試。ADR-001 自己說在 3.8–4.4 KB/s 下跨接觸續傳是同步能不能推進的關鍵，它本來不在可重用的那一層。
+- [x] **6. `.gitignore` 漏一層目錄** — 規則是 `/android/.idea/`，實際目錄在 `android/app/.idea/`，導致 `workspace.xml` 被追蹤、其餘 7 個檔案永遠浮在 `git status`。補規則並 `git rm --cached`。
+- [x] **7. 所有 spike activity `exported="true"`** — 沒有 intent-filter 卻對外開放，任何 App 都能啟動會開藍牙廣播的畫面。全改 `exported="false"`；`adb shell am start` 不受影響（shell 持有 `START_ANY_ACTIVITY`）。
+- [x] **8. 已否決方案仍留在 App 裡** — 刪除 `NearbyConnectionsTransport`／`WifiDirectTransport`／`LocalNetworkTransport` 與三個對應 spike activity，連同 `INTERNET`、`ACCESS_WIFI_STATE`、`CHANGE_WIFI_STATE`、`NEARBY_WIFI_DEVICES`、`CHANGE_WIFI_MULTICAST_STATE` 權限與 Play Services 相依。程式碼保留在 git 歷史，實測記錄保留在 ADR-001。**現在 APK 實際權限只剩藍牙／前景服務／通知**（`aapt2 dump permissions` 驗證過），「不需要網路基礎設施」才是可查證的主張。
+- [x] **9. README 不實陳述** — 原本寫「不需要任何網路權限」但 manifest 有 `INTERNET`（第 8 項修掉後這句才成立）；Emergency Mode 的描述也超前於實作，已改為精確描述並補進限制段落。
+
+---
+
 ## 完成標準
 
 - A 段全部打勾：MVP 五個必須項目（平台/地圖/資料/同步/可信度）才算真正達標，不是「紙上已完成」。
