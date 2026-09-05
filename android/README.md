@@ -32,22 +32,25 @@ street detail available from the active provider.
 Google tiles are not downloaded or cached by this project. For a demo, create
 an Android-restricted key in Google Cloud, restrict it by package name
 `com.resilientgeo.mesh` and the debug/release SHA-1, then enable Maps SDK for
-Android. Put the key only in the ignored file `android/local.properties`:
+Android. Put the key in the ignored repository-root `.env` file:
 
-```properties
+```dotenv
 GOOGLE_MAPS_API_KEY=AIza...
 ```
 
-The Gradle manifest placeholder reads that value (or the
-`GOOGLE_MAPS_API_KEY` environment variable). Flutter's provider decision also
-needs the Dart define when running the module:
+The Gradle manifest placeholder reads values in this order: the
+`GOOGLE_MAPS_API_KEY` environment variable, `android/local.properties`, then
+the repository-root `.env`. The Android host bridge checks the resulting
+Manifest metadata before enabling Google Maps, so Android Studio `app` runs do
+not need a second Dart define. The standalone generated Flutter module host
+does not contain this app Manifest and intentionally stays on the OSM fallback.
 
 ```bash
-cd flutter
-flutter run --dart-define=GOOGLE_MAPS_API_KEY="$GOOGLE_MAPS_API_KEY"
+cd android
+./gradlew assembleDebug
 ```
 
-If the define is omitted, or network is unavailable, the app intentionally
+If the Android key is omitted, or network is unavailable, the app intentionally
 uses the bundled OSM map. The supplied Google Maps JavaScript sample is not
 used by this Android Flutter implementation; this app uses
 `google_maps_flutter` and the native Android SDK.
@@ -83,9 +86,8 @@ phone before release.
 1. 用 Android Studio 開啟 `<repo>/android`，不要把 `flutter/.android/`
    當成要編輯的專案。
 2. 確認 `android/local.properties` 指向 Android SDK 與 Flutter SDK；這個檔案
-   已被 gitignore，不會提交。需要線上 Google 地圖時，另外在此檔加入
-   `GOOGLE_MAPS_API_KEY`，並在 Flutter run configuration 加上同值的
-   `--dart-define`。
+   已被 gitignore，不會提交。需要線上 Google 地圖時，建議在 repo 根目錄
+   `.env` 加入 `GOOGLE_MAPS_API_KEY`；也可放在此檔案，兩者都不會提交。
 3. 啟動 Android Emulator 或連接手機，在 Android Studio 選 `app` 設定並執行
    debug。App 啟動後會直接進入 Flutter 內湖地圖。
 4. Flutter 畫面程式在 `flutter/lib/`；要使用 Dart hot reload，可另外在

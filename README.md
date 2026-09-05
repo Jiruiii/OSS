@@ -118,11 +118,12 @@ node simulator/cli.mjs matrix --check      # 位元比對已提交的 experiment
 # ---------- 4. Flutter 內湖地圖 ----------
 cd flutter
 flutter pub get
-flutter run --dart-define=GOOGLE_MAPS_API_KEY=<你的 Android 限制金鑰>
-# 未配置 key 或沒有網路時仍會自動顯示 OSM 離線底圖
+flutter run
+# Flutter module 預覽 host 沒有正式 Android Manifest，會安全顯示 OSM 離線底圖
 
 # ---------- 5. Android App（需實機或模擬器） ----------
 # 先建立 android/local.properties，內容為 sdk.dir=<Android SDK 路徑>
+# Google key 可改放 repo 根目錄 .env（已被 gitignore）
 cd ../android
 ./gradlew testDebugUnitTest                # 48 項 JVM 單元測試
 ./gradlew connectedDebugAndroidTest        # 14 項 instrumented 測試（需接實機）

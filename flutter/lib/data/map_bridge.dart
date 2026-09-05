@@ -38,6 +38,20 @@ class MapBridge {
     return responseEnabled;
   }
 
+  /// Returns whether the Android host has a non-empty Google Maps manifest
+  /// key. A Flutter module preview host does not register this channel, so it
+  /// safely reports false and keeps using the bundled OSM renderer.
+  Future<bool> hasGoogleMapsApiKey() async {
+    try {
+      return await _methodChannel.invokeMethod<bool>('hasGoogleMapsApiKey') ??
+          false;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   Stream<List<MeshEvent>> get events => _eventChannel
       .receiveBroadcastStream()
       .map<List<MeshEvent>>(eventsFromMessage);

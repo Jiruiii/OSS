@@ -1,3 +1,4 @@
+import java.io.File
 import java.util.Properties
 
 plugins {
@@ -12,6 +13,34 @@ val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.isFile) {
     localPropertiesFile.inputStream().use(localProperties::load)
 }
+
+fun readDotEnv(file: File): Properties {
+    val properties = Properties()
+    if (!file.isFile) return properties
+
+    file.forEachLine { rawLine ->
+        val line = rawLine.trim()
+        if (line.isEmpty() || line.startsWith("#")) return@forEachLine
+        val assignment = line.removePrefix("export ").trim()
+        val separator = assignment.indexOf('=')
+        if (separator <= 0) return@forEachLine
+
+        val name = assignment.substring(0, separator).trim()
+        var value = assignment.substring(separator + 1).trim()
+        if (value.length >= 2 &&
+            value.first() == value.last() &&
+            (value.first() == '\'' || value.first() == '"')
+        ) {
+            value = value.substring(1, value.length - 1)
+        }
+        properties.setProperty(name, value)
+    }
+    return properties
+}
+
+// The repository-root .env is ignored by git and is convenient for Android
+// Studio users. Never print these values or copy them into Flutter assets.
+val dotEnv = readDotEnv(rootProject.file("../.env"))
 
 // A shell/CI environment value wins over the ignored developer-local file.
 // Empty is intentional: the Flutter renderer detects it and keeps the OSM

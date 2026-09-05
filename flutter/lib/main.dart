@@ -5,7 +5,6 @@ import 'screens/map_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/profile_screen.dart';
 import 'widgets/app_bottom_navigation.dart';
-import 'widgets/map_canvas.dart';
 
 void main() => runApp(const ResilientGeoApp());
 
@@ -97,7 +96,12 @@ class _MapAppHomeState extends State<_MapAppHome> {
             bridge: controller.bridge,
             eventUpdates: controller.eventUpdates,
             networkAvailable: controller.networkAvailable,
-            configuredGoogleMapsKey: MapCanvas.compileTimeGoogleMapsKey,
+            // The Android host owns the real key in its manifest. Passing a
+            // non-secret marker here enables Google only after the native
+            // bridge confirms that manifest entry exists.
+            configuredGoogleMapsKey: controller.googleMapsConfigured
+                ? 'android-manifest-key'
+                : '',
             themeMode: controller.themeMode,
             animationEnabled: controller.animationEnabled,
           ),

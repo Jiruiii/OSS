@@ -37,6 +37,8 @@ class MapAppController extends ChangeNotifier {
   ThemeMode themeMode = ThemeMode.system;
   bool animationEnabled = true;
   bool networkAvailable = false;
+  bool googleMapsConfigured = false;
+  bool nativeBridgeAvailable = false;
   bool isLoading = true;
   Object? loadError;
   bool _disposed = false;
@@ -77,6 +79,7 @@ class MapAppController extends ChangeNotifier {
       try {
         initialState = await bridge.getInitialState();
         persistedEvents = initialState.events;
+        nativeBridgeAvailable = true;
       } on Object {
         // Preview builds without the Android host still show the bundled map.
         initialState = const MapInitialState(
@@ -85,9 +88,13 @@ class MapAppController extends ChangeNotifier {
         );
       }
 
+      if (nativeBridgeAvailable) {
+        googleMapsConfigured = await bridge.hasGoogleMapsApiKey();
+      }
+
       await _loadPreferences();
       await _loadConnectivity();
-      _listenToNativeEvents();
+      if (nativeBridgeAvailable) _listenToNativeEvents();
     } on Object catch (error) {
       loadError = error;
     } finally {
