@@ -24,22 +24,20 @@ object EventIngestor {
         if (verification is VerificationResult.Invalid) {
             return IngestResult.RejectedVerification(verification.stage, verification.errors)
         }
-        val valid = verification as VerificationResult.Valid
-
         val namespace = event.getString("namespace")
         val eventId = event.getString("event_id")
         val eventVersion = event.getInt("event_version")
         val existing = store.find(namespace, eventId)
 
         if (existing == null) {
-            val state = applyStateFor(namespace, valid.expired)
+            val state = ApplyState.at(namespace, event.getString("expires_at"), now)
             store.save(toStoredEvent(event, namespace, eventId, eventVersion, state))
             val separateNamespace = store.findUnderOtherNamespace(eventId, namespace) != null
             return IngestResult.Inserted(separateNamespace, state)
         }
 
         if (eventVersion > existing.eventVersion) {
-            val state = applyStateFor(namespace, valid.expired)
+            val state = ApplyState.at(namespace, event.getString("expires_at"), now)
             store.save(toStoredEvent(event, namespace, eventId, eventVersion, state))
             return IngestResult.Updated(existing.eventVersion, eventVersion, state)
         }
@@ -49,12 +47,6 @@ object EventIngestor {
         }
 
         return IngestResult.RejectedSameVersionConflict(existing.eventVersion, eventVersion)
-    }
-
-    private fun applyStateFor(namespace: String, expired: Boolean): ApplyState = when {
-        expired -> ApplyState.EXPIRED
-        namespace.startsWith("crowd.") -> ApplyState.UNVERIFIED
-        else -> ApplyState.CURRENT
     }
 
     private fun toStoredEvent(event: JSONObject, namespace: String, eventId: String, eventVersion: Int, state: ApplyState) = StoredEvent(

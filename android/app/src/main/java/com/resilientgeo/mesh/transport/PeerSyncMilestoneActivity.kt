@@ -59,8 +59,33 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
         private const val TAG = "ResilientGeoPeerSync"
         private const val DATASET_ID = "resilientgeo-demo"
         private const val NAMESPACE = "official"
+        // Identity a node advertises for this dataset before it holds any
+        // chunk of its own; once the inventory is non-empty, the values
+        // recorded on the received chunks win (see MeshRepository).
+        private const val MANIFEST_ID = "resilientgeo-demo:manifest:136"
+        private const val DATASET_VERSION = 136
+        // Cross-contact resume demo chunk (item 8) — the only one that gets
+        // the simulated mid-transfer interruption in [serveChunk].
         private const val SERVED_CHUNK_ID = "resilientgeo-demo:chunk:136:dahu:shelter:000"
-        private const val CHUNK_ASSET_PATH = "fixtures/peer-sync/chunk-136-dahu-shelter-000.json"
+
+        // Critical-first scheduling demo chunks (item 9's real-device half —
+        // "Peer 上限" itself needs 3+ devices, out of scope here). Generated
+        // by pipeline/tools/generate-peer-sync-priority-chunks-fixture.mjs.
+        // Listed deliberately out of priority order below (LOW, HIGH,
+        // CRITICAL) in NODE_B_SUMMARY so a REQUEST that comes back
+        // CRITICAL/HIGH/LOW proves buildRequest() actually re-sorted them,
+        // not that they happened to already be in that order.
+        private const val CHUNK_CRITICAL_ID = "resilientgeo-demo:chunk:136:donghu:flood:000"
+        private const val CHUNK_HIGH_ID = "resilientgeo-demo:chunk:136:wende:road:000"
+        private const val CHUNK_LOW_ID = "resilientgeo-demo:chunk:136:dahu:medical:000"
+
+        /** chunk_id -> assets path Node B can serve. */
+        private val SERVED_CHUNKS: Map<String, String> = mapOf(
+            SERVED_CHUNK_ID to "fixtures/peer-sync/chunk-136-dahu-shelter-000.json",
+            CHUNK_CRITICAL_ID to "fixtures/peer-sync/chunk-136-donghu-flood-000.json",
+            CHUNK_HIGH_ID to "fixtures/peer-sync/chunk-136-wende-road-000.json",
+            CHUNK_LOW_ID to "fixtures/peer-sync/chunk-136-dahu-medical-000.json",
+        )
 
         private val NODE_A_SUMMARY = JSONObject(
             """
@@ -86,7 +111,16 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
             """
             {
               "schema_version": "peer-summary-v0",
+              "protocol_version": "0",
               "node_id": "node-b",
+              "generated_at": "2026-09-05T12:00:00Z",
+              "capabilities": {
+                "discovery_transports": ["BLE"],
+                "transfer_transports": ["BLE_GATT"],
+                "max_peer_count": 4,
+                "supports_resume": true,
+                "max_chunk_bytes": 1048576
+              },
               "datasets": [
                 {
                   "dataset_id": "$DATASET_ID",
@@ -98,6 +132,24 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
                       "chunk_id": "$SERVED_CHUNK_ID",
                       "chunk_hash": "sha256:8b7b851074230f562de1d849753269b92ab87e2994eb56e812c43a463db5bb67",
                       "size_bytes": 1147,
+                      "priority": "CRITICAL"
+                    },
+                    {
+                      "chunk_id": "$CHUNK_LOW_ID",
+                      "chunk_hash": "sha256:44a6ce80c751c664b1d737b92ddfda3f68fd3423acf68ce8129cc1b14126fd4b",
+                      "size_bytes": 1165,
+                      "priority": "LOW"
+                    },
+                    {
+                      "chunk_id": "$CHUNK_HIGH_ID",
+                      "chunk_hash": "sha256:778ce46ad0c0c8dd3ac8ce7bffecb01d65e19587d29f49aa9acac976ac8c0832",
+                      "size_bytes": 1163,
+                      "priority": "HIGH"
+                    },
+                    {
+                      "chunk_id": "$CHUNK_CRITICAL_ID",
+                      "chunk_hash": "sha256:70d44e0dcf5bdd1ed10ae7e1081bf7edd7e4d336c285d3389c72946839732099",
+                      "size_bytes": 1148,
                       "priority": "CRITICAL"
                     }
                   ]
@@ -112,6 +164,24 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
 
     private lateinit var transport: BleGattTransport
     private lateinit var repository: MeshRepository
+
+    /**
+     * This node's HELLO, built from the chunks actually verified into Room.
+     *
+     * Falls back to the demo manifest identity when the inventory is empty
+     * so a fresh device still emits a well-formed summary saying "I have
+     * nothing for this dataset" — which is exactly the state the two-device
+     * demo starts from, and now a state the node derives rather than
+     * asserts.
+     */
+    private suspend fun localSummaryFromDb(): JSONObject = repository.localPeerSummary(
+        nodeId = "node-a",
+        datasetId = DATASET_ID,
+        namespace = NAMESPACE,
+        fallbackManifestId = MANIFEST_ID,
+        fallbackDatasetVersion = DATASET_VERSION,
+    )
+
     private lateinit var statusText: TextView
     private lateinit var logText: TextView
 
@@ -240,20 +310,51 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
                 val conn = transport.connect(peerId)
                 connection = conn
                 appendLog("connected to $peerId as $chosen")
-                val summary = if (chosen == Role.NODE_A) NODE_A_SUMMARY else NODE_B_SUMMARY
-                sendEnvelope(conn, JSONObject().put("type", "HELLO").put("summary", summary))
-                appendLog("sent HELLO")
+                // Node A (the requester) now describes what it *actually*
+                // holds, read from Room via the chunk inventory, instead of
+                // a hardcoded "I have nothing". This is what lets a device
+                // that already synced act as a relay for a third one: after
+                // a successful exchange its HELLO legitimately advertises
+                // the chunk it received. Node B stays fixture-backed — it
+                // serves chunk bodies from assets/, which the local
+                // inventory deliberately does not store (see ChunkEntity).
+                val summary = if (chosen == Role.NODE_A) localSummaryFromDb() else NODE_B_SUMMARY
+                if (sendEnvelope(conn, JSONObject().put("type", "HELLO").put("summary", summary))) {
+                    appendLog("sent HELLO")
+                }
+                // Node B never resends HELLO — if it already arrived here
+                // before this device's own role was chosen/connect() had
+                // finished, handleHello() would have seen role != NODE_A (or
+                // connection == null) and dropped it, silently stalling the
+                // whole exchange forever with no retry. Catch that up now
+                // that both are ready — see pendingRemoteSummaryJson's doc
+                // comment for the two-sided race this closes.
+                if (chosen == Role.NODE_A) {
+                    pendingRemoteSummaryJson?.let { processHelloAsNodeA(it) }
+                }
             } catch (e: Exception) {
                 appendLog("connect/HELLO failed: ${e.message}")
             }
         }
     }
 
-    private suspend fun sendEnvelope(conn: Connection, envelope: JSONObject) {
+    /**
+     * Returns false if the envelope did not go out.
+     *
+     * Callers must not announce a message they only attempted: this screen's
+     * on-screen log is the evidence a human reads to decide whether the
+     * protocol ran, and it used to print "sent HELLO" immediately after a
+     * failed write, so a run where nothing left the device looked
+     * indistinguishable from a successful handshake.
+     */
+    private suspend fun sendEnvelope(conn: Connection, envelope: JSONObject): Boolean {
         val bytes = envelope.toString().toByteArray(StandardCharsets.UTF_8)
-        when (val result = transport.send(conn, bytes)) {
-            is TransferResult.Success -> {}
-            else -> appendLog("send failed for envelope type=${envelope.optString("type")}: $result")
+        return when (val result = transport.send(conn, bytes)) {
+            is TransferResult.Success -> true
+            else -> {
+                appendLog("send FAILED for envelope type=${envelope.optString("type")}: $result")
+                false
+            }
         }
     }
 
@@ -273,11 +374,41 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Real-device timing race, reproduced live: Node B never resends HELLO
+     * (it sends exactly once, right after its own connect() finishes), so
+     * whichever of these two things happens LAST decides whether the whole
+     * exchange proceeds or stalls forever with no error and no retry:
+     *   1. this device's own role being chosen + its connect() completing
+     *      (so `connection` is non-null)
+     *   2. the peer's HELLO arriving
+     * [handleHello] and [chooseRole] each fire this the moment their own
+     * half becomes true; [diffRequestedOnce] makes sure only one of them
+     * actually sends the REQUEST if both race to it.
+     */
+    @Volatile private var pendingRemoteSummaryJson: JSONObject? = null
+    private val diffRequestedOnce = java.util.concurrent.atomic.AtomicBoolean(false)
+
     private suspend fun handleHello(remoteSummaryJson: JSONObject) {
         appendLog("received HELLO: node_id=${remoteSummaryJson.optString("node_id")}")
-        if (role != Role.NODE_A) return
+        pendingRemoteSummaryJson = remoteSummaryJson
+        if (role == Role.NODE_A) {
+            processHelloAsNodeA(remoteSummaryJson)
+        }
+    }
 
-        val localSummary = PeerSummary.fromJson(NODE_A_SUMMARY)
+    private suspend fun processHelloAsNodeA(remoteSummaryJson: JSONObject) {
+        if (!diffRequestedOnce.compareAndSet(false, true)) return
+        val conn = connection
+        if (conn == null) {
+            // Our own connect() hasn't finished yet — chooseRole() will
+            // retry this once it does (pendingRemoteSummaryJson is already
+            // set above), so this isn't a dead end.
+            diffRequestedOnce.set(false)
+            return
+        }
+
+        val localSummary = PeerSummary.fromJson(localSummaryFromDb())
         val remoteSummary = PeerSummary.fromJson(remoteSummaryJson)
         remotePeerSummary = remoteSummary
         val diff = try {
@@ -295,9 +426,9 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
         }
 
         val request = PeerSync.buildRequest(diff)
-        val conn = connection ?: run { appendLog("no connection to send REQUEST on"); return }
-        sendEnvelope(conn, JSONObject().put("type", "REQUEST").put("request", requestToJson(request)))
-        appendLog("sent REQUEST for ${request.chunks.map { it.chunkId }}, max_total_bytes=${request.maxTotalBytes}")
+        if (sendEnvelope(conn, JSONObject().put("type", "REQUEST").put("request", requestToJson(request)))) {
+            appendLog("sent REQUEST for ${request.chunks.map { it.chunkId }}, max_total_bytes=${request.maxTotalBytes}")
+        }
     }
 
     private suspend fun handleRequest(requestJson: JSONObject) {
@@ -308,12 +439,13 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
             val chunkReq = chunksRequested.getJSONObject(i)
             val chunkId = chunkReq.getString("chunk_id")
             val offsetBytes = chunkReq.optLong("offset_bytes", 0L)
-            appendLog("received REQUEST for $chunkId offset_bytes=$offsetBytes")
-            if (chunkId != SERVED_CHUNK_ID) {
+            appendLog("received REQUEST[$i] for $chunkId offset_bytes=$offsetBytes")
+            val assetPath = SERVED_CHUNKS[chunkId]
+            if (assetPath == null) {
                 appendLog("don't have $chunkId, skipping")
                 continue
             }
-            serveChunk(chunkId, offsetBytes, conn)
+            serveChunk(chunkId, assetPath, offsetBytes, conn)
         }
     }
 
@@ -342,14 +474,18 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
      * envelope completes and fires exactly like an uninterrupted transfer —
      * [handleTransfer] runs unchanged either way.
      */
-    private suspend fun serveChunk(chunkId: String, offsetBytes: Long, conn: Connection) {
+    private suspend fun serveChunk(chunkId: String, assetPath: String, offsetBytes: Long, conn: Connection) {
         val chunkJson = withContext(Dispatchers.IO) {
-            JSONObject(assets.open(CHUNK_ASSET_PATH).bufferedReader().use { it.readText() })
+            JSONObject(assets.open(assetPath).bufferedReader().use { it.readText() })
         }
         val envelopeBytes = JSONObject().put("type", "TRANSFER").put("chunk", chunkJson)
             .toString().toByteArray(StandardCharsets.UTF_8)
 
-        if (offsetBytes == 0L && attemptedChunkIds.add(chunkId)) {
+        // Only the cross-contact resume demo chunk gets the simulated
+        // interruption — the priority-ordering demo chunks (item 9) should
+        // just go straight through so ordering, not resume, is what's being
+        // exercised for them.
+        if (chunkId == SERVED_CHUNK_ID && offsetBytes == 0L && attemptedChunkIds.add(chunkId)) {
             val interruptJob = lifecycleScope.launch {
                 delay(80)
                 transport.interruptRequested = true
@@ -380,7 +516,7 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
                     appendLog("sent TRANSFER for $chunkId whole (didn't land mid-write this run, nothing to resume)")
                 is TransferResult.Failed -> appendLog("TRANSFER for $chunkId failed: ${result.reason}")
             }
-        } else {
+        } else if (offsetBytes > 0L) {
             appendLog("resuming TRANSFER for $chunkId from offset_bytes=$offsetBytes")
             when (val result = transport.resume(conn, envelopeBytes, offsetBytes)) {
                 is TransferResult.Success ->
@@ -388,6 +524,16 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
                 is TransferResult.Interrupted ->
                     appendLog("RESUME_RESULT chunk_id=$chunkId outcome=interrupted_again bytes=${result.bytesTransferred}")
                 is TransferResult.Failed -> appendLog("RESUME_RESULT chunk_id=$chunkId outcome=failed reason=${result.reason}")
+            }
+        } else {
+            // Priority-ordering demo chunks (item 9): sent whole, no
+            // interruption — see the guard above.
+            when (val result = transport.send(conn, envelopeBytes)) {
+                is TransferResult.Success ->
+                    appendLog("sent TRANSFER for $chunkId whole, ${result.bytesTransferred} bytes, ${result.durationMillis}ms")
+                is TransferResult.Interrupted ->
+                    appendLog("TRANSFER for $chunkId unexpectedly interrupted at ${result.bytesTransferred} bytes")
+                is TransferResult.Failed -> appendLog("TRANSFER for $chunkId failed: ${result.reason}")
             }
         }
     }
@@ -415,8 +561,9 @@ class PeerSyncMilestoneActivity : ComponentActivity() {
             .put("chunks", JSONArray().put(resumeChunkJson))
             .put("resume", true)
             .put("max_total_bytes", chunkSummary.sizeBytes - bytesSent)
-        sendEnvelope(conn, JSONObject().put("type", "REQUEST").put("request", resumeRequestJson))
-        appendLog("sent resume REQUEST for $chunkId offset_bytes=$bytesSent")
+        if (sendEnvelope(conn, JSONObject().put("type", "REQUEST").put("request", resumeRequestJson))) {
+            appendLog("sent resume REQUEST for $chunkId offset_bytes=$bytesSent")
+        }
     }
 
     private suspend fun handleTransfer(chunkJson: JSONObject) {

@@ -23,6 +23,11 @@ __pycache__/
 # Android
 /android/.gradle/
 /android/.idea/
+# Android Studio also writes an .idea/ next to the module when the
+# project is opened at android/app/ rather than android/. Without
+# this line android/app/.idea/workspace.xml ended up tracked and the
+# rest of that directory sat permanently untracked in git status.
+/android/app/.idea/
 /android/local.properties
 /android/build/
 /android/*/build/

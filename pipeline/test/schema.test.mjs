@@ -15,6 +15,7 @@ const schemas = new Map([
   ['feature-v0.schema.json', readJson('schemas/feature-v0.schema.json')],
   ['layer-manifest-v0.schema.json', readJson('schemas/layer-manifest-v0.schema.json')],
   ['layer-chunk-v0.schema.json', readJson('schemas/layer-chunk-v0.schema.json')],
+  ['peer-summary-v0.schema.json', readJson('schemas/peer-summary-v0.schema.json')],
 ]);
 const catalog = readJson('pipeline/sources/catalog.json');
 
@@ -247,4 +248,48 @@ test('catalog registers every data category and keeps GNSS device-local', () => 
     .filter((entry) => entry.access_mode !== 'device_local')
     .map((entry) => entry.source_id);
   assert.ok(!externalCollectorIds.includes('gnss-gps'));
+});
+
+// The peer summary is the only schema describing something that actually goes
+// over the air between two phones, and it was the one nothing validated. The
+// Android side had drifted to sending three of the six required top-level
+// fields, and no test noticed, because the parser only reads two of them.
+const peerSummarySchema = schemas.get('peer-summary-v0.schema.json');
+
+for (const name of ['peer-a-summary-v0.json', 'peer-b-summary-v0.json']) {
+  test(`${name} conforms to peer-summary-v0`, () => {
+    assert.deepEqual(validate(readJson(`fixtures/${name}`), peerSummarySchema), []);
+  });
+
+  test(`${name} is byte-identical to the copy the Android tests read`, () => {
+    // Two copies of the same fixture exist so the JVM tests can read one from
+    // resources. They have to stay in step or the Kotlin and Node ports of
+    // computeDiff are silently being tested against different inputs.
+    assert.equal(
+      readFileSync(path.join(ROOT, 'fixtures', name), 'utf8'),
+      readFileSync(
+        path.join(ROOT, 'android/app/src/test/resources/fixtures/peer-sync', name),
+        'utf8',
+      ),
+    );
+  });
+}
+
+test('a peer summary missing a required top-level field is rejected', () => {
+  // Guards the exact shape the Android side used to send.
+  const { protocol_version: _p, generated_at: _g, capabilities: _c, ...short } =
+    readJson('fixtures/peer-a-summary-v0.json');
+  assert.notDeepEqual(validate(short, peerSummarySchema), []);
+});
+
+test('advertised transports name only what ADR-001 actually adopted', () => {
+  // The fixtures used to advertise NEARBY_CONNECTIONS and WIFI_DIRECT as
+  // transfer transports. Both were rejected after real-device testing and
+  // their implementations have been deleted, so advertising them is a claim
+  // a peer could act on and be wrong about.
+  for (const name of ['peer-a-summary-v0.json', 'peer-b-summary-v0.json']) {
+    const { capabilities } = readJson(`fixtures/${name}`);
+    assert.deepEqual(capabilities.discovery_transports, ['BLE']);
+    assert.deepEqual(capabilities.transfer_transports, ['BLE_GATT']);
+  }
 });

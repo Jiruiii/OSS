@@ -11,14 +11,32 @@ object EmergencyStatusText {
     fun title(): String = "Emergency Mode active"
 
     /**
-     * e.g. `contentText(5)` -> "Background sync standby — alive 5s",
-     * `contentText(65)` -> "Background sync standby — alive 1m 05s".
+     * Status line for the ongoing notification.
+     *
+     * The wording distinguishes three genuinely different states, because a
+     * user in a disaster needs to be able to tell them apart at a glance:
+     * discovery is off entirely (no Bluetooth or no permission), discovery
+     * is running but nobody is nearby, or peers are actually visible.
+     * Reporting "standby" in all three would hide the one case the user can
+     * fix — turning Bluetooth on.
+     *
+     * e.g. `contentText(5, 0, true)` -> "Scanning for peers — none nearby · alive 5s",
+     * `contentText(65, 2, true)` -> "2 peers nearby · alive 1m 05s".
      */
-    fun contentText(aliveSeconds: Long): String {
+    fun contentText(aliveSeconds: Long, peers: Int = 0, discoveryActive: Boolean = true): String {
         require(aliveSeconds >= 0) { "aliveSeconds must not be negative: $aliveSeconds" }
+        require(peers >= 0) { "peers must not be negative: $peers" }
+
         val minutes = aliveSeconds / 60
         val seconds = aliveSeconds % 60
         val elapsed = if (minutes > 0) "${minutes}m %02ds".format(seconds) else "${seconds}s"
-        return "Background sync standby — alive $elapsed"
+
+        val status = when {
+            !discoveryActive -> "Discovery off — check Bluetooth"
+            peers == 0 -> "Scanning for peers — none nearby"
+            peers == 1 -> "1 peer nearby"
+            else -> "$peers peers nearby"
+        }
+        return "$status · alive $elapsed"
     }
 }

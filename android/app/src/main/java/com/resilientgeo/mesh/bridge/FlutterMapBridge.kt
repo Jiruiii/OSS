@@ -28,6 +28,7 @@ class FlutterMapBridge(
         AndroidEmergencyModeServiceCommand(context),
         SharedPreferencesEmergencyModeState(context),
     ),
+    private val onEmergencyModeChanged: (Boolean) -> Unit = {},
 ) : MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -114,7 +115,9 @@ class FlutterMapBridge(
         }
 
         try {
-            result.success(MapBridgeProtocol.emergencyModeResult(emergencyMode.setEnabled(enabled)))
+            val applied = emergencyMode.setEnabled(enabled)
+            onEmergencyModeChanged(applied)
+            result.success(MapBridgeProtocol.emergencyModeResult(applied))
         } catch (error: Throwable) {
             result.error(METHOD_ERROR, error.message, null)
         }

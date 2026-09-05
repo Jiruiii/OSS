@@ -39,13 +39,18 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * ADR-001's third bulk-transfer candidate — plain BLE GATT, chosen after
- * both Nearby Connections (Google Play services INTERNAL_ERROR) and
- * WifiDirectTransport (raw P2P sockets: confirmed TCP connect timeout to a
- * correctly bound, listening ServerSocket despite working ICMP — looks like
- * an Android per-app default-network routing issue, not fixable quickly)
- * hit real platform-level blockers on the Stage 0 test devices, independent
- * of application code.
+ * ADR-001's third bulk-transfer candidate — plain BLE GATT, and the one
+ * that was adopted, after both Nearby Connections (Google Play services
+ * INTERNAL_ERROR) and native Wi-Fi Direct (raw P2P sockets: confirmed TCP
+ * connect timeout to a correctly bound, listening ServerSocket despite
+ * working ICMP — looks like an Android per-app default-network routing
+ * issue, not fixable quickly) hit real platform-level blockers on the
+ * Stage 0 test devices, independent of application code.
+ *
+ * Both rejected implementations have since been deleted along with the
+ * Wi-Fi/Play-Services permissions and dependencies they pulled in; the
+ * full measurement record for all three candidates lives in
+ * docs/adr/ADR-001-transport-layer.md, and the code itself in git history.
  *
  * Unlike those two, this reuses [BleDiscovery]'s already-proven-reliable
  * advertise/scan pair (see C_BLEbroadcast.md) and layers real data transfer
@@ -59,12 +64,20 @@ import java.util.concurrent.ConcurrentHashMap
  * Nearby/Wi-Fi Direct against — BLE's lower throughput is not expected to
  * be a problem for the actual application, only for that stress-test number.
  *
- * Wire framing: first WRITE of a message = 4-byte big-endian length header
- * + as much payload as fits in one negotiated-MTU write; later WRITEs are
- * pure continuation bytes until the declared length is reached, then the
- * peripheral NOTIFYs a 1-byte ack back. GATT writes must be issued one at a
- * time — the stack does not support overlapping writeCharacteristic() calls
- * — so throughput is bounded by round-trip latency per chunk, not just MTU.
+ * Wire framing: every WRITE (first and continuation alike) is prefixed with
+ * a 1-byte message sequence number; the first write of a message additionally
+ * carries a 4-byte big-endian length header right after that byte, then as
+ * much payload as fits in one negotiated-MTU write; later writes for the same
+ * message are [seq byte][pure continuation bytes] until the declared length
+ * is reached, then the peripheral NOTIFYs a 1-byte ack back. GATT writes must
+ * be issued one at a time — the stack does not support overlapping
+ * writeCharacteristic() calls — so throughput is bounded by round-trip
+ * latency per chunk, not just MTU.
+ *
+ * The sequence byte exists because the receiver has no other way to tell
+ * "this write starts a new message" apart from "this write continues the one
+ * I'm already accumulating" — see [handleIncomingChunk]'s doc comment for the
+ * real-device corruption this fixes.
  */
 class BleGattTransport(
     private val context: Context,
@@ -99,6 +112,7 @@ class BleGattTransport(
         private val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
         private const val DESIRED_MTU = 247
         private const val HEADER_BYTES = 4
+        private const val SEQ_BYTES = 1
         private const val WRITE_TIMEOUT_MS = 10_000L
         private const val ACK_TIMEOUT_MS = 30_000L
     }
@@ -131,7 +145,13 @@ class BleGattTransport(
     // which peer connects to us as central. ---
 
     private var gattServer: BluetoothGattServer? = null
-    private val incomingMessages = ConcurrentHashMap<String, IncomingMessage>()
+
+    // Keyed by (peer address, sequence number) rather than just peer address
+    // — see [handleIncomingChunk]'s doc comment for why a single slot per
+    // peer isn't enough once a message can be interrupted and resumed after
+    // other messages have already flowed on the same connection.
+    private data class IncomingMessageKey(val peerAddress: String, val seq: Int)
+    private val incomingMessages = ConcurrentHashMap<IncomingMessageKey, IncomingMessage>()
     private val subscribedDevices = ConcurrentHashMap<String, BluetoothDevice>()
 
     /**
@@ -165,7 +185,7 @@ class BleGattTransport(
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int, newState: Int) {
             Log.i(TAG, "server: onConnectionStateChange device=${device.address} status=$status newState=$newState")
             if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                incomingMessages.remove(device.address)
+                incomingMessages.keys.removeIf { it.peerAddress == device.address }
                 subscribedDevices.remove(device.address)
             }
         }
@@ -213,20 +233,58 @@ class BleGattTransport(
         }
     }
 
+    /**
+     * Real-device bug this fixes: when critical-first REQUEST batches were
+     * layered on top of cross-contact resume (4 chunks requested at once,
+     * one deliberately interrupted mid-transfer), the sender's next chunk in
+     * the batch started a brand-new message on the SAME connection before
+     * the interrupted one had been resumed. The old code kept exactly one
+     * `IncomingMessage` per peer address and only knew a message was "done"
+     * by comparing accumulated byte count against the length header parsed
+     * from the very first write it ever saw for that peer — it had no way to
+     * tell "this write starts a new message" apart from "this write
+     * continues the one I'm mid-accumulating". The next chunk's header +
+     * payload bytes got silently appended onto the still-incomplete previous
+     * chunk's buffer, byte count eventually crossed the (wrong) expected
+     * length, and a corrupt spliced payload got emitted and ack'd as if it
+     * were the interrupted chunk — which also sent a premature ack back to
+     * the sender for a message it hadn't finished writing yet, cascading
+     * into the *next* chunk's ack timing out too.
+     *
+     * The fix: every write now carries a 1-byte sequence number (see the
+     * class doc comment), and incoming messages are tracked per
+     * (peer address, seq) instead of per peer address alone. A chunk that
+     * gets interrupted and resumed later — even after other unrelated
+     * messages have completed on the same connection in between — keeps its
+     * own slot under its own seq, so a resume's headerless continuation
+     * bytes always find their way back to the right partial buffer instead
+     * of whatever the receiver happened to be accumulating most recently.
+     *
+     * Known limitation kept out of scope for v0: a slot for a seq that is
+     * interrupted and never resumed lingers in [incomingMessages] until
+     * disconnect (or, in principle, until the 1-byte seq counter wraps back
+     * around to it 256 messages later). Fine for this project's short-lived
+     * opportunistic-contact connections; would need an idle-slot eviction
+     * timer for a transport meant to stay connected indefinitely.
+     */
     private fun handleIncomingChunk(device: BluetoothDevice, value: ByteArray) {
-        val message = incomingMessages.getOrPut(device.address) { IncomingMessage() }
+        if (value.isEmpty()) return
+        val seq = value[0].toInt() and 0xFF
+        val key = IncomingMessageKey(device.address, seq)
+        val message = incomingMessages.getOrPut(key) { IncomingMessage() }
+
         val payloadChunk = if (message.expectedLength < 0) {
-            val header = ByteBuffer.wrap(value, 0, HEADER_BYTES).order(ByteOrder.BIG_ENDIAN)
+            val header = ByteBuffer.wrap(value, SEQ_BYTES, HEADER_BYTES).order(ByteOrder.BIG_ENDIAN)
             message.expectedLength = header.int
-            value.copyOfRange(HEADER_BYTES, value.size)
+            value.copyOfRange(SEQ_BYTES + HEADER_BYTES, value.size)
         } else {
-            value
+            value.copyOfRange(SEQ_BYTES, value.size)
         }
         message.buffer.write(payloadChunk)
 
         if (message.buffer.size() >= message.expectedLength) {
-            Log.i(TAG, "server: received full message (${message.buffer.size()} bytes) from ${device.address}")
-            incomingMessages.remove(device.address)
+            Log.i(TAG, "server: received full message seq=$seq (${message.buffer.size()} bytes) from ${device.address}")
+            incomingMessages.remove(key)
             _receivedMessages.tryEmit(device.address to message.buffer.toByteArray())
             sendAck(device)
         }
@@ -497,6 +555,34 @@ class BleGattTransport(
     // assumption actually true instead of merely documented.
     private val sendMutex = Mutex()
 
+    // Outbound sequence numbering, per connection. `send()` (a brand-new
+    // message) always allocates the next seq; `resume()` reuses whatever seq
+    // was allocated for the interrupted attempt it's continuing, so the
+    // receiver's [handleIncomingChunk] can match the continuation bytes back
+    // to the right in-progress buffer regardless of what else has been sent
+    // on this connection in between. Single-flight (matches sendMutex): only
+    // the most recent interruption per connection is remembered — fine for
+    // this project's REQUEST-then-TRANSFER flow, where only one chunk in a
+    // batch is ever deliberately interrupted, but NOT safe if two different
+    // messages on the same connection could both be mid-interruption at
+    // once (the second would clobber the first's recorded seq here).
+    //
+    // Reproduced live on a real device: the success-path cleanup used to
+    // unconditionally clear this map entry, so a LATER unrelated chunk in
+    // the same critical-first batch completing successfully wiped out an
+    // EARLIER chunk's still-pending interruption record before it was ever
+    // resumed — the resume then fell back to a fresh seq, which the receiver
+    // correctly treated as a brand-new headerless message (no length header
+    // to parse, since resume() sends continuation bytes only) and never
+    // completed, timing out 30s later. Fixed by only clearing the record
+    // when the seq that just succeeded is the one currently recorded — see
+    // the `interruptedSeqByConnection[...] == seq` check below.
+    private val nextSeqByConnection = ConcurrentHashMap<String, Int>()
+    private val interruptedSeqByConnection = ConcurrentHashMap<String, Int>()
+
+    private fun allocateSeq(connectionId: String): Int =
+        nextSeqByConnection.compute(connectionId) { _, previous -> ((previous ?: -1) + 1) and 0xFF }!!
+
     override suspend fun send(connection: Connection, payload: ByteArray): TransferResult =
         sendMutex.withLock { transfer(connection, payload, offsetBytes = 0L) }
 
@@ -586,6 +672,23 @@ class BleGattTransport(
         // compared reassembled bytes against the original).
         var needsHeader = offsetBytes == 0L
 
+        // A resume reuses the seq of the interrupted attempt it's continuing
+        // so the receiver's [handleIncomingChunk] appends to the right
+        // partial buffer instead of starting a new one — see the doc comment
+        // on [interruptedSeqByConnection]. A fresh send() always gets a new
+        // seq. If resume() is called with no recorded interruption for this
+        // connection (shouldn't happen in this project's flow, but not worth
+        // crashing over), fall back to a fresh seq and log it: the receiver
+        // will then correctly treat it as a new message, which is only
+        // right if the resume is effectively starting over too.
+        val seq = if (needsHeader) {
+            allocateSeq(connection.connectionId)
+        } else {
+            interruptedSeqByConnection[connection.connectionId] ?: allocateSeq(connection.connectionId).also {
+                Log.w(TAG, "resume() for ${connection.connectionId} had no recorded interrupted seq; allocated fresh seq=$it")
+            }
+        }
+
         val ackDeferred = CompletableDeferred<Unit>()
         pendingAckNotify = ackDeferred
 
@@ -593,16 +696,17 @@ class BleGattTransport(
             if (interruptRequested) {
                 interruptRequested = false
                 pendingAckNotify = null
+                interruptedSeqByConnection[connection.connectionId] = seq
                 return TransferResult.Interrupted(bytesTransferred = sent.toLong(), reason = "simulated interrupt")
             }
 
-            val payloadRoom = if (needsHeader) chunkSize - HEADER_BYTES else chunkSize
+            val payloadRoom = chunkSize - SEQ_BYTES - (if (needsHeader) HEADER_BYTES else 0)
             val len = minOf(payloadRoom, remaining.size - offset)
             val chunk = if (needsHeader) {
                 val header = ByteBuffer.allocate(HEADER_BYTES).order(ByteOrder.BIG_ENDIAN).putInt(payload.size).array()
-                header + remaining.copyOfRange(offset, offset + len)
+                byteArrayOf(seq.toByte()) + header + remaining.copyOfRange(offset, offset + len)
             } else {
-                remaining.copyOfRange(offset, offset + len)
+                byteArrayOf(seq.toByte()) + remaining.copyOfRange(offset, offset + len)
             }
             needsHeader = false
 
@@ -627,6 +731,18 @@ class BleGattTransport(
         return if (acked == null) {
             TransferResult.Failed("ack timeout after sending $sent bytes")
         } else {
+            // Reproduced live on a real device: this used to unconditionally
+            // remove(connectionId), so an unrelated LATER message completing
+            // successfully on the same connection (e.g. the next chunk in a
+            // critical-first batch) wiped the EARLIER interrupted message's
+            // recorded seq before it ever got resumed. The guard below only
+            // clears the record when it's this exact message's own seq —
+            // i.e. this Success is the resume actually completing — so a
+            // still-pending interruption for a different seq survives other
+            // sends on the same connection.
+            if (interruptedSeqByConnection[connection.connectionId] == seq) {
+                interruptedSeqByConnection.remove(connection.connectionId)
+            }
             TransferResult.Success(bytesTransferred = sent.toLong(), durationMillis = System.currentTimeMillis() - startedAt)
         }
     }

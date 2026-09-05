@@ -1,0 +1,67 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "resilientgeo-demo:chunk:136:donghu:flood:000",
+  "manifest_id": "resilientgeo-demo:manifest:136",
+  "dataset_id": "resilientgeo-demo",
+  "namespace": "official",
+  "dataset_version": 136,
+  "sequence": 0,
+  "priority": "CRITICAL",
+  "area_id": "neihu.donghu",
+  "theme": "flood",
+  "bbox": [
+    121.575,
+    25.081,
+    121.575,
+    25.081
+  ],
+  "created_at": "2026-09-05T15:00:00Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "issued_at": "2026-09-05T15:00:00Z",
+      "expires_at": "2099-01-01T00:00:00Z",
+      "signing_key_id": "peer-sync-priority-demo-2026",
+      "provenance": {
+        "original_source": "fixture-peer-sync-priority-chunks",
+        "received_at": "2026-09-05T15:00:10Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "fixture-ingest"
+        }
+      },
+      "namespace": "official.cwa",
+      "event_id": "flood:donghu-01",
+      "event_type": "FLOOD_WARNING",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.575,
+          25.081
+        ]
+      },
+      "severity": "CRITICAL",
+      "source": "CWA",
+      "source_version": "warn-20260905-01",
+      "event_version": 1,
+      "attributes": {
+        "alert_type": "FLASH_FLOOD",
+        "status": "ACTIVE",
+        "area_id": "neihu.donghu",
+        "theme": "flood"
+      },
+      "payload_hash": "sha256:ab9c0066e51cde5310a196317d59ab9685b5e45470ff46e7e87f8e8a2fb53379",
+      "signature_algorithm": "Ed25519",
+      "signature": "CHRKBjPFDpC+JkexJ3QnP2NIX3oMnSuRShEbNyh7qjTMFl6eWu4LHpac63oMPYeXgFgHL/uopXWrHrEM4lv4Bw=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "peer-sync-priority-demo-2026",
+  "byte_length": 1148,
+  "chunk_hash": "sha256:70d44e0dcf5bdd1ed10ae7e1081bf7edd7e4d336c285d3389c72946839732099",
+  "manifest_hash": "sha256:4b424c356dade4d470f9fcb3387df8c3c61aefa24a42611c32e373abdc9d8fe4",
+  "signature": "ZCNwpSG6UkKQwLDspeKzpq4XvU1y/pPFxQ2Rc/bpn2drl86t3JfynVaNYgMyDC7M4RHURAQWU/aRxNNK5bZKAA=="
+}

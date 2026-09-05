@@ -1,5 +1,5 @@
 {
-  "git_rev": "45443f2",
+  "git_rev": "d70d394",
   "key": "10-replication-geo",
   "params": {
     "scenario_id": "neihu-meiyu-front-v1",
@@ -15,7 +15,7 @@
     "nodes": 10,
     "events": 500,
     "event_holdings": 5000,
-    "freshness_pairs": 2963
+    "freshness_pairs": 2923
   },
   "coverage": {
     "t_minutes": [
@@ -32,11 +32,11 @@
     ],
     "curve": [
       0.0454,
-      0.1796,
-      0.437,
-      0.5734
+      0.2326,
+      0.4568,
+      0.5842
     ],
-    "final": 0.5926,
+    "final": 0.5846,
     "strict_curve": [
       0,
       0,
@@ -46,66 +46,66 @@
     "strict_final": 0,
     "relevant_curve": [
       0.0962,
-      0.3387,
-      0.7748,
-      0.9665
+      0.4076,
+      0.8036,
+      0.9769
     ],
-    "relevant_final": 0.9917,
+    "relevant_final": 0.9775,
     "per_round": [
       0.0078,
       0.0262,
       0.0454,
       0.0536,
-      0.0682,
-      0.091,
-      0.1796,
-      0.2636,
-      0.3358,
-      0.398,
-      0.437,
-      0.4668,
-      0.505,
-      0.521,
-      0.5314,
-      0.5398,
-      0.5508,
-      0.5572,
-      0.5606,
-      0.5638,
-      0.5734,
-      0.5858,
-      0.5926,
-      0.5926
+      0.0776,
+      0.1284,
+      0.2326,
+      0.3138,
+      0.3858,
+      0.4334,
+      0.4568,
+      0.4794,
+      0.5022,
+      0.507,
+      0.5278,
+      0.5532,
+      0.569,
+      0.5788,
+      0.5836,
+      0.5838,
+      0.5842,
+      0.5844,
+      0.5846,
+      0.5846
     ],
     "sample_event_holdings": 5000
   },
   "freshness": {
-    "p50_seconds": 240,
-    "p95_seconds": 570,
-    "p50_minutes": 4,
-    "p95_minutes": 9.5,
-    "applied_pairs": 2963,
-    "unreached_pairs": 2037
+    "p50_seconds": 210,
+    "p95_seconds": 480,
+    "p50_minutes": 3.5,
+    "p95_minutes": 8,
+    "applied_pairs": 2923,
+    "unreached_pairs": 2077
   },
   "cellular": {
-    "baseline_bytes": 3234691,
-    "actual_bytes": 1118216,
-    "savings": 0.6543,
-    "bytes_saved": 2116475,
+    "baseline_bytes": 3177912,
+    "actual_bytes": 872836,
+    "savings": 0.7253,
+    "bytes_saved": 2305076,
     "baseline_full_bytes": 5507420,
-    "total_vs_full": 0.797,
-    "server_fetches": 156
+    "total_vs_full": 0.8415,
+    "server_fetches": 125
   },
   "transfer": {
-    "efficiency": 0.753,
-    "duplicate_ratio": 0.1893,
-    "failure_ratio": 0.0578,
-    "useful_bytes": 2116475,
-    "duplicate_bytes": 532026,
-    "failed_bytes": 162328,
-    "useful_event_bytes": 2026268,
-    "total_p2p_bytes": 2810829,
-    "transfers": 398,
-    "failed_transfers": 25
+    "efficiency": 0.7505,
+    "duplicate_ratio": 0.195,
+    "failure_ratio": 0.0545,
+    "useful_bytes": 2305076,
+    "duplicate_bytes": 598766,
+    "failed_bytes": 167374,
+    "useful_event_bytes": 2209332,
+    "total_p2p_bytes": 3071216,
+    "transfers": 420,
+    "failed_transfers": 26
   }
 }

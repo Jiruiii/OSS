@@ -154,10 +154,16 @@ function computeCrossManifestDiff(localDataset, remoteDataset, { datasetId, name
  * ordered CRITICAL > HIGH > NORMAL > LOW, then smallest-first within the
  * same priority so cheap wins land before one big transfer blocks everything.
  *
- * v0 always requests from offset 0 — resumable mid-chunk requests are a
- * stage 3 concern once TRANSFER framing exists.
+ * `offsets` carries how many bytes of a given chunk this node already holds
+ * from an earlier, interrupted contact, keyed by `chunk_id`. ADR-001 makes
+ * this the load-bearing capability rather than a nicety: at a measured
+ * 3.8-4.4 KB/s over BLE GATT, a single opportunistic contact window often
+ * cannot finish one chunk, so a REQUEST that always restarted at 0 would
+ * make no forward progress across contacts no matter how many times the
+ * two nodes met. A chunk already fully held is dropped from the REQUEST
+ * rather than re-requested with a zero-length range.
  */
-export function buildRequest(diff, { resume = true } = {}) {
+export function buildRequest(diff, { resume = true, offsets = {} } = {}) {
   const wanted = [...diff.missing_chunks, ...diff.stale_chunks];
 
   const chunks = [...wanted]
@@ -166,13 +172,22 @@ export function buildRequest(diff, { resume = true } = {}) {
       if (priorityDelta !== 0) return priorityDelta;
       return a.size_bytes - b.size_bytes;
     })
-    .map((chunk) => ({
-      chunk_id: chunk.chunk_id,
-      chunk_hash: chunk.chunk_hash,
-      priority: chunk.priority,
-      offset_bytes: 0,
-      max_bytes: chunk.size_bytes,
-    }));
+    .map((chunk) => {
+      const held = offsets[chunk.chunk_id] ?? 0;
+      if (!Number.isInteger(held) || held < 0 || held > chunk.size_bytes) {
+        throw new RangeError(
+          `offset for ${chunk.chunk_id} must be an integer within [0, ${chunk.size_bytes}], got ${held}`,
+        );
+      }
+      return {
+        chunk_id: chunk.chunk_id,
+        chunk_hash: chunk.chunk_hash,
+        priority: chunk.priority,
+        offset_bytes: held,
+        max_bytes: chunk.size_bytes - held,
+      };
+    })
+    .filter((chunk) => chunk.max_bytes > 0);
 
   const maxTotalBytes = chunks.reduce((sum, chunk) => sum + chunk.max_bytes, 0);
 

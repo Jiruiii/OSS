@@ -1,5 +1,5 @@
 {
-  "git_rev": "45443f2",
+  "git_rev": "d70d394",
   "key": "10-replication",
   "params": {
     "scenario_id": "neihu-meiyu-front-v1",
@@ -15,7 +15,7 @@
     "nodes": 10,
     "events": 500,
     "event_holdings": 5000,
-    "freshness_pairs": 4923
+    "freshness_pairs": 5000
   },
   "coverage": {
     "t_minutes": [
@@ -31,81 +31,81 @@
       20
     ],
     "curve": [
-      0.0648,
-      0.2362,
-      0.5792,
-      0.9382
+      0.0746,
+      0.3406,
+      0.7092,
+      0.9612
     ],
-    "final": 0.9846,
+    "final": 1,
     "strict_curve": [
       0,
       0,
       0,
-      0.3
+      0.4
     ],
-    "strict_final": 0.6,
+    "strict_final": 1,
     "relevant_curve": [
-      0.0648,
-      0.2362,
-      0.5792,
-      0.9382
+      0.0746,
+      0.3406,
+      0.7092,
+      0.9612
     ],
-    "relevant_final": 0.9846,
+    "relevant_final": 1,
     "per_round": [
       0.012,
-      0.0366,
-      0.0648,
-      0.087,
-      0.1118,
-      0.1406,
-      0.2362,
-      0.3246,
-      0.4194,
-      0.505,
-      0.5792,
-      0.6458,
-      0.705,
-      0.763,
-      0.8088,
-      0.8422,
-      0.8692,
-      0.8928,
-      0.9104,
-      0.9246,
-      0.9382,
-      0.9528,
-      0.966,
-      0.9846
+      0.0404,
+      0.0746,
+      0.094,
+      0.13,
+      0.19,
+      0.3406,
+      0.4764,
+      0.5998,
+      0.658,
+      0.7092,
+      0.768,
+      0.82,
+      0.8384,
+      0.8596,
+      0.8836,
+      0.8998,
+      0.9192,
+      0.9338,
+      0.9432,
+      0.9612,
+      0.9876,
+      1,
+      1
     ],
     "sample_event_holdings": 5000
   },
   "freshness": {
-    "p50_seconds": 270,
+    "p50_seconds": 240,
     "p95_seconds": 600,
-    "p50_minutes": 4.5,
+    "p50_minutes": 4,
     "p95_minutes": 10,
-    "applied_pairs": 4923,
-    "unreached_pairs": 77
+    "applied_pairs": 5000,
+    "unreached_pairs": 0
   },
   "cellular": {
-    "baseline_bytes": 5427842,
-    "actual_bytes": 1532968,
-    "savings": 0.7176,
-    "bytes_saved": 3894874,
+    "baseline_bytes": 5507420,
+    "actual_bytes": 1164485,
+    "savings": 0.7886,
+    "bytes_saved": 4342935,
     "baseline_full_bytes": 5507420,
-    "total_vs_full": 0.7217,
-    "server_fetches": 216
+    "total_vs_full": 0.7886,
+    "server_fetches": 168
   },
   "transfer": {
-    "efficiency": 0.7239,
-    "duplicate_ratio": 0.2149,
-    "failure_ratio": 0.0612,
-    "useful_bytes": 3894874,
-    "duplicate_bytes": 1156266,
-    "failed_bytes": 329230,
-    "useful_event_bytes": 3722787,
-    "total_p2p_bytes": 5380370,
-    "transfers": 780,
-    "failed_transfers": 51
+    "efficiency": 0.7236,
+    "duplicate_ratio": 0.2119,
+    "failure_ratio": 0.0645,
+    "useful_bytes": 4342935,
+    "duplicate_bytes": 1271578,
+    "failed_bytes": 386996,
+    "useful_event_bytes": 4154146,
+    "total_p2p_bytes": 6001509,
+    "transfers": 853,
+    "failed_transfers": 59
   }
 }
