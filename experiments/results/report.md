@@ -186,4 +186,3 @@ Emergency Mode 的實機耗電。不是模擬器輸出——這一項 system.md 
 失敗率是工程估計值，尚未由實機 spike 校準（見 `simulator/fixtures/sim-config.json` 的
 `transport_params_source`）。**Energy Cost 已用 Pixel 7 實機量測（見上方第 5 節，交錯 6 輪 × 60 筆），但只有單一機型、鄰居數固定為 1，且只涵蓋「持續發現」情境——目前的 Emergency Mode 服務不會自行建立 GATT 連線傳輸分片，實際同步時的耗電尚未量測**；這一節不是模擬器輸出的一部分。
 災情事件為虛構（真實 OSM 地物 + 合成事件），不代表任何真實災況。
-

@@ -1,6 +1,6 @@
 # ResilientGeo Mesh — 系統實作計畫
 
-> 進度更新（2026-09-04）：v0 資料契約與本機可信資料管線已完成；Demo 場域定為**台北市內湖區**，已導入真實 OSM 地理的可重播資料集與 `(area_id, theme)` 地理分片。下一步先完成「階段 0」的 Android 實機傳輸 Spike，再進入單機 App。資料源仍是可重播快照（OSM snapshot ＋ TDX-shaped 輸入），不是即時 API 資料。
+> 進度更新（2026-09-06）：v0 資料契約、本機可信資料管線與 Flutter 內湖地圖主畫面已完成。Android 保留 Room、事件驗證／TTL、版本控管、BLE 與 Emergency Mode；Flutter 提供 Google 線上地圖與 OSM 離線 fallback、地圖互動與三頁 app shell。資料源仍是版本化快照，不是即時災情 API 資料。
 
 ## 目前進度總覽
 
@@ -12,11 +12,11 @@
 | 階段 2：hash、Ed25519、Manifest、Chunk | 已完成 | `pipeline/` 可簽署與驗證完整 bundle，私鑰只由 server-side CLI 使用 |
 | 階段 2：安全測試 | 已完成 | Node 測試涵蓋竄改、版本 replay、TTL、incomplete chunk |
 | 真實資料源 | 尚未開始 | 目前沒有呼叫 TDX／CWA／NCDR 即時 API |
-| Android 驗證器與 App | 尚未開始 | 目前是 platform-neutral Node verifier，尚無 Android project、離線 DB 或地圖 UI |
+| Android 驗證器與 App | 進行中 | Android 驗證器、Room、BLE 與 Flutter map module 已整合；host debug APK／unit tests 已通過，尚待目標裝置的 Flutter 離線重啟與互動驗收 |
 | Android 實機傳輸 Spike | 已完成 | 兩台實機（Pixel 7 + Pixel 8a）比較 Nearby Connections（已否決，Google 側 INTERNAL_ERROR）、Wi-Fi Direct（已否決，TCP 傳輸層卡住）、BLE GATT（採用，discovery/連線/傳輸/斷點續傳皆驗證通過）。ADR-001 已定案，見 `docs/adr/ADR-001-transport-layer.md`；條件通過，pending 跨品牌相容性（見階段 0） |
-| Simulator／實驗報告 | 進行中 | `simulator/` 決定性模擬 10／20／50／100 節點 × 三策略 × 地理過濾；`experiments/` 有可重現的四指標報告（Coverage／Freshness／Cellular Savings／Transfer Efficiency）。傳輸參數待實機校準；Energy Cost 未建模 |
+| Simulator／實驗報告 | 進行中 | `simulator/` 決定性模擬 10／20／50／100 節點 × 三策略 × 地理過濾；`experiments/` 有可重現的四指標報告（Coverage／Freshness／Cellular Savings／Transfer Efficiency）。部分傳輸參數仍待實機校準；Energy Cost 已完成 Pixel 7 持續發現量測，但尚未涵蓋同步傳輸 |
 
-狀態證據：`npm test` 的 Node 測試（pipeline + simulator）全數通過（含地理分片、bbox 竄改偵測、生成器與模擬器決定性、`matrix --check` 位元比對、跨 manifest_id 的 DTN diff），`python -m unittest discover -s tests -v` 的 Python 測試 4 項通過；CLI 也已完成 keygen → build → verify 端到端測試（`demo-v136` 產生 22 個帶 area／theme 的已驗證分片）。正式 Android 驗簽、實機傳輸、真實來源接入與 Emergency Mode 實機耗電量測仍不能視為完成。
+狀態證據：`npm test` 的 Node 測試（pipeline + simulator）122 項全數通過；Python 測試 6 項全數通過，離線地圖資產驗證通過（5,804 features、1,035 tiles，zoom 12–17）；Flutter map module 已接上 Android Room／EventChannel，Google／OSM renderer 與三頁 shell 已完成；host `assembleDebug` 通過。`testDebugUnitTest` 的全量 Gradle 流程目前在 `geolocator_android` 外掛自身的 3 個 Mockito inline mock 測試失敗，原因是 JDK 21／Mockito agent 相容性警告後的外掛測試初始化，不是本專案測試程式碼；Google 線上地圖需 Android-restricted key 與實機網路，沒有 key 時的離線路徑可直接驗證。
 
 > 2026-09-05 修正：先前記錄的「16 項通過」是 pipeline 測試的舊數字，且當時 Windows checkout 出來的 `fixtures/neihu/*.json` 因 `core.autocrlf=true` 又沒有 `.gitattributes` 而帶 CRLF，跟決定性生成器輸出的 LF 逐位元組比對必然 MISMATCH——這是假失敗，不是生成器不決定性。根目錄 `.gitattributes`（`* text=auto eol=lf`）已修掉這個問題。
 
@@ -133,7 +133,7 @@ flowchart LR
 
 ### 階段 1：單機離線系統（第 1 週）
 
-- [x] 顯示一個測試區域的離線底圖。（`android/app/.../map/OfflineMapView.kt`，自繪向量圖，內湖區 bbox）
+- [x] 顯示一個測試區域的地圖。（線上使用 `google_maps_flutter` + Google Maps Android SDK；無網路／無 key 時使用 Flutter `flutter_map` + 版本化 raster tiles，內湖區 bbox；Android 舊有 `OfflineMapView` 保留但不在一般主畫面使用）
 - [x] 用本機資料庫保存事件、版本與到期時間。（Room：`data/EventEntity.kt`、`data/EventDao.kt`）
 - [x] 將測試事件套到地圖，清楚標示有效、過期與未驗證。（CURRENT/EXPIRED/UNVERIFIED 依 apply rules 上色）
 - [x] 完成 delta 套用及新版本覆蓋規則的單元測試。（Node pipeline 測試 + Android `EventIngestorTest`/`RoomEventStoreInstrumentedTest`，已對接 Android DB）
@@ -149,7 +149,7 @@ flowchart LR
 
 **通過條件**：合法資料可寫入；任一位元遭修改、版本倒退或 TTL 到期時，App 都不把它顯示為目前有效資料。
 
-**目前狀態**：資料管線與驗證規則已在 Node 測試中通過；因尚無 Android App，尚未宣告本階段的 App-level acceptance 通過。
+**目前狀態**：資料管線與驗證規則已在 Node／Android 原生測試中建立；Flutter 地圖只讀取 Android 已驗證事件，host debug APK 已建置並包含離線資料，正式 App-level 仍需目標裝置驗收。
 
 ### 階段 3：多機同步 Demo（第 3–4 週）
 
@@ -211,7 +211,8 @@ flowchart LR
 docs/                 決策紀錄、協定、實驗設計
 schemas/              Event、Manifest、Chunk schema
 pipeline/             資料擷取、正規化、分片、簽章
-android/              Android App、離線 GIS、Peer Sync（尚未建立）
+android/              Android Host、Room、事件驗證、BLE、Peer Sync
+flutter/              Flutter 地圖主畫面、離線 tiles、marker 與詳情面板
 simulator/            DTN／擴散模擬與情境設定（已建立）
 experiments/          原始結果、分析腳本與圖表（已建立）
 fixtures/             可重播的測試資料，不放正式私鑰
@@ -227,4 +228,15 @@ fixtures/             可重播的測試資料，不放正式私鑰
 
 完成標誌：不需要 App UI，也能用固定 fixture 清楚回答「哪筆資料更新、哪個 chunk 缺少、哪筆資料必須被拒絕」。
 
-**完成狀態（2026-09-02）**：上述資料契約、fixture、HELLO／DIFF／REQUEST 範例與 ADR 已完成；另已補上可產生真實 Ed25519 bundle 的本機 pipeline 與測試。下一個工作時段應優先處理階段 0 實機 Spike，而不是直接宣稱 Android MVP 完成。
+**完成狀態（2026-09-06）**：上述資料契約、fixture、HELLO／DIFF／REQUEST 範例、Android 原生資料層與 Flutter 內湖離線地圖已完成；Emergency Mode 的 Pixel 7 持續發現耗電量測已完成。多機同步協定接線、真實來源接入與同步傳輸耗電量測仍是後續工作。
+
+### Flutter 內湖離線地圖顯示契約
+
+- 線上 provider 由 `google_maps_flutter` 使用 Google Maps Android SDK；不預抓、不下載、不快取 Google tiles。未配置 key 或無網路時，MapCanvas 僅使用打包的 OSM asset tiles。
+- 使用者看到的縮放是 `0%` 到 `100%`：`0%` 代表內湖全區，`100%` 代表目前 provider 可用的街道最大細節；Google SDK 仍使用原生 numeric zoom level。
+- 首頁提供本機搜尋（醫療院所、避難所、道路），搜尋不呼叫 Places API；通知與個人頁籤由共用 app controller 提供。
+
+- 地圖 bbox 為 `[121.5519933, 25.0518603, 121.6286149, 25.1151519]`，以目前 OSM snapshot 的 5,774 條道路產生 zoom 12–17 離線 tiles；zoom 17 可縮放到街道線段。
+- 靜態快照為 `2026-09-04T17:58:15.942Z`，包含 26 個避難所與 4 個醫療院所。避難所的 `capacity` 是預計容量；目前收容人數沒有可靠資料，`available_count` 保持 JSON `null`，畫面顯示「無資料」，不補 0。
+- `flutter/assets/data/neihu/demo-events.json` 只提供展示用事件，畫面固定標示「模擬事件，非即時官方災情」；Android Room 事件則經由 `com.resilientgeo.mesh/events` 推送。
+- Flutter 與 Android 的橋接方法為 `getInitialState`、`loadBundledFixture`、`setEmergencyMode`，使用 `com.resilientgeo.mesh/map`；Flutter 不直接寫 Room，也不搬移信任驗證、TTL、版本控管或 BLE。

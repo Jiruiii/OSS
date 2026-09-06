@@ -1,0 +1,106 @@
+{
+  "schema_version": "event-v0",
+  "fixture_label": "模擬事件，非即時官方災情",
+  "fixture_sources": [
+    "data/fixtures/neihu/cwa-events.json",
+    "data/fixtures/neihu/ncdr-events.json",
+    "data/fixtures/neihu/update-sequence.json"
+  ],
+  "events": [
+    {
+      "namespace": "official.cwa",
+      "event_id": "demo:warning:001",
+      "event_version": 1,
+      "event_type": "HEAVY_RAIN_WARNING",
+      "severity": "HIGH",
+      "source": "CWA fixture",
+      "issued_at": "2026-09-04T00:20:00Z",
+      "expires_at": "2026-09-04T05:00:00Z",
+      "apply_state": "CURRENT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.58, 25.08]
+      },
+      "attributes": {
+        "area_id": "neihu.xihu",
+        "theme": "flood",
+        "status": "ACTIVE",
+        "coverage_level": "city"
+      }
+    },
+    {
+      "namespace": "official.tdx",
+      "event_id": "demo:road:382",
+      "event_version": 1,
+      "event_type": "ROAD_STATUS",
+      "severity": "HIGH",
+      "source": "TDX fixture",
+      "issued_at": "2026-09-04T00:10:00Z",
+      "expires_at": "2026-09-04T09:00:00Z",
+      "apply_state": "CURRENT",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [121.5952185, 25.0841055],
+          [121.5972202, 25.0845303],
+          [121.6005135, 25.0845461]
+        ]
+      },
+      "attributes": {
+        "area_id": "neihu.dahu",
+        "theme": "road",
+        "status": "OPEN",
+        "road_name": "成功路四段"
+      }
+    },
+    {
+      "namespace": "official.ncdr",
+      "event_id": "demo:flood:001",
+      "event_version": 1,
+      "event_type": "FLOOD_WARNING",
+      "severity": "CRITICAL",
+      "source": "NCDR fixture",
+      "issued_at": "2026-09-03T18:00:00.000Z",
+      "expires_at": "2026-09-03T19:00:00.000Z",
+      "apply_state": "CURRENT",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [121.57, 25.07],
+            [121.59, 25.07],
+            [121.59, 25.09],
+            [121.57, 25.09],
+            [121.57, 25.07]
+          ]
+        ]
+      },
+      "attributes": {
+        "area_id": "neihu",
+        "theme": "flood",
+        "affected_area": "臺北市內湖區",
+        "source_description": "內湖區淹水示警測試資料"
+      }
+    },
+    {
+      "namespace": "official.ncdr",
+      "event_id": "demo:expired:001",
+      "event_version": 1,
+      "event_type": "RAINFALL_WARNING",
+      "severity": "UNKNOWN",
+      "source": "NCDR fixture",
+      "issued_at": "2026-09-02T18:00:00.000Z",
+      "expires_at": "2026-09-02T19:00:00.000Z",
+      "apply_state": "EXPIRED",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.585, 25.075]
+      },
+      "attributes": {
+        "area_id": "neihu",
+        "theme": "rainfall",
+        "affected_area": "臺北市內湖區"
+      }
+    }
+  ]
+}

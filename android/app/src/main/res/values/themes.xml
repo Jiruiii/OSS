@@ -3,18 +3,10 @@
 
     <style name="Theme.ResilientGeoMesh" parent="android:Theme.Material.Light.NoActionBar" />
 
-    <!--
-      Module B's MainActivity uses AppCompatActivity + Material Components
-      views (RecyclerView, Toast styling, etc.), which require a
-      Theme.AppCompat/MaterialComponents-derived theme — the app-level
-      Theme.ResilientGeoMesh above extends the plain platform theme instead,
-      because BleSpikeActivity (a bare ComponentActivity) doesn't need
-      AppCompat. This activity-scoped override keeps both requirements
-      without forcing one activity's theme choice onto the other.
-    -->
-    <style name="Theme.ResilientGeoMesh.OfflineGis" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="colorPrimary">#1565C0</item>
-        <item name="colorPrimaryDark">#0D47A1</item>
-        <item name="colorAccent">#4FC3F7</item>
+    <!-- Native starting window shown while the Flutter engine initializes. -->
+    <style name="Theme.ResilientGeoMesh.OfflineGis" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/map_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/resilientgeo_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.ResilientGeoMesh</item>
     </style>
 </resources>

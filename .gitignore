@@ -28,6 +28,10 @@ __pycache__/
 # this line android/app/.idea/workspace.xml ended up tracked and the
 # rest of that directory sat permanently untracked in git status.
 /android/app/.idea/
+# Android Studio may also create a workspace when the repository root is opened.
+/.idea/
+# Playwright CLI snapshots are local verification artifacts.
+/.playwright-cli/
 /android/local.properties
 /android/build/
 /android/*/build/
@@ -37,3 +41,4 @@ __pycache__/
 
 # Local scratch notes, not shared with the team.
 /docs/jia-task-sequence.md
+/.superpowers/

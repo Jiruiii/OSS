@@ -1,13 +1,63 @@
+import java.io.File
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.ksp)
 }
 
+val splashResDir = layout.buildDirectory.dir("generated/res/splash/main")
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+
+if (localPropertiesFile.isFile) {
+    localPropertiesFile.inputStream().use(localProperties::load)
+}
+
+fun readDotEnv(file: File): Properties {
+    val properties = Properties()
+    if (!file.isFile) return properties
+
+    file.forEachLine { rawLine ->
+        val line = rawLine.trim()
+        if (line.isEmpty() || line.startsWith("#")) return@forEachLine
+        val assignment = line.removePrefix("export ").trim()
+        val separator = assignment.indexOf('=')
+        if (separator <= 0) return@forEachLine
+
+        val name = assignment.substring(0, separator).trim()
+        var value = assignment.substring(separator + 1).trim()
+        if (value.length >= 2 &&
+            value.first() == value.last() &&
+            (value.first() == '\'' || value.first() == '"')
+        ) {
+            value = value.substring(1, value.length - 1)
+        }
+        properties.setProperty(name, value)
+    }
+    return properties
+}
+
+// The repository-root .env is ignored by git and is convenient for Android
+// Studio users. Never print these values or copy them into Flutter assets.
+val dotEnv = readDotEnv(rootProject.file("../.env"))
+
+// A shell/CI environment value wins over the ignored developer-local file.
+// Empty is intentional: the Flutter renderer detects it and keeps the OSM
+// asset map available when a Google Maps key has not been configured yet.
+val googleMapsApiKey = System.getenv("GOOGLE_MAPS_API_KEY")
+    ?.trim()
+    .takeUnless { it.isNullOrEmpty() }
+    ?: localProperties.getProperty("GOOGLE_MAPS_API_KEY")?.trim().orEmpty()
+        .takeUnless { it.isEmpty() }
+    ?: dotEnv.getProperty("GOOGLE_MAPS_API_KEY")?.trim().orEmpty()
+
 android {
     namespace = "com.resilientgeo.mesh"
-    compileSdk {
-        version = release(37)
-    }
+    // AGP 8.7.3 (the Flutter 3.29.2 plugin baseline) is tested through API
+    // 35 on this checkout; targetSdk can remain newer independently.
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.resilientgeo.mesh"
@@ -15,15 +65,14 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = googleMapsApiKey
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            optimization {
-                enable = false
-            }
+            isMinifyEnabled = false
         }
     }
 
@@ -35,15 +84,12 @@ android {
         // needed for the trust adapter's Instant-based timestamp parsing.
     }
 
-    // No separate `kotlinOptions { jvmTarget = ... }` block: that DSL came
-    // from the org.jetbrains.kotlin.android plugin, which this project
-    // doesn't apply (see build.gradle.kts). Built-in Kotlin derives the
-    // Kotlin compile target from compileOptions above instead — confirmed
-    // by actually running ./gradlew here ("Unresolved reference
-    // 'kotlinOptions'" once kotlin.android was removed).
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17.toString()
+    }
 
     buildFeatures {
-        // Views + ViewBinding for the offline-GIS screen (module B). Compose
+        // Views + ViewBinding for the native support screens (module B). Compose
         // was dropped: the only place it was used was the placeholder
         // "Hello Android" MainActivity this replaces — BleSpikeActivity
         // (module C's Stage 0 spike) was always a plain ComponentActivity
@@ -51,6 +97,8 @@ android {
         // dependencies if a future screen genuinely wants Compose.
         viewBinding = true
     }
+
+    sourceSets["main"].res.srcDir(splashResDir)
 
     testOptions {
         unitTests {
@@ -61,7 +109,10 @@ android {
 }
 
 dependencies {
+    implementation(project(":flutter"))
+
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.material)
     implementation(libs.androidx.recyclerview)
@@ -96,4 +147,14 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.room.testing)
+}
+
+val copySplashLogo = tasks.register<Copy>("copySplashLogo") {
+    from(project.file("../../flutter/assets/Logo.png"))
+    into(splashResDir.map { it.dir("drawable-nodpi") })
+    rename { "resilientgeo_logo.png" }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(copySplashLogo)
 }
