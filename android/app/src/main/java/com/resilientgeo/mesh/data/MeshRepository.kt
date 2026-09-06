@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -25,6 +26,19 @@ class MeshRepository(context: Context) {
     private val db = AppDatabase.get(appContext)
     private val store = RoomEventStore(db.eventDao())
     private val chunkDao = db.chunkDao()
+
+    /**
+     * Raw bytes of every verified chunk this node holds, keyed by
+     * (datasetId, namespace, chunkId) — separate from [ChunkEntity], which
+     * deliberately only records metadata (see its doc comment). Automatic
+     * relaying needs both: a node must be able to describe what it has
+     * (ChunkEntity) *and* actually hand the bytes to the next peer that asks
+     * (this cache) — without it, a relay can advertise a chunk in HELLO but
+     * has nothing to send when REQUESTed for it.
+     */
+    private val chunkCacheDir: File by lazy {
+        File(appContext.filesDir, "chunk-cache").apply { mkdirs() }
+    }
 
     private val trustStore: TrustedKeyStore by lazy {
         val json = appContext.assets.open(TRUSTED_KEYS_ASSET).bufferedReader().use { it.readText() }
@@ -69,6 +83,7 @@ class MeshRepository(context: Context) {
                 // after verification passes, so the inventory can never
                 // advertise a chunk that failed the trust check.
                 chunkDao.upsertSync(chunk.toChunkEntity(now))
+                cacheChunkBytes(chunk)
                 ChunkIngestResult.Applied(results)
             }
         }
@@ -97,7 +112,51 @@ class MeshRepository(context: Context) {
         fallbackManifestId: String,
         fallbackDatasetVersion: Int,
     ): JSONObject = withContext(Dispatchers.IO) {
-        val now = Instant.now()
+        val dataset = buildDatasetJson(datasetId, namespace, fallbackManifestId, fallbackDatasetVersion)
+        peerSummaryEnvelope(nodeId, JSONArray().put(dataset))
+    }
+
+    /**
+     * Same HELLO shape as [localPeerSummary], but covering every dataset this
+     * node actually holds anything for, rather than one hardcoded pair.
+     *
+     * This is what makes automatic sync (`AutoPeerSyncEngine`) able to relay
+     * more than the single demo dataset: [localPeerSummary] was built for the
+     * two-device Peer Sync milestone, where the dataset/namespace pair to
+     * describe was chosen on screen by a human. Automatic sync has no such
+     * moment and no advance knowledge of what a stranger might be carrying,
+     * so it needs a HELLO that enumerates this node's *entire* inventory —
+     * plus [KNOWN_DATASETS], so a brand-new node with zero chunks still
+     * advertises "I have nothing for this dataset" rather than omitting it
+     * (an omitted dataset and "I have zero chunks of it" are not the same
+     * claim: only the latter tells a peer there is something to send).
+     */
+    suspend fun allLocalPeerSummaries(nodeId: String): JSONObject = withContext(Dispatchers.IO) {
+        val heldPairs = chunkDao.allSync().map { it.datasetId to it.namespace }.distinct()
+        val seen = mutableSetOf<Pair<String, String>>()
+        val datasets = JSONArray()
+
+        for (known in KNOWN_DATASETS) {
+            datasets.put(buildDatasetJson(known.datasetId, known.namespace, known.fallbackManifestId, known.fallbackDatasetVersion))
+            seen += known.datasetId to known.namespace
+        }
+        for ((datasetId, namespace) in heldPairs) {
+            if (!seen.add(datasetId to namespace)) continue
+            // No fallback needed here: `held` for a pair reached only via
+            // heldPairs is guaranteed non-empty, so buildDatasetJson always
+            // finds a `newest` chunk and never falls back.
+            datasets.put(buildDatasetJson(datasetId, namespace, fallbackManifestId = "unknown", fallbackDatasetVersion = 0))
+        }
+
+        peerSummaryEnvelope(nodeId, datasets)
+    }
+
+    private fun buildDatasetJson(
+        datasetId: String,
+        namespace: String,
+        fallbackManifestId: String,
+        fallbackDatasetVersion: Int,
+    ): JSONObject {
         val held = chunkDao.forDatasetSync(datasetId, namespace)
         val newest = held.maxByOrNull { it.datasetVersion }
 
@@ -114,26 +173,78 @@ class MeshRepository(context: Context) {
                 )
             }
 
-        val dataset = JSONObject()
+        return JSONObject()
             .put("dataset_id", datasetId)
             .put("namespace", namespace)
             .put("manifest_id", newest?.manifestId ?: fallbackManifestId)
             .put("dataset_version", newest?.datasetVersion ?: fallbackDatasetVersion)
             .put("chunks", chunks)
+    }
 
-        // Every field `schemas/peer-summary-v0.schema.json` marks required.
-        // The hand-written summaries this replaced carried only
-        // schema_version/node_id/datasets, so the HELLO actually going over
-        // the air did not conform to the schema the project publishes as its
-        // module interface — and nothing noticed, because the parser only
-        // reads node_id and datasets.
-        JSONObject()
+    // Every field `schemas/peer-summary-v0.schema.json` marks required. The
+    // hand-written summaries this replaced carried only
+    // schema_version/node_id/datasets, so the HELLO actually going over the
+    // air did not conform to the schema the project publishes as its module
+    // interface — and nothing noticed, because the parser only reads
+    // node_id and datasets.
+    private fun peerSummaryEnvelope(nodeId: String, datasets: JSONArray): JSONObject {
+        val now = Instant.now()
+        return JSONObject()
             .put("schema_version", "peer-summary-v0")
             .put("protocol_version", "0")
             .put("node_id", nodeId)
             .put("generated_at", DateTimeFormatter.ISO_INSTANT.format(now.truncatedTo(ChronoUnit.SECONDS)))
             .put("capabilities", capabilities())
-            .put("datasets", JSONArray().put(dataset))
+            .put("datasets", datasets)
+    }
+
+    /**
+     * Bytes of a chunk this node has already verified and cached, for
+     * serving a peer's REQUEST. Returns null both when this node never held
+     * the chunk and when it aged out of [CHUNK_CACHE_CAP_BYTES] — either way
+     * the caller's correct response is "I don't have it", never a crash.
+     */
+    suspend fun cachedChunkJson(datasetId: String, namespace: String, chunkId: String): JSONObject? =
+        withContext(Dispatchers.IO) {
+            val file = chunkCacheFile(datasetId, namespace, chunkId)
+            if (!file.isFile) null else JSONObject(file.readText())
+        }
+
+    private fun cacheChunkBytes(chunk: JSONObject) {
+        val file = chunkCacheFile(
+            datasetId = chunk.getString("dataset_id"),
+            namespace = chunk.getString("namespace"),
+            chunkId = chunk.getString("chunk_id"),
+        )
+        file.writeText(chunk.toString())
+        evictChunkCacheIfOverCap()
+    }
+
+    private fun chunkCacheFile(datasetId: String, namespace: String, chunkId: String): File =
+        File(chunkCacheDir, safeCacheFileName(datasetId, namespace, chunkId))
+
+    /** chunk_id values contain ':' (e.g. "resilientgeo-demo:chunk:136:dahu:shelter:000"), not filesystem-safe on every target. */
+    private fun safeCacheFileName(datasetId: String, namespace: String, chunkId: String): String =
+        listOf(datasetId, namespace, chunkId).joinToString(separator = "__") { part ->
+            part.map { c -> if (c.isLetterOrDigit() || c == '-' || c == '.') c else '_' }.joinToString("")
+        } + ".json"
+
+    /**
+     * Oldest-first eviction once the cache exceeds [CHUNK_CACHE_CAP_BYTES].
+     * The Neihu-scale dataset ADR-001 measured tops out around 46.6 KB for
+     * its single largest chunk with 183 chunks total — comfortably under this
+     * cap, so it is headroom rather than a real constraint at v0 scale, kept
+     * as an explicit number so it doesn't grow unbounded at a larger scale.
+     */
+    private fun evictChunkCacheIfOverCap() {
+        val files = chunkCacheDir.listFiles()?.sortedBy { it.lastModified() } ?: return
+        var total = files.sumOf { it.length() }
+        var index = 0
+        while (total > CHUNK_CACHE_CAP_BYTES && index < files.size) {
+            total -= files[index].length()
+            files[index].delete()
+            index++
+        }
     }
 
     /**
@@ -180,10 +291,35 @@ class MeshRepository(context: Context) {
          */
         private const val MAX_CHUNK_BYTES = 1048576
 
+        /** Total on-disk size [evictChunkCacheIfOverCap] will keep the chunk-bytes cache under. */
+        private const val CHUNK_CACHE_CAP_BYTES = 8L * 1024 * 1024
+
+        /**
+         * Datasets [allLocalPeerSummaries] always declares even with zero
+         * chunks held, so a fresh node's HELLO says "I have nothing for
+         * this" instead of omitting it — matching the identity the Peer
+         * Sync milestone demo hardcoded (`PeerSyncMilestoneActivity`).
+         */
+        private val KNOWN_DATASETS = listOf(
+            KnownDataset(
+                datasetId = "resilientgeo-demo",
+                namespace = "official",
+                fallbackManifestId = "resilientgeo-demo:manifest:136",
+                fallbackDatasetVersion = 136,
+            ),
+        )
+
         private const val FIXTURE_ASSET = "fixtures/signed-events.json"
         private const val TRUSTED_KEYS_ASSET = "trust/trusted-keys.json"
     }
 }
+
+private data class KnownDataset(
+    val datasetId: String,
+    val namespace: String,
+    val fallbackManifestId: String,
+    val fallbackDatasetVersion: Int,
+)
 
 sealed class ChunkIngestResult {
     data class Applied(val eventResults: List<IngestResult>) : ChunkIngestResult()
