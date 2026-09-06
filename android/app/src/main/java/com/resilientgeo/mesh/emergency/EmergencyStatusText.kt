@@ -22,10 +22,16 @@ object EmergencyStatusText {
      *
      * e.g. `contentText(5, 0, true)` -> "Scanning for peers — none nearby · alive 5s",
      * `contentText(65, 2, true)` -> "2 peers nearby · alive 1m 05s".
+     *
+     * [chunksSynced] is omitted from the text entirely when zero — before
+     * the first successful automatic sync this line would otherwise read
+     * "0 chunks synced" next to every other state, which tells a user in a
+     * disaster nothing they can act on.
      */
-    fun contentText(aliveSeconds: Long, peers: Int = 0, discoveryActive: Boolean = true): String {
+    fun contentText(aliveSeconds: Long, peers: Int = 0, discoveryActive: Boolean = true, chunksSynced: Int = 0): String {
         require(aliveSeconds >= 0) { "aliveSeconds must not be negative: $aliveSeconds" }
         require(peers >= 0) { "peers must not be negative: $peers" }
+        require(chunksSynced >= 0) { "chunksSynced must not be negative: $chunksSynced" }
 
         val minutes = aliveSeconds / 60
         val seconds = aliveSeconds % 60
@@ -37,6 +43,7 @@ object EmergencyStatusText {
             peers == 1 -> "1 peer nearby"
             else -> "$peers peers nearby"
         }
-        return "$status · alive $elapsed"
+        val syncSuffix = if (chunksSynced > 0) " · $chunksSynced chunks synced" else ""
+        return "$status · alive $elapsed$syncSuffix"
     }
 }

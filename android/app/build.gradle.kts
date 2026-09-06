@@ -142,6 +142,10 @@ dependencies {
     // plain JUnit; pull in the real implementation for the trust-adapter
     // and apply-rule unit tests, which don't need a device.
     testImplementation(libs.json.org)
+    // runTest/virtual time for AutoPeerSyncEngineTest, which drives two
+    // in-memory engines through connect/HELLO/REQUEST/TRANSFER timeouts
+    // without a real device or real wall-clock waits.
+    testImplementation(libs.kotlinx.coroutines.test)
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

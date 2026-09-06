@@ -13,6 +13,13 @@ interface PeerTransport {
     /** Start advertising + scanning. Emits a PeerAdvertisement each time a peer is (re)seen. */
     fun discover(): kotlinx.coroutines.flow.Flow<PeerAdvertisement>
 
+    /**
+     * Every fully-received message from any peer, as (peerId, payload bytes).
+     * A hot flow safe for a single long-lived collector — unlike [discover],
+     * collecting it does not itself start or restart any radio operation.
+     */
+    val receivedMessages: kotlinx.coroutines.flow.SharedFlow<Pair<String, ByteArray>>
+
     /** Open a connection to a previously discovered peer. */
     suspend fun connect(peerId: String): Connection
 

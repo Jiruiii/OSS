@@ -71,4 +71,27 @@ class EmergencyStatusTextTest {
             EmergencyStatusText.contentText(5, peers = -1)
         }
     }
+
+    @Test
+    fun `omits the synced-chunks suffix when nothing has synced yet`() {
+        assertEquals(
+            "1 peer nearby · alive 10s",
+            EmergencyStatusText.contentText(10, peers = 1, chunksSynced = 0),
+        )
+    }
+
+    @Test
+    fun `appends the synced-chunks count once something has synced`() {
+        assertEquals(
+            "1 peer nearby · alive 10s · 4 chunks synced",
+            EmergencyStatusText.contentText(10, peers = 1, chunksSynced = 4),
+        )
+    }
+
+    @Test
+    fun `rejects a negative synced-chunks count`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            EmergencyStatusText.contentText(5, chunksSynced = -1)
+        }
+    }
 }
