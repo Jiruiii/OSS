@@ -38,7 +38,7 @@ void main() {
     expect(event.isExpired, isTrue);
   });
 
-  testWidgets('tapping a shelter opens its details with unknown occupancy', (
+  testWidgets('tapping a shelter opens its details with occupancy', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -51,7 +51,7 @@ void main() {
 
     expect(find.text('潭美國小'), findsOneWidget);
     expect(find.text('預計收容人數：81人'), findsOneWidget);
-    expect(find.text('目前收容人數：無資料'), findsOneWidget);
+    expect(find.text('收容人數：34人'), findsOneWidget);
     expect(find.text('來源：taipei-shelter'), findsOneWidget);
     expect(find.text('快照：2026-09-05T00:00:00Z'), findsOneWidget);
   });
@@ -108,7 +108,7 @@ void main() {
 
     await tester.tap(find.text('潭美國小'));
     await tester.pumpAndSettle();
-    expect(find.text('目前收容人數：無資料'), findsOneWidget);
+    expect(find.text('收容人數：34人'), findsOneWidget);
   });
 
   testWidgets('layer panel can hide the event layer', (tester) async {
@@ -144,7 +144,7 @@ void main() {
 
     await tester.tap(find.text('潭美國小'));
     await tester.pump();
-    expect(find.text('目前收容人數：無資料'), findsOneWidget);
+    expect(find.text('收容人數：34人'), findsOneWidget);
   });
 }
 

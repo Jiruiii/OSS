@@ -32,6 +32,10 @@ class MapAppController extends ChangeNotifier {
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   final List<Timer> _startupDemoEventTimers = <Timer>[];
   final Set<String> _readEventKeys = <String>{};
+  // Demo events intentionally use fixed IDs so the replay is deterministic.
+  // Keep their read state in this process only; otherwise a previous demo run
+  // would make the next 10/30/50-second notification replay disappear.
+  final Set<String> _sessionReadDemoEventKeys = <String>{};
   StaticFeatureCollection? staticFeatures;
   List<MeshEvent> demoEvents = const <MeshEvent>[];
   List<MeshEvent> persistedEvents = const <MeshEvent>[];
@@ -65,7 +69,12 @@ class MapAppController extends ChangeNotifier {
   }
 
   List<MeshEvent> get unreadEvents => events
-      .where((event) => !_readEventKeys.contains(meshEventIdentity(event)))
+      .where((event) {
+        final key = meshEventIdentity(event);
+        final readKeys =
+            _isDemoEvent(event) ? _sessionReadDemoEventKeys : _readEventKeys;
+        return !readKeys.contains(key);
+      })
       .toList(growable: false);
 
   int get notificationCount => unreadEvents.length;
@@ -237,7 +246,13 @@ class MapAppController extends ChangeNotifier {
   }
 
   Future<void> markEventRead(MeshEvent event) async {
-    if (!_readEventKeys.add(meshEventIdentity(event))) return;
+    final key = meshEventIdentity(event);
+    if (_isDemoEvent(event)) {
+      if (!_sessionReadDemoEventKeys.add(key)) return;
+      _notifyIfAlive();
+      return;
+    }
+    if (!_readEventKeys.add(key)) return;
     _notifyIfAlive();
     final preferences = await SharedPreferences.getInstance();
     final sortedKeys = _readEventKeys.toList()..sort();
@@ -275,6 +290,11 @@ class MapAppController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 }
+
+bool _isDemoEvent(MeshEvent event) =>
+    event.namespace?.startsWith('demo.') == true ||
+    event.eventId?.startsWith('demo:') == true ||
+    event.attributes?['is_demo'] == true;
 
 bool _hasNetwork(List<ConnectivityResult> results) =>
     results.any((result) => result != ConnectivityResult.none);

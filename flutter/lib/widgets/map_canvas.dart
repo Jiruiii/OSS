@@ -168,14 +168,11 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   Timer? _pulseStartTimer;
   Timer? _pulseStopTimer;
   GeoPoint? _pendingEventFocus;
-  GeoPoint? _pendingRadarStartPoint;
   GeoPoint? _radarEventPoint;
   bool _pendingEventAnimated = true;
   bool _offlineMapReady = false;
   bool _radarVisible = false;
   bool _programmaticGoogleCameraMove = false;
-  bool _googleRadarPositionRequestInFlight = false;
-  bool _googleRadarPositionRefreshQueued = false;
 
   MapProviderMode _providerFor(MapCanvas canvas) => MapCanvas.resolveProvider(
     requestedMode: canvas.runtimeState.providerMode,
@@ -363,13 +360,9 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     }
     _pulseStartTimer?.cancel();
     _pulseStopTimer?.cancel();
-    if (_activeProvider == MapProviderMode.googleOnline) {
-      // Google reports the end of animateCamera through onCameraIdle.
-      _pendingRadarStartPoint = focus;
-      return;
-    }
-    // flutter_map's raw animation has no completion Future, so its exact
-    // configured duration is the completion callback for the Demo focus.
+    // Both renderers use the same configured camera animation duration. This
+    // keeps the Demo radar reliable even when a Google platform view does not
+    // emit its camera-idle callback during a short programmatic move.
     _pulseStartTimer = Timer(_focusAnimationDuration, () {
       if (mounted) unawaited(_showRadarAndStop(focus));
     });
@@ -398,7 +391,6 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     _pulseStartTimer = null;
     _pulseStopTimer?.cancel();
     _pulseStopTimer = null;
-    _pendingRadarStartPoint = null;
     _pulseController.stop();
     _radarEventPoint = null;
     _radarScreenPosition.value = null;
@@ -486,10 +478,6 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   }
 
   void _onGoogleCameraMove(google.CameraPosition position) {
-    final radarPoint = _radarEventPoint;
-    if (radarPoint != null) {
-      unawaited(_updateRadarScreenPosition(radarPoint));
-    }
     if (_programmaticGoogleCameraMove) return;
     final percentage = ZoomPercentage.fromZoom(
       zoom: position.zoom,
@@ -503,38 +491,9 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
 
   Future<bool> _updateRadarScreenPosition(GeoPoint point) async {
     if (_activeProvider == MapProviderMode.googleOnline) {
-      final controller = _googleController;
-      if (controller == null) return false;
-      if (_googleRadarPositionRequestInFlight) {
-        _googleRadarPositionRefreshQueued = true;
-        return _radarScreenPosition.value != null;
-      }
-      _googleRadarPositionRequestInFlight = true;
-      try {
-        final screenPoint = await controller.getScreenCoordinate(
-          google.LatLng(point.latitude, point.longitude),
-        );
-        if (!mounted || _radarEventPoint != point) return false;
-        // Google Maps Android reports the projection in physical pixels;
-        // Flutter overlays are laid out in logical pixels.
-        final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
-        _radarScreenPosition.value = Offset(
-          screenPoint.x / devicePixelRatio,
-          screenPoint.y / devicePixelRatio,
-        );
-        return true;
-      } on Object {
-        return false;
-      } finally {
-        _googleRadarPositionRequestInFlight = false;
-        if (_googleRadarPositionRefreshQueued && mounted) {
-          _googleRadarPositionRefreshQueued = false;
-          final latestPoint = _radarEventPoint;
-          if (latestPoint != null) {
-            unawaited(_updateRadarScreenPosition(latestPoint));
-          }
-        }
-      }
+      // Google uses native Circle overlays, so it does not need a Flutter
+      // screen projection for the radar.
+      return true;
     }
     if (!_offlineMapReady) return false;
     final camera = _offlineController.camera;
@@ -568,7 +527,9 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       fit: StackFit.expand,
       children: <Widget>[
         map,
-        if (_animationsAllowed && _radarVisible)
+        if (_activeProvider == MapProviderMode.offline &&
+            _animationsAllowed &&
+            _radarVisible)
           Positioned.fill(
             child: ValueListenableBuilder<Offset?>(
               valueListenable: _radarScreenPosition,
@@ -610,6 +571,13 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
 
   Widget _buildGoogleMap() {
     _startGoogleMapWatchdog();
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, _) => _buildGoogleMapFrame(_pulseController.value),
+    );
+  }
+
+  Widget _buildGoogleMapFrame(double radarProgress) {
     final overlays = GoogleMapLayers.build(
       features: widget.staticFeatures,
       events: widget.visibleEvents,
@@ -620,8 +588,11 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       onEventSelected: widget.onEventSelected,
       markerIcons: _googleMarkerIcons,
       currentLocation: widget.runtimeState.currentLocation,
+      radarPoint: _radarVisible ? _radarEventPoint : null,
+      radarProgress: radarProgress,
     );
     final platformMap = google.GoogleMap(
+      key: const ValueKey<String>('google-map-platform-view'),
       initialCameraPosition: google.CameraPosition(
         target: const google.LatLng(
           MapDefaults.demoLatitude,
@@ -656,15 +627,6 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       onCameraMove: _onGoogleCameraMove,
       onCameraIdle: () {
         _programmaticGoogleCameraMove = false;
-        final radarPoint = _radarEventPoint;
-        if (radarPoint != null) {
-          unawaited(_updateRadarScreenPosition(radarPoint));
-        }
-        final pendingRadarPoint = _pendingRadarStartPoint;
-        if (pendingRadarPoint != null) {
-          _pendingRadarStartPoint = null;
-          unawaited(_showRadarAndStop(pendingRadarPoint));
-        }
       },
       onTap: (_) => widget.onMapTap(),
     );

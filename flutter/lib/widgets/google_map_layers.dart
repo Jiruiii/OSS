@@ -26,6 +26,8 @@ class GoogleMapLayers {
     required MeshEventSelection onEventSelected,
     GeoPoint? currentLocation,
     GoogleMarkerIcons? markerIcons,
+    GeoPoint? radarPoint,
+    double radarProgress = 0,
   }) {
     final visibleFacilities = features
         .where((feature) {
@@ -65,7 +67,7 @@ class GoogleMapLayers {
               .where((event) => event.geometry is PolygonGeometry)
               .map((event) => _eventPolygon(event, onEventSelected))
               .toSet(),
-      circles: const <google.Circle>{},
+      circles: _radarCircles(radarPoint, radarProgress),
     );
   }
 
@@ -175,6 +177,21 @@ class GoogleMapLayers {
       consumeTapEvents: true,
       onTap: () => onSelected(event),
     );
+  }
+
+  static Set<google.Circle> _radarCircles(GeoPoint? point, double progress) {
+    if (point == null) return const <google.Circle>{};
+    return <google.Circle>{
+      for (var index = 0; index < 3; index += 1)
+        google.Circle(
+          circleId: google.CircleId('radar-$index'),
+          center: _latLng(point),
+          radius: 8 + (((progress + (index / 3)) % 1) * 160),
+          fillColor: const Color(0xFFD32F2F).withValues(alpha: 0.08),
+          strokeColor: const Color(0xFFD32F2F).withValues(alpha: 0.72),
+          strokeWidth: 2,
+        ),
+    };
   }
 
   static google.LatLng _eventFocus(MeshEvent event) {
