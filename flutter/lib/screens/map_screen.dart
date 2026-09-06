@@ -73,6 +73,7 @@ class _MapScreenState extends State<MapScreen> {
   );
   MapSearchResult? _searchSelection;
   GeoPoint? _focusPoint;
+  int _focusRequestId = 0;
   String _searchText = '';
 
   @override
@@ -336,18 +337,13 @@ class _MapScreenState extends State<MapScreen> {
     _selectedEvent = null;
     _searchText = '';
     _searchController.clear();
+    _focusRequestId += 1;
   });
 
-  Future<void> _requestCurrentLocation() async {
-    final location = await _locationController.requestCurrentLocation();
-    if (!mounted) return;
-    if (location == null) {
-      _showMessage('無法取得目前位置，請確認定位服務與權限');
-      return;
-    }
+  void _focusDemoCurrentLocation() {
     setState(() {
-      _focusPoint = location;
-      _runtimeState = _runtimeState.copyWith(currentLocation: location);
+      _focusPoint = MapDefaults.demoCurrentLocation;
+      _focusRequestId += 1;
     });
   }
 
@@ -379,10 +375,11 @@ class _MapScreenState extends State<MapScreen> {
             onEventSelected: _showEvent,
             onZoomPercentageChanged: _setZoomPercentage,
             onOpenLayerSettings: _openLayerPanel,
-            onRequestLocation: _requestCurrentLocation,
+            onRequestLocation: _focusDemoCurrentLocation,
             onMapTap: _closeDetails,
             searchSelection: _searchSelection,
             focusPoint: _focusPoint,
+            focusRequestId: _focusRequestId,
             networkAvailable: widget.networkAvailable,
             configuredGoogleMapsKey: widget.configuredGoogleMapsKey,
           ),

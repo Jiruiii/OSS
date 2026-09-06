@@ -4,9 +4,14 @@ import '../data/map_models.dart';
 import '../widgets/map_layers.dart';
 
 class NotificationsScreen extends StatelessWidget {
-  const NotificationsScreen({super.key, required this.events});
+  const NotificationsScreen({
+    super.key,
+    required this.events,
+    required this.onEventRead,
+  });
 
   final List<MeshEvent> events;
+  final ValueChanged<MeshEvent> onEventRead;
 
   @override
   Widget build(BuildContext context) {
@@ -14,37 +19,43 @@ class NotificationsScreen extends StatelessWidget {
       ..sort((a, b) => (b.issuedAt ?? '').compareTo(a.issuedAt ?? ''));
     return Scaffold(
       appBar: AppBar(title: const Text('通知')),
-      body: sorted.isEmpty
-          ? const Center(child: Text('目前沒有事件通知'))
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              itemCount: sorted.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, index) => _EventCard(event: sorted[index]),
-            ),
+      body:
+          sorted.isEmpty
+              ? const Center(child: Text('目前沒有事件通知'))
+              : ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                itemCount: sorted.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder:
+                    (context, index) => _EventCard(
+                      event: sorted[index],
+                      onTap: () => onEventRead(sorted[index]),
+                    ),
+              ),
     );
   }
 }
 
 class _EventCard extends StatelessWidget {
-  const _EventCard({required this.event});
+  const _EventCard({required this.event, required this.onTap});
 
   final MeshEvent event;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final demo = event.namespace?.startsWith('demo') == true ||
+    final demo =
+        event.namespace?.startsWith('demo') == true ||
         event.source?.toLowerCase() == 'demo';
     final title = eventName(event);
     return Card(
       child: ListTile(
+        onTap: onTap,
         leading: DecoratedBox(
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outline,
-            ),
+            border: Border.all(color: Theme.of(context).colorScheme.outline),
           ),
           child: SizedBox(
             width: 44,

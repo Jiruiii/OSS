@@ -38,6 +38,7 @@ class MapCanvas extends StatefulWidget {
     this.onRecenter,
     this.searchSelection,
     this.focusPoint,
+    this.focusRequestId = 0,
     this.networkAvailable = false,
     this.configuredGoogleMapsKey = compileTimeGoogleMapsKey,
     this.googleMapBuilder,
@@ -72,6 +73,7 @@ class MapCanvas extends StatefulWidget {
   final VoidCallback? onRecenter;
   final MapSearchResult? searchSelection;
   final GeoPoint? focusPoint;
+  final int focusRequestId;
   final bool networkAvailable;
   final String configuredGoogleMapsKey;
   final GoogleMapBuilder? googleMapBuilder;
@@ -95,17 +97,50 @@ class MapCanvas extends StatefulWidget {
 
 class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   static const _googleMapCreationTimeout = Duration(seconds: 4);
+  static const _focusAnimationDuration = Duration(milliseconds: 650);
   static const ColorFilter _lightOsmTileFilter = ColorFilter.matrix(<double>[
-    1, 0, 0, 0, 0,
-    0, 1, 0, 0, 0,
-    0, 0, 1, 0, 0,
-    0, 0, 0, 1, 0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
   ]);
   static const ColorFilter _darkOsmTileFilter = ColorFilter.matrix(<double>[
-    0.48, 0, 0, 0, 0,
-    0, 0.48, 0, 0, 0,
-    0, 0, 0.48, 0, 0,
-    0, 0, 0, 1, 0,
+    0.48,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.48,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0.48,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
   ]);
   static const latlng.LatLng _demoCenter = latlng.LatLng(
     MapDefaults.demoLatitude,
@@ -120,18 +155,22 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     northeast: const google.LatLng(25.1151519, 121.6286149),
   );
 
-  final MapController _offlineController = MapController();
+  final MapControllerImpl _offlineController = MapControllerImpl();
   late final AnimationController _pulseController;
   google.GoogleMapController? _googleController;
   GoogleMarkerIcons? _googleMarkerIcons;
   String? _googleStyle;
-  String? _lastFocusKey;
+  int _lastFocusRequestId = -1;
   Timer? _googleMapWatchdog;
   bool _googleMapCreated = false;
   bool _googleMapCreationTimedOut = false;
-  final Set<String> _knownEventKeys = <String>{};
-  final Set<String> _pulsingEventKeys = <String>{};
+  Timer? _pulseStartTimer;
   Timer? _pulseStopTimer;
+  GeoPoint? _pendingEventFocus;
+  bool _pendingEventAnimated = true;
+  bool _offlineMapReady = false;
+  bool _radarVisible = false;
+  bool _programmaticGoogleCameraMove = false;
 
   MapProviderMode _providerFor(MapCanvas canvas) => MapCanvas.resolveProvider(
     requestedMode: canvas.runtimeState.providerMode,
@@ -139,9 +178,10 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     networkAvailable: canvas.networkAvailable,
   );
 
-  MapProviderMode get _activeProvider => _googleMapCreationTimedOut
-      ? MapProviderMode.offline
-      : _providerFor(widget);
+  MapProviderMode get _activeProvider =>
+      _googleMapCreationTimedOut
+          ? MapProviderMode.offline
+          : _providerFor(widget);
 
   void _startGoogleMapWatchdog() {
     if (_googleMapCreated ||
@@ -182,8 +222,12 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     }
     _googleMapCreated = true;
     _googleController = controller;
+    if (_pendingEventFocus != null) {
+      _focusPendingEvent();
+      return;
+    }
     final focus = widget.focusPoint ?? widget.searchSelection?.coordinate;
-    if (focus != null) _focus(focus);
+    if (focus != null) _focus(focus, animated: _animationsAllowed);
   }
 
   bool get _isDarkAppTheme => Theme.of(context).brightness == Brightness.dark;
@@ -203,10 +247,9 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _knownEventKeys.addAll(widget.visibleEvents.map(eventKey));
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 750),
+      duration: const Duration(milliseconds: 1500),
     );
   }
 
@@ -224,24 +267,27 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     super.didUpdateWidget(oldWidget);
     if (_providerFor(oldWidget) != _providerFor(widget)) {
       _resetGoogleMapWatchdog();
+      _offlineMapReady = false;
     }
     if (oldWidget.runtimeState.themeMode != widget.runtimeState.themeMode) {
       _loadGoogleStyle();
     }
-    _recordNewEvents(oldWidget.visibleEvents);
+    final focusingNewEvent = _recordNewEvents(oldWidget.visibleEvents);
     final focus = widget.focusPoint ?? widget.searchSelection?.coordinate;
-    if (focus != null) {
-      final focusKey = '${focus.latitude}:${focus.longitude}';
-      if (focusKey != _lastFocusKey) {
-        _lastFocusKey = focusKey;
-        WidgetsBinding.instance.addPostFrameCallback((_) => _focus(focus));
-      }
+    if (!focusingNewEvent &&
+        focus != null &&
+        widget.focusRequestId != _lastFocusRequestId) {
+      _lastFocusRequestId = widget.focusRequestId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focus(focus, animated: _animationsAllowed);
+      });
     }
   }
 
   @override
   void dispose() {
     _resetGoogleMapWatchdog();
+    _pulseStartTimer?.cancel();
     _pulseStopTimer?.cancel();
     _pulseController.dispose();
     _offlineController.dispose();
@@ -278,28 +324,58 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     }
   }
 
-  void _recordNewEvents(List<MeshEvent> oldEvents) {
+  bool _recordNewEvents(List<MeshEvent> oldEvents) {
     final oldKeys = oldEvents.map(eventKey).toSet();
-    final newKeys = widget.visibleEvents
-        .map(eventKey)
-        .toSet()
-        .difference(oldKeys);
-    _knownEventKeys.addAll(widget.visibleEvents.map(eventKey));
-    if (newKeys.isEmpty ||
-        !widget.runtimeState.animationEnabled ||
-        (MediaQuery.maybeOf(context)?.disableAnimations ?? false)) {
+    final newEvents = widget.visibleEvents
+        .where((event) => !oldKeys.contains(eventKey(event)))
+        .toList(growable: false);
+    if (newEvents.isEmpty) return false;
+    final focus = meshEventFocusPoint(newEvents.last);
+    if (focus == null) return false;
+
+    _pendingEventFocus = focus;
+    _pendingEventAnimated = _animationsAllowed;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _focusPendingEvent();
+    });
+    return true;
+  }
+
+  bool get _animationsAllowed =>
+      widget.runtimeState.animationEnabled &&
+      !(MediaQuery.maybeOf(context)?.disableAnimations ?? false);
+
+  void _focusPendingEvent() {
+    final focus = _pendingEventFocus;
+    if (focus == null || !_focus(focus, animated: _pendingEventAnimated)) {
       return;
     }
-    setState(() => _pulsingEventKeys.addAll(newKeys));
-    _pulseController
-      ..reset()
-      ..repeat(reverse: true);
+    _pendingEventFocus = null;
+    if (!_pendingEventAnimated) {
+      _stopRadar();
+      return;
+    }
+    _pulseStartTimer?.cancel();
     _pulseStopTimer?.cancel();
-    _pulseStopTimer = Timer(const Duration(milliseconds: 1500), () {
+    _pulseStartTimer = Timer(_focusAnimationDuration, () {
       if (!mounted) return;
-      setState(_pulsingEventKeys.clear);
-      _pulseController.stop();
+      setState(() => _radarVisible = true);
+      _pulseController
+        ..reset()
+        ..repeat();
+      _pulseStopTimer = Timer(const Duration(milliseconds: 3600), () {
+        if (mounted) _stopRadar();
+      });
     });
+  }
+
+  void _stopRadar() {
+    _pulseStartTimer?.cancel();
+    _pulseStartTimer = null;
+    _pulseStopTimer?.cancel();
+    _pulseStopTimer = null;
+    _pulseController.stop();
+    if (mounted && _radarVisible) setState(() => _radarVisible = false);
   }
 
   void _setZoomPercentage(int percentage) {
@@ -311,7 +387,11 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     );
     widget.onZoomPercentageChanged(clamped);
     if (_activeProvider == MapProviderMode.googleOnline) {
-      _googleController?.animateCamera(google.CameraUpdate.zoomTo(zoom));
+      final controller = _googleController;
+      if (controller != null) {
+        _programmaticGoogleCameraMove = true;
+        unawaited(controller.animateCamera(google.CameraUpdate.zoomTo(zoom)));
+      }
       return;
     }
     _offlineController.move(_offlineController.camera.center, zoom);
@@ -321,40 +401,65 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     widget.onRecenter?.call();
     widget.onZoomPercentageChanged(0);
     if (_activeProvider == MapProviderMode.googleOnline) {
-      _googleController?.animateCamera(
-        google.CameraUpdate.newLatLngBounds(_googleBounds, 28),
-      );
+      final controller = _googleController;
+      if (controller != null) {
+        _programmaticGoogleCameraMove = true;
+        unawaited(
+          controller.animateCamera(
+            google.CameraUpdate.newLatLngBounds(_googleBounds, 28),
+          ),
+        );
+      }
       return;
     }
     _offlineController.move(_demoCenter, MapCanvas.offlineMinZoom);
   }
 
-  void _focus(GeoPoint point) {
+  bool _focus(GeoPoint point, {required bool animated}) {
     const focusPercentage = 70;
-    widget.onZoomPercentageChanged(focusPercentage);
     final zoom = ZoomPercentage.toZoom(
       percentage: focusPercentage,
       minZoom: _minZoom,
       maxZoom: _maxZoom,
     );
     if (_activeProvider == MapProviderMode.googleOnline) {
-      _googleController?.animateCamera(
-        google.CameraUpdate.newCameraPosition(
-          google.CameraPosition(
-            target: google.LatLng(point.latitude, point.longitude),
-            zoom: zoom,
-          ),
+      final controller = _googleController;
+      if (controller == null) return false;
+      final update = google.CameraUpdate.newCameraPosition(
+        google.CameraPosition(
+          target: google.LatLng(point.latitude, point.longitude),
+          zoom: zoom,
         ),
       );
-      return;
+      widget.onZoomPercentageChanged(focusPercentage);
+      _programmaticGoogleCameraMove = true;
+      unawaited(
+        animated
+            ? controller.animateCamera(update)
+            : controller.moveCamera(update),
+      );
+      return true;
     }
-    _offlineController.move(
-      latlng.LatLng(point.latitude, point.longitude),
-      zoom,
-    );
+    if (!_offlineMapReady) return false;
+    widget.onZoomPercentageChanged(focusPercentage);
+    final target = latlng.LatLng(point.latitude, point.longitude);
+    if (animated) {
+      _offlineController.moveAnimatedRaw(
+        target,
+        zoom,
+        duration: _focusAnimationDuration,
+        curve: Curves.easeInOutCubic,
+        hasGesture: false,
+        source: MapEventSource.mapController,
+      );
+    } else {
+      _offlineController.move(target, zoom);
+    }
+    return true;
   }
 
   void _onGoogleCameraMove(google.CameraPosition position) {
+    if (_programmaticGoogleCameraMove) return;
     final percentage = ZoomPercentage.fromZoom(
       zoom: position.zoom,
       minZoom: _minZoom,
@@ -366,6 +471,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   }
 
   void _onOfflineMapEvent(MapEvent event) {
+    if (event.source == MapEventSource.mapController) return;
     final percentage = ZoomPercentage.fromZoom(
       zoom: event.camera.zoom,
       minZoom: _minZoom,
@@ -378,19 +484,26 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final animationsAllowed =
-        widget.runtimeState.animationEnabled &&
-        !MediaQuery.disableAnimationsOf(context);
+    final map =
+        _activeProvider == MapProviderMode.googleOnline
+            ? _buildGoogleMap()
+            : _buildOfflineMap();
     return Stack(
+      fit: StackFit.expand,
       children: <Widget>[
-        if (animationsAllowed && _pulsingEventKeys.isNotEmpty)
+        map,
+        if (_animationsAllowed && _radarVisible)
           AnimatedBuilder(
             animation: _pulseController,
             builder:
-                (context, child) => _buildMapWithPulse(_pulseController.value),
+                (context, _) => IgnorePointer(
+                  child: CustomPaint(
+                    painter: _RadarPulsePainter(_pulseController.value),
+                  ),
+                ),
           )
         else
-          _buildMapWithPulse(0),
+          const SizedBox.shrink(),
         Positioned(
           right: 12,
           bottom: 12,
@@ -408,15 +521,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildMapWithPulse(double pulseFraction) {
-    // The renderer reads the animation only while a short new-event pulse is
-    // active; MapScreen and its EventChannel subscription stay untouched.
-    return _activeProvider == MapProviderMode.googleOnline
-        ? _buildGoogleMap(pulseFraction: pulseFraction)
-        : _buildOfflineMap(pulseFraction: pulseFraction);
-  }
-
-  Widget _buildGoogleMap({double pulseFraction = 0}) {
+  Widget _buildGoogleMap() {
     _startGoogleMapWatchdog();
     final overlays = GoogleMapLayers.build(
       features: widget.staticFeatures,
@@ -426,8 +531,6 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       showEvents: widget.showEvents,
       onStaticFeatureSelected: widget.onStaticFeatureSelected,
       onEventSelected: widget.onEventSelected,
-      pulsingEventKeys: _pulsingEventKeys,
-      pulseFraction: pulseFraction,
       markerIcons: _googleMarkerIcons,
       currentLocation: widget.runtimeState.currentLocation,
     );
@@ -454,7 +557,9 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       scrollGesturesEnabled: true,
       rotateGesturesEnabled: false,
       tiltGesturesEnabled: false,
-      myLocationEnabled: widget.runtimeState.currentLocation != null,
+      // The Demo owns its current-location marker. Enabling Google's native
+      // layer here could show a second emulator GPS position.
+      myLocationEnabled: false,
       myLocationButtonEnabled: false,
       markers: overlays.markers,
       polylines: overlays.polylines,
@@ -462,12 +567,13 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       circles: overlays.circles,
       onMapCreated: _onGoogleMapCreated,
       onCameraMove: _onGoogleCameraMove,
+      onCameraIdle: () => _programmaticGoogleCameraMove = false,
       onTap: (_) => widget.onMapTap(),
     );
     return widget.googleMapBuilder?.call(platformMap) ?? platformMap;
   }
 
-  Widget _buildOfflineMap({double pulseFraction = 0}) => FlutterMap(
+  Widget _buildOfflineMap() => FlutterMap(
     mapController: _offlineController,
     options: MapOptions(
       initialCenter: _demoCenter,
@@ -492,8 +598,13 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       onMapEvent: _onOfflineMapEvent,
       onTap: (_, _) => widget.onMapTap(),
       onMapReady: () {
+        _offlineMapReady = true;
+        if (_pendingEventFocus != null) {
+          _focusPendingEvent();
+          return;
+        }
         final focus = widget.focusPoint ?? widget.searchSelection?.coordinate;
-        if (focus != null) _focus(focus);
+        if (focus != null) _focus(focus, animated: _animationsAllowed);
       },
     ),
     children: <Widget>[
@@ -521,8 +632,6 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
         onStaticFeatureSelected: widget.onStaticFeatureSelected,
         onEventSelected: widget.onEventSelected,
         currentLocation: widget.runtimeState.currentLocation,
-        pulsingEventKeys: _pulsingEventKeys,
-        pulseFraction: pulseFraction,
       ),
       const Positioned(
         right: 8,
@@ -542,4 +651,34 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       ),
     ],
   );
+}
+
+class _RadarPulsePainter extends CustomPainter {
+  const _RadarPulsePainter(this.progress);
+
+  static const Color _radarRed = Color(0xFFD32F2F);
+
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    canvas.drawCircle(center, 6, Paint()..color = _radarRed);
+    for (var index = 0; index < 3; index += 1) {
+      final phase = (progress + (index / 3)) % 1;
+      final opacity = (1 - phase) * 0.72;
+      canvas.drawCircle(
+        center,
+        18 + (phase * 90),
+        Paint()
+          ..color = _radarRed.withValues(alpha: opacity)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3 - (phase * 1.5),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RadarPulsePainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }

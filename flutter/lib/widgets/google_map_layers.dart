@@ -24,8 +24,6 @@ class GoogleMapLayers {
     required bool showEvents,
     required StaticFeatureSelection onStaticFeatureSelected,
     required MeshEventSelection onEventSelected,
-    required Set<String> pulsingEventKeys,
-    required double pulseFraction,
     GeoPoint? currentLocation,
     GoogleMarkerIcons? markerIcons,
   }) {
@@ -67,11 +65,7 @@ class GoogleMapLayers {
               .where((event) => event.geometry is PolygonGeometry)
               .map((event) => _eventPolygon(event, onEventSelected))
               .toSet(),
-      circles:
-          visibleEvents
-              .where((event) => pulsingEventKeys.contains(_eventKey(event)))
-              .map((event) => _pulseCircle(event, pulseFraction))
-              .toSet(),
+      circles: const <google.Circle>{},
     );
   }
 
@@ -117,7 +111,7 @@ class GoogleMapLayers {
     return google.Marker(
       markerId: google.MarkerId('event-${_eventKey(event)}'),
       position: _eventFocus(event),
-      icon: event.isExpired ? markerIcons.expiredEvent : markerIcons.event,
+      icon: markerIcons.forEvent(event),
       infoWindow: google.InfoWindow(
         title: name,
         snippet: event.isExpired ? '已過期' : event.severity,
@@ -183,18 +177,6 @@ class GoogleMapLayers {
     );
   }
 
-  static google.Circle _pulseCircle(MeshEvent event, double fraction) {
-    final color = eventColor(event);
-    return google.Circle(
-      circleId: google.CircleId('pulse-${_eventKey(event)}'),
-      center: _eventFocus(event),
-      radius: 70 + (130 * fraction),
-      fillColor: color.withValues(alpha: 0.08),
-      strokeColor: color.withValues(alpha: 0.65 - (0.4 * fraction)),
-      strokeWidth: 2,
-    );
-  }
-
   static google.LatLng _eventFocus(MeshEvent event) {
     final geometry = event.geometry!;
     final point = switch (geometry) {
@@ -205,8 +187,7 @@ class GoogleMapLayers {
     return _latLng(point);
   }
 
-  static String _eventKey(MeshEvent event) =>
-      meshEventIdentity(event);
+  static String _eventKey(MeshEvent event) => meshEventIdentity(event);
 
   static google.LatLng _latLng(GeoPoint point) =>
       google.LatLng(point.latitude, point.longitude);
@@ -235,16 +216,32 @@ class GoogleMarkerIcons {
   const GoogleMarkerIcons({
     required this.shelter,
     required this.medical,
-    required this.event,
+    required this.criticalEvent,
+    required this.highEvent,
+    required this.mediumEvent,
+    required this.otherEvent,
     required this.expiredEvent,
     required this.currentLocation,
   });
 
   final google.BitmapDescriptor shelter;
   final google.BitmapDescriptor medical;
-  final google.BitmapDescriptor event;
+  final google.BitmapDescriptor criticalEvent;
+  final google.BitmapDescriptor highEvent;
+  final google.BitmapDescriptor mediumEvent;
+  final google.BitmapDescriptor otherEvent;
   final google.BitmapDescriptor expiredEvent;
   final google.BitmapDescriptor currentLocation;
+
+  google.BitmapDescriptor forEvent(MeshEvent event) {
+    if (event.isExpired) return expiredEvent;
+    return switch (event.severity) {
+      'CRITICAL' => criticalEvent,
+      'HIGH' => highEvent,
+      'MEDIUM' => mediumEvent,
+      _ => otherEvent,
+    };
+  }
 
   static Future<GoogleMarkerIcons> create({
     required double devicePixelRatio,
@@ -252,24 +249,61 @@ class GoogleMarkerIcons {
     final size = GoogleMapLayers.markerDiameter;
     final icons = await Future.wait<google.BitmapDescriptor>(
       <Future<google.BitmapDescriptor>>[
-        _glyphIcon(Icons.home_work, size, devicePixelRatio),
-        _glyphIcon(Icons.local_hospital, size, devicePixelRatio),
-        _glyphIcon(Icons.warning_amber_rounded, size, devicePixelRatio),
-        _glyphIcon(Icons.schedule, size, devicePixelRatio),
+        _glyphIcon(Icons.home_work, shelterMarkerColor, size, devicePixelRatio),
+        _glyphIcon(
+          Icons.local_hospital,
+          medicalMarkerColor,
+          size,
+          devicePixelRatio,
+        ),
+        _glyphIcon(
+          Icons.warning_amber_rounded,
+          const Color(0xFFC62828),
+          size,
+          devicePixelRatio,
+        ),
+        _glyphIcon(
+          Icons.warning_amber_rounded,
+          const Color(0xFFEF6C00),
+          size,
+          devicePixelRatio,
+        ),
+        _glyphIcon(
+          Icons.warning_amber_rounded,
+          const Color(0xFFF9A825),
+          size,
+          devicePixelRatio,
+        ),
+        _glyphIcon(
+          Icons.warning_amber_rounded,
+          const Color(0xFF1565C0),
+          size,
+          devicePixelRatio,
+        ),
+        _glyphIcon(
+          Icons.schedule,
+          const Color(0xFF616161),
+          size,
+          devicePixelRatio,
+        ),
         _locationDot(size, devicePixelRatio),
       ],
     );
     return GoogleMarkerIcons(
       shelter: icons[0],
       medical: icons[1],
-      event: icons[2],
-      expiredEvent: icons[3],
-      currentLocation: icons[4],
+      criticalEvent: icons[2],
+      highEvent: icons[3],
+      mediumEvent: icons[4],
+      otherEvent: icons[5],
+      expiredEvent: icons[6],
+      currentLocation: icons[7],
     );
   }
 
   static Future<google.BitmapDescriptor> _glyphIcon(
     IconData icon,
+    Color color,
     double logicalSize,
     double devicePixelRatio,
   ) async {
@@ -293,7 +327,7 @@ class GoogleMarkerIcons {
     canvas.drawRRect(
       rrect,
       ui.Paint()
-        ..color = const Color(0xFF263238)
+        ..color = color
         ..style = ui.PaintingStyle.stroke
         ..strokeWidth = 1.4 * devicePixelRatio,
     );
@@ -302,7 +336,7 @@ class GoogleMarkerIcons {
       text: TextSpan(
         text: String.fromCharCode(icon.codePoint),
         style: TextStyle(
-          color: const Color(0xFF263238),
+          color: color,
           fontSize: 19 * devicePixelRatio,
           fontFamily: icon.fontFamily,
           package: icon.fontPackage,

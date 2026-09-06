@@ -33,13 +33,14 @@ class _ResilientGeoAppState extends State<ResilientGeoApp> {
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: _controller,
-    builder: (context, _) => MaterialApp(
-      debugShowCheckedModeBanner: false,
-      themeMode: _controller.themeMode,
-      theme: _theme(Brightness.light),
-      darkTheme: _theme(Brightness.dark),
-      home: _MapAppHome(controller: _controller),
-    ),
+    builder:
+        (context, _) => MaterialApp(
+          debugShowCheckedModeBanner: false,
+          themeMode: _controller.themeMode,
+          theme: _theme(Brightness.light),
+          darkTheme: _theme(Brightness.dark),
+          home: _MapAppHome(controller: _controller),
+        ),
   );
 }
 
@@ -99,13 +100,15 @@ class _MapAppHomeState extends State<_MapAppHome> {
             // The Android host owns the real key in its manifest. Passing a
             // non-secret marker here enables Google only after the native
             // bridge confirms that manifest entry exists.
-            configuredGoogleMapsKey: controller.googleMapsConfigured
-                ? 'android-manifest-key'
-                : '',
+            configuredGoogleMapsKey:
+                controller.googleMapsConfigured ? 'android-manifest-key' : '',
             themeMode: controller.themeMode,
             animationEnabled: controller.animationEnabled,
           ),
-          NotificationsScreen(events: controller.events),
+          NotificationsScreen(
+            events: controller.unreadEvents,
+            onEventRead: controller.markEventRead,
+          ),
           ProfileScreen(
             themeMode: controller.themeMode,
             animationEnabled: controller.animationEnabled,

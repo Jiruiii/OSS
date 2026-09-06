@@ -165,11 +165,19 @@ class MeshEvent {
 /// Stable event identity shared by persistence presentation and map overlays.
 /// JSON encoding preserves the tuple boundaries when any field contains a
 /// delimiter character.
-String meshEventIdentity(MeshEvent event) => jsonEncode(<Object?>[
-  event.namespace,
-  event.eventId,
-  event.eventVersion,
-]);
+String meshEventIdentity(MeshEvent event) =>
+    jsonEncode(<Object?>[event.namespace, event.eventId, event.eventVersion]);
+
+/// Provider-neutral point used when focusing an event on either map renderer.
+GeoPoint? meshEventFocusPoint(MeshEvent event) => switch (event.geometry) {
+  PointGeometry(:final point) => point,
+  LineStringGeometry(:final points) when points.isNotEmpty =>
+    points[points.length ~/ 2],
+  PolygonGeometry(:final rings)
+      when rings.isNotEmpty && rings.first.isNotEmpty =>
+    rings.first.first,
+  _ => null,
+};
 
 class MapInitialState {
   const MapInitialState({

@@ -20,7 +20,7 @@ class MapAppController extends ChangeNotifier {
 
   static const _themePreference = 'map.theme_mode';
   static const _animationPreference = 'map.animation_enabled';
-  static const _startupDemoEventDelay = Duration(seconds: 10);
+  static const _readEventKeysPreference = 'map.read_event_keys';
 
   final MapBridge bridge;
   final Connectivity _connectivity = Connectivity();
@@ -30,7 +30,8 @@ class MapAppController extends ChangeNotifier {
 
   StreamSubscription<List<MeshEvent>>? _eventSubscription;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
-  Timer? _startupDemoEventTimer;
+  final List<Timer> _startupDemoEventTimers = <Timer>[];
+  final Set<String> _readEventKeys = <String>{};
   StaticFeatureCollection? staticFeatures;
   List<MeshEvent> demoEvents = const <MeshEvent>[];
   List<MeshEvent> persistedEvents = const <MeshEvent>[];
@@ -46,7 +47,7 @@ class MapAppController extends ChangeNotifier {
   bool isLoading = true;
   Object? loadError;
   bool _disposed = false;
-  bool _startupDemoEventScheduled = false;
+  bool _startupDemoEventsScheduled = false;
 
   Stream<List<MeshEvent>> get eventUpdates => _eventUpdates.stream;
 
@@ -63,7 +64,11 @@ class MapAppController extends ChangeNotifier {
     return byId.values.toList(growable: false);
   }
 
-  int get notificationCount => events.where((event) => !event.isExpired).length;
+  List<MeshEvent> get unreadEvents => events
+      .where((event) => !_readEventKeys.contains(meshEventIdentity(event)))
+      .toList(growable: false);
+
+  int get notificationCount => unreadEvents.length;
 
   Future<void> load() async {
     _startStartupDemoEventClock();
@@ -102,7 +107,7 @@ class MapAppController extends ChangeNotifier {
       await _loadPreferences();
       await _loadConnectivity();
       if (nativeBridgeAvailable) _listenToNativeEvents();
-      _scheduleStartupDemoEvent();
+      _scheduleStartupDemoEvents();
     } on Object catch (error) {
       loadError = error;
     } finally {
@@ -115,6 +120,11 @@ class MapAppController extends ChangeNotifier {
     final preferences = await SharedPreferences.getInstance();
     themeMode = _themeModeFromName(preferences.getString(_themePreference));
     animationEnabled = preferences.getBool(_animationPreference) ?? true;
+    _readEventKeys
+      ..clear()
+      ..addAll(
+        preferences.getStringList(_readEventKeysPreference) ?? const <String>[],
+      );
   }
 
   Future<void> _loadConnectivity() async {
@@ -144,57 +154,94 @@ class MapAppController extends ChangeNotifier {
   }
 
   void _startStartupDemoEventClock() {
-    if (_startupDemoEventScheduled || _startupDemoEventClock.isRunning) return;
+    if (_startupDemoEventsScheduled || _startupDemoEventClock.isRunning) return;
     _startupDemoEventClock.start();
   }
 
-  void _scheduleStartupDemoEvent() {
-    if (_startupDemoEventScheduled) return;
-    _startupDemoEventScheduled = true;
-    if (demoEvents.any(
-      (event) => event.eventId == MapDefaults.delayedDemoEventId,
-    )) {
-      _startupDemoEventClock.stop();
-      return;
-    }
-    final elapsed = _startupDemoEventClock.elapsed;
-    final remaining =
-        elapsed >= _startupDemoEventDelay
-            ? Duration.zero
-            : _startupDemoEventDelay - elapsed;
-    _startupDemoEventTimer = Timer(remaining, () {
-      _startupDemoEventClock.stop();
-      if (_disposed ||
-          demoEvents.any(
-            (event) => event.eventId == MapDefaults.delayedDemoEventId,
-          )) {
-        return;
-      }
-      final issuedAt = DateTime.now().toUtc();
-      final simulatedEvent = MeshEvent(
-        namespace: 'demo.simulator',
+  void _scheduleStartupDemoEvents() {
+    if (_startupDemoEventsScheduled) return;
+    _startupDemoEventsScheduled = true;
+    const stagedEvents = <_StagedDemoEvent>[
+      _StagedDemoEvent(
+        delay: Duration(seconds: 10),
         eventId: MapDefaults.delayedDemoEventId,
-        eventVersion: 1,
         eventType: 'LOCAL_FLOOD_ALERT',
         severity: 'HIGH',
-        source: 'ResilientGeo Demo Simulator（非官方）',
-        issuedAt: issuedAt.toIso8601String(),
-        expiresAt: issuedAt.add(const Duration(hours: 1)).toIso8601String(),
-        applyState: 'CURRENT',
-        geometry: const PointGeometry(MapDefaults.delayedDemoEventLocation),
-        attributes: const <String, dynamic>{
-          'name': '成功路二段積水模擬警示',
-          'affected_area': '內湖區成功路二段附近',
-          'description': '模擬事件，非即時官方災情',
-          'is_demo': true,
-        },
+        location: MapDefaults.delayedDemoEventLocation,
+        name: '成功路二段積水模擬警示',
+        affectedArea: '內湖區成功路二段附近',
+      ),
+      _StagedDemoEvent(
+        delay: Duration(seconds: 30),
+        eventId: MapDefaults.secondDelayedDemoEventId,
+        eventType: 'BUILDING_FIRE_ALERT',
+        severity: 'CRITICAL',
+        location: MapDefaults.secondDelayedDemoEventLocation,
+        name: '內湖路住宅火警模擬通報',
+        affectedArea: '內湖區內湖路一段附近',
+      ),
+      _StagedDemoEvent(
+        delay: Duration(seconds: 50),
+        eventId: MapDefaults.thirdDelayedDemoEventId,
+        eventType: 'ROAD_BLOCKAGE',
+        severity: 'MEDIUM',
+        location: MapDefaults.thirdDelayedDemoEventLocation,
+        name: '民權東路道路阻斷模擬通報',
+        affectedArea: '內湖區民權東路六段附近',
+      ),
+    ];
+    for (final stagedEvent in stagedEvents) {
+      if (demoEvents.any((event) => event.eventId == stagedEvent.eventId)) {
+        continue;
+      }
+      final elapsed = _startupDemoEventClock.elapsed;
+      final remaining =
+          elapsed >= stagedEvent.delay
+              ? Duration.zero
+              : stagedEvent.delay - elapsed;
+      _startupDemoEventTimers.add(
+        Timer(remaining, () => _insertStagedDemoEvent(stagedEvent)),
       );
-      demoEvents = List<MeshEvent>.unmodifiable(<MeshEvent>[
-        ...demoEvents,
-        simulatedEvent,
-      ]);
-      _notifyIfAlive();
-    });
+    }
+  }
+
+  void _insertStagedDemoEvent(_StagedDemoEvent stagedEvent) {
+    if (_disposed ||
+        demoEvents.any((event) => event.eventId == stagedEvent.eventId)) {
+      return;
+    }
+    final issuedAt = DateTime.now().toUtc();
+    final simulatedEvent = MeshEvent(
+      namespace: 'demo.simulator',
+      eventId: stagedEvent.eventId,
+      eventVersion: 1,
+      eventType: stagedEvent.eventType,
+      severity: stagedEvent.severity,
+      source: 'ResilientGeo Demo Simulator（非官方）',
+      issuedAt: issuedAt.toIso8601String(),
+      expiresAt: issuedAt.add(const Duration(hours: 1)).toIso8601String(),
+      applyState: 'CURRENT',
+      geometry: PointGeometry(stagedEvent.location),
+      attributes: <String, dynamic>{
+        'name': stagedEvent.name,
+        'affected_area': stagedEvent.affectedArea,
+        'description': '模擬事件，非即時官方災情',
+        'is_demo': true,
+      },
+    );
+    demoEvents = List<MeshEvent>.unmodifiable(<MeshEvent>[
+      ...demoEvents,
+      simulatedEvent,
+    ]);
+    _notifyIfAlive();
+  }
+
+  Future<void> markEventRead(MeshEvent event) async {
+    if (!_readEventKeys.add(meshEventIdentity(event))) return;
+    _notifyIfAlive();
+    final preferences = await SharedPreferences.getInstance();
+    final sortedKeys = _readEventKeys.toList()..sort();
+    await preferences.setStringList(_readEventKeysPreference, sortedKeys);
   }
 
   Future<void> setThemeMode(ThemeMode value) async {
@@ -215,7 +262,9 @@ class MapAppController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _startupDemoEventClock.stop();
-    _startupDemoEventTimer?.cancel();
+    for (final timer in _startupDemoEventTimers) {
+      timer.cancel();
+    }
     _eventSubscription?.cancel();
     _connectivitySubscription?.cancel();
     _eventUpdates.close();
@@ -235,3 +284,23 @@ ThemeMode _themeModeFromName(String? value) => switch (value) {
   'dark' => ThemeMode.dark,
   _ => ThemeMode.system,
 };
+
+class _StagedDemoEvent {
+  const _StagedDemoEvent({
+    required this.delay,
+    required this.eventId,
+    required this.eventType,
+    required this.severity,
+    required this.location,
+    required this.name,
+    required this.affectedArea,
+  });
+
+  final Duration delay;
+  final String eventId;
+  final String eventType;
+  final String severity;
+  final GeoPoint location;
+  final String name;
+  final String affectedArea;
+}

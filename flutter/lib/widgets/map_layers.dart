@@ -7,6 +7,9 @@ import '../data/map_models.dart';
 typedef StaticFeatureSelection = void Function(List<StaticFeature> features);
 typedef MeshEventSelection = void Function(MeshEvent event);
 
+const Color shelterMarkerColor = Color(0xFF00796B);
+const Color medicalMarkerColor = Color(0xFF5E35B1);
+
 /// Converts display models to the map layers; selection state remains in MapScreen.
 class MapLayers {
   const MapLayers._();
@@ -20,8 +23,6 @@ class MapLayers {
     required StaticFeatureSelection onStaticFeatureSelected,
     required MeshEventSelection onEventSelected,
     GeoPoint? currentLocation,
-    Set<String> pulsingEventKeys = const <String>{},
-    double pulseFraction = 0,
   }) {
     final visibleFacilities = features
         .where((feature) {
@@ -45,21 +46,6 @@ class MapLayers {
         events: visibleEvents,
         onEventSelected: onEventSelected,
       ),
-      if (pulsingEventKeys.isNotEmpty)
-        CircleLayer(
-          circles: visibleEvents
-              .where((event) => pulsingEventKeys.contains(eventKey(event)))
-              .map(
-                (event) => CircleMarker(
-                  point: _eventPoint(event),
-                  radius: 14 + (18 * pulseFraction),
-                  color: eventColor(event).withValues(alpha: 0.10),
-                  borderColor: eventColor(event).withValues(alpha: 0.65),
-                  borderStrokeWidth: 2,
-                ),
-              )
-              .toList(growable: false),
-        ),
       MarkerLayer(
         markers: <Marker>[
           ...facilityMarkers,
@@ -98,6 +84,7 @@ class MapLayers {
             child: _MapMarkerButton(
               semanticLabel: label,
               icon: isMedicalOnly ? Icons.local_hospital : Icons.home_work,
+              color: isMedicalOnly ? medicalMarkerColor : shelterMarkerColor,
               onTap: () => onSelected(group),
             ),
           );
@@ -116,6 +103,7 @@ class MapLayers {
       child: _MapMarkerButton(
         semanticLabel: '事件：$name${event.isExpired ? '，已過期' : ''}',
         icon: event.isExpired ? Icons.schedule : Icons.warning_amber_rounded,
+        color: eventColor(event),
         onTap: () => onSelected(event),
       ),
     );
@@ -162,8 +150,6 @@ class MapLayers {
       PolygonGeometry(:final rings) => rings.first.first,
     };
   }
-
-  static LatLng _eventPoint(MeshEvent event) => _latLng(_eventGeoPoint(event));
 
   static Marker _locationMarker(GeoPoint location) => Marker(
     key: const ValueKey<String>('current-location-marker'),
@@ -283,11 +269,13 @@ class _MapMarkerButton extends StatelessWidget {
   const _MapMarkerButton({
     required this.semanticLabel,
     required this.icon,
+    required this.color,
     required this.onTap,
   });
 
   final String semanticLabel;
   final IconData icon;
+  final Color color;
   final VoidCallback onTap;
 
   @override
@@ -301,26 +289,21 @@ class _MapMarkerButton extends StatelessWidget {
         onTap: onTap,
         child: Ink(
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.onSurface,
-              width: 1.4,
+            color: Color.alphaBlend(
+              color.withValues(alpha: 0.14),
+              Theme.of(context).colorScheme.surface,
             ),
+            borderRadius: BorderRadius.circular(9),
+            border: Border.all(color: color, width: 1.4),
             boxShadow: const <BoxShadow>[
               BoxShadow(color: Colors.black26, blurRadius: 4),
             ],
           ),
-          child: Icon(
-            icon,
-            color: Theme.of(context).colorScheme.onSurface,
-            size: 20,
-          ),
+          child: Icon(icon, color: color, size: 20),
         ),
       ),
     ),
   );
 }
 
-String eventKey(MeshEvent event) =>
-    meshEventIdentity(event);
+String eventKey(MeshEvent event) => meshEventIdentity(event);

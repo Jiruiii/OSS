@@ -12,8 +12,20 @@ abstract final class MapDefaults {
     latitude: 25.07505,
     longitude: 121.59170,
   );
+  static const GeoPoint secondDelayedDemoEventLocation = GeoPoint(
+    latitude: 25.08062,
+    longitude: 121.58482,
+  );
+  static const GeoPoint thirdDelayedDemoEventLocation = GeoPoint(
+    latitude: 25.06892,
+    longitude: 121.57874,
+  );
 
   static const String delayedDemoEventId = 'demo:startup:chenggong-road-2';
+  static const String secondDelayedDemoEventId =
+      'demo:startup:neihu-building-fire';
+  static const String thirdDelayedDemoEventId =
+      'demo:startup:minquan-road-blockage';
 
   static const Map<String, int> _demoShelterOccupancy = <String, int>{
     'shelter:5427': 34,
