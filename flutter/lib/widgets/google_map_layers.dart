@@ -36,7 +36,7 @@ class GoogleMapLayers {
     final visibleEvents =
         showEvents
             ? events
-                .where((event) => event.geometry != null)
+                .where((event) => meshEventFocusPoint(event) != null)
                 .toList(growable: false)
             : const <MeshEvent>[];
 
@@ -178,13 +178,7 @@ class GoogleMapLayers {
   }
 
   static google.LatLng _eventFocus(MeshEvent event) {
-    final geometry = event.geometry!;
-    final point = switch (geometry) {
-      PointGeometry(:final point) => point,
-      LineStringGeometry(:final points) => points[points.length ~/ 2],
-      PolygonGeometry(:final rings) => rings.first.first,
-    };
-    return _latLng(point);
+    return _latLng(meshEventFocusPoint(event)!);
   }
 
   static String _eventKey(MeshEvent event) => meshEventIdentity(event);

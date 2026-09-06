@@ -171,13 +171,48 @@ String meshEventIdentity(MeshEvent event) =>
 /// Provider-neutral point used when focusing an event on either map renderer.
 GeoPoint? meshEventFocusPoint(MeshEvent event) => switch (event.geometry) {
   PointGeometry(:final point) => point,
-  LineStringGeometry(:final points) when points.isNotEmpty =>
-    points[points.length ~/ 2],
-  PolygonGeometry(:final rings)
-      when rings.isNotEmpty && rings.first.isNotEmpty =>
-    rings.first.first,
+  LineStringGeometry(:final points) => _averageGeoPoint(points),
+  PolygonGeometry(:final rings) => _boundsCenter(rings.expand((ring) => ring)),
   _ => null,
 };
+
+GeoPoint? _averageGeoPoint(Iterable<GeoPoint> points) {
+  var count = 0;
+  var longitude = 0.0;
+  var latitude = 0.0;
+  for (final point in points) {
+    longitude += point.longitude;
+    latitude += point.latitude;
+    count += 1;
+  }
+  if (count == 0) return null;
+  return GeoPoint(longitude: longitude / count, latitude: latitude / count);
+}
+
+GeoPoint? _boundsCenter(Iterable<GeoPoint> points) {
+  var hasPoint = false;
+  var minLongitude = 0.0;
+  var maxLongitude = 0.0;
+  var minLatitude = 0.0;
+  var maxLatitude = 0.0;
+  for (final point in points) {
+    if (!hasPoint) {
+      minLongitude = maxLongitude = point.longitude;
+      minLatitude = maxLatitude = point.latitude;
+      hasPoint = true;
+      continue;
+    }
+    if (point.longitude < minLongitude) minLongitude = point.longitude;
+    if (point.longitude > maxLongitude) maxLongitude = point.longitude;
+    if (point.latitude < minLatitude) minLatitude = point.latitude;
+    if (point.latitude > maxLatitude) maxLatitude = point.latitude;
+  }
+  if (!hasPoint) return null;
+  return GeoPoint(
+    longitude: (minLongitude + maxLongitude) / 2,
+    latitude: (minLatitude + maxLatitude) / 2,
+  );
+}
 
 class MapInitialState {
   const MapInitialState({

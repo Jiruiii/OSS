@@ -37,7 +37,7 @@ class MapLayers {
     final visibleEvents =
         showEvents
             ? events
-                .where((event) => event.geometry != null)
+                .where((event) => meshEventFocusPoint(event) != null)
                 .toList(growable: false)
             : const <MeshEvent>[];
 
@@ -93,7 +93,7 @@ class MapLayers {
   }
 
   static Marker _eventMarker(MeshEvent event, MeshEventSelection onSelected) {
-    final point = _eventGeoPoint(event);
+    final point = meshEventFocusPoint(event)!;
     final name = eventName(event);
     return Marker(
       key: ValueKey<String>('event-marker-${meshEventIdentity(event)}'),
@@ -141,15 +141,6 @@ class MapLayers {
 
   static LatLng _latLng(GeoPoint point) =>
       LatLng(point.latitude, point.longitude);
-
-  static GeoPoint _eventGeoPoint(MeshEvent event) {
-    final geometry = event.geometry!;
-    return switch (geometry) {
-      PointGeometry(:final point) => point,
-      LineStringGeometry(:final points) => points[points.length ~/ 2],
-      PolygonGeometry(:final rings) => rings.first.first,
-    };
-  }
 
   static Marker _locationMarker(GeoPoint location) => Marker(
     key: const ValueKey<String>('current-location-marker'),

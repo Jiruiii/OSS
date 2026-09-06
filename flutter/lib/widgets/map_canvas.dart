@@ -156,6 +156,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   );
 
   final MapControllerImpl _offlineController = MapControllerImpl();
+  final ValueNotifier<Offset?> _radarScreenPosition = ValueNotifier(null);
   late final AnimationController _pulseController;
   google.GoogleMapController? _googleController;
   GoogleMarkerIcons? _googleMarkerIcons;
@@ -167,6 +168,8 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   Timer? _pulseStartTimer;
   Timer? _pulseStopTimer;
   GeoPoint? _pendingEventFocus;
+  GeoPoint? _pendingRadarStartPoint;
+  GeoPoint? _radarEventPoint;
   bool _pendingEventAnimated = true;
   bool _offlineMapReady = false;
   bool _radarVisible = false;
@@ -290,6 +293,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     _pulseStartTimer?.cancel();
     _pulseStopTimer?.cancel();
     _pulseController.dispose();
+    _radarScreenPosition.dispose();
     _offlineController.dispose();
     super.dispose();
   }
@@ -357,16 +361,34 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     }
     _pulseStartTimer?.cancel();
     _pulseStopTimer?.cancel();
+    if (_activeProvider == MapProviderMode.googleOnline) {
+      // Google reports the end of animateCamera through onCameraIdle.
+      _pendingRadarStartPoint = focus;
+      return;
+    }
+    // flutter_map's raw animation has no completion Future, so its exact
+    // configured duration is the completion callback for the Demo focus.
     _pulseStartTimer = Timer(_focusAnimationDuration, () {
-      if (!mounted) return;
-      setState(() => _radarVisible = true);
-      _pulseController
-        ..reset()
-        ..repeat();
-      _pulseStopTimer = Timer(const Duration(milliseconds: 3600), () {
-        if (mounted) _stopRadar();
-      });
+      if (mounted) unawaited(_showRadarAndStop(focus));
     });
+  }
+
+  Future<void> _showRadarAndStop(GeoPoint point) async {
+    await _showRadar(point);
+    if (!mounted || _radarEventPoint != point) return;
+    _pulseStopTimer = Timer(const Duration(milliseconds: 3600), () {
+      if (mounted) _stopRadar();
+    });
+  }
+
+  Future<void> _showRadar(GeoPoint point) async {
+    _radarEventPoint = point;
+    final hasPosition = await _updateRadarScreenPosition(point);
+    if (!mounted || _radarEventPoint != point || !hasPosition) return;
+    setState(() => _radarVisible = true);
+    _pulseController
+      ..reset()
+      ..repeat();
   }
 
   void _stopRadar() {
@@ -374,7 +396,10 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     _pulseStartTimer = null;
     _pulseStopTimer?.cancel();
     _pulseStopTimer = null;
+    _pendingRadarStartPoint = null;
     _pulseController.stop();
+    _radarEventPoint = null;
+    _radarScreenPosition.value = null;
     if (mounted && _radarVisible) setState(() => _radarVisible = false);
   }
 
@@ -470,7 +495,35 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     }
   }
 
+  Future<bool> _updateRadarScreenPosition(GeoPoint point) async {
+    if (_activeProvider == MapProviderMode.googleOnline) {
+      final controller = _googleController;
+      if (controller == null) return false;
+      try {
+        final screenPoint = await controller.getScreenCoordinate(
+          google.LatLng(point.latitude, point.longitude),
+        );
+        if (!mounted || _radarEventPoint != point) return false;
+        _radarScreenPosition.value = Offset(
+          screenPoint.x.toDouble(),
+          screenPoint.y.toDouble(),
+        );
+        return true;
+      } on Object {
+        return false;
+      }
+    }
+    if (!_offlineMapReady) return false;
+    final camera = _offlineController.camera;
+    _radarScreenPosition.value = camera.latLngToScreenOffset(
+      latlng.LatLng(point.latitude, point.longitude),
+    );
+    return true;
+  }
+
   void _onOfflineMapEvent(MapEvent event) {
+    final radarPoint = _radarEventPoint;
+    if (radarPoint != null) unawaited(_updateRadarScreenPosition(radarPoint));
     if (event.source == MapEventSource.mapController) return;
     final percentage = ZoomPercentage.fromZoom(
       zoom: event.camera.zoom,
@@ -493,14 +546,25 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       children: <Widget>[
         map,
         if (_animationsAllowed && _radarVisible)
-          AnimatedBuilder(
-            animation: _pulseController,
-            builder:
-                (context, _) => IgnorePointer(
-                  child: CustomPaint(
-                    painter: _RadarPulsePainter(_pulseController.value),
-                  ),
-                ),
+          Positioned.fill(
+            child: ValueListenableBuilder<Offset?>(
+              valueListenable: _radarScreenPosition,
+              builder: (context, center, _) {
+                if (center == null) return const SizedBox.shrink();
+                return AnimatedBuilder(
+                  animation: _pulseController,
+                  builder:
+                      (context, _) => IgnorePointer(
+                        child: CustomPaint(
+                          painter: _RadarPulsePainter(
+                            _pulseController.value,
+                            center,
+                          ),
+                        ),
+                      ),
+                );
+              },
+            ),
           )
         else
           const SizedBox.shrink(),
@@ -567,7 +631,18 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       circles: overlays.circles,
       onMapCreated: _onGoogleMapCreated,
       onCameraMove: _onGoogleCameraMove,
-      onCameraIdle: () => _programmaticGoogleCameraMove = false,
+      onCameraIdle: () {
+        _programmaticGoogleCameraMove = false;
+        final radarPoint = _radarEventPoint;
+        if (radarPoint != null) {
+          unawaited(_updateRadarScreenPosition(radarPoint));
+        }
+        final pendingRadarPoint = _pendingRadarStartPoint;
+        if (pendingRadarPoint != null) {
+          _pendingRadarStartPoint = null;
+          unawaited(_showRadarAndStop(pendingRadarPoint));
+        }
+      },
       onTap: (_) => widget.onMapTap(),
     );
     return widget.googleMapBuilder?.call(platformMap) ?? platformMap;
@@ -654,15 +729,15 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
 }
 
 class _RadarPulsePainter extends CustomPainter {
-  const _RadarPulsePainter(this.progress);
+  const _RadarPulsePainter(this.progress, this.center);
 
   static const Color _radarRed = Color(0xFFD32F2F);
 
   final double progress;
+  final Offset center;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
     canvas.drawCircle(center, 6, Paint()..color = _radarRed);
     for (var index = 0; index < 3; index += 1) {
       final phase = (progress + (index / 3)) % 1;
