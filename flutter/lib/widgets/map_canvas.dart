@@ -174,6 +174,8 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   bool _offlineMapReady = false;
   bool _radarVisible = false;
   bool _programmaticGoogleCameraMove = false;
+  bool _googleRadarPositionRequestInFlight = false;
+  bool _googleRadarPositionRefreshQueued = false;
 
   MapProviderMode _providerFor(MapCanvas canvas) => MapCanvas.resolveProvider(
     requestedMode: canvas.runtimeState.providerMode,
@@ -484,6 +486,10 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   }
 
   void _onGoogleCameraMove(google.CameraPosition position) {
+    final radarPoint = _radarEventPoint;
+    if (radarPoint != null) {
+      unawaited(_updateRadarScreenPosition(radarPoint));
+    }
     if (_programmaticGoogleCameraMove) return;
     final percentage = ZoomPercentage.fromZoom(
       zoom: position.zoom,
@@ -499,18 +505,35 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     if (_activeProvider == MapProviderMode.googleOnline) {
       final controller = _googleController;
       if (controller == null) return false;
+      if (_googleRadarPositionRequestInFlight) {
+        _googleRadarPositionRefreshQueued = true;
+        return _radarScreenPosition.value != null;
+      }
+      _googleRadarPositionRequestInFlight = true;
       try {
         final screenPoint = await controller.getScreenCoordinate(
           google.LatLng(point.latitude, point.longitude),
         );
         if (!mounted || _radarEventPoint != point) return false;
+        // Google Maps Android reports the projection in physical pixels;
+        // Flutter overlays are laid out in logical pixels.
+        final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
         _radarScreenPosition.value = Offset(
-          screenPoint.x.toDouble(),
-          screenPoint.y.toDouble(),
+          screenPoint.x / devicePixelRatio,
+          screenPoint.y / devicePixelRatio,
         );
         return true;
       } on Object {
         return false;
+      } finally {
+        _googleRadarPositionRequestInFlight = false;
+        if (_googleRadarPositionRefreshQueued && mounted) {
+          _googleRadarPositionRefreshQueued = false;
+          final latestPoint = _radarEventPoint;
+          if (latestPoint != null) {
+            unawaited(_updateRadarScreenPosition(latestPoint));
+          }
+        }
       }
     }
     if (!_offlineMapReady) return false;
