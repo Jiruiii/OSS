@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,13 +22,11 @@ class MapAppController extends ChangeNotifier {
   static const _readEventKeysPreference = 'map.read_event_keys';
 
   final MapBridge bridge;
-  final Connectivity _connectivity = Connectivity();
   final Stopwatch _startupDemoEventClock = Stopwatch();
   final StreamController<List<MeshEvent>> _eventUpdates =
       StreamController<List<MeshEvent>>.broadcast();
 
   StreamSubscription<List<MeshEvent>>? _eventSubscription;
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   final List<Timer> _startupDemoEventTimers = <Timer>[];
   final Set<String> _readEventKeys = <String>{};
   // Demo events intentionally use fixed IDs so the replay is deterministic.
@@ -45,8 +42,6 @@ class MapAppController extends ChangeNotifier {
   );
   ThemeMode themeMode = ThemeMode.system;
   bool animationEnabled = true;
-  bool networkAvailable = false;
-  bool googleMapsConfigured = false;
   bool nativeBridgeAvailable = false;
   bool isLoading = true;
   Object? loadError;
@@ -96,11 +91,6 @@ class MapAppController extends ChangeNotifier {
         (jsonDecode(rawDemo) as Map<String, dynamic>)['events'],
       );
 
-      // Google configuration is independent from Room. The Android host can
-      // provide a valid Manifest key even when its local database is empty or
-      // temporarily unavailable.
-      googleMapsConfigured = await bridge.hasGoogleMapsApiKey();
-
       try {
         initialState = await bridge.getInitialState();
         persistedEvents = initialState.events;
@@ -114,7 +104,6 @@ class MapAppController extends ChangeNotifier {
       }
 
       await _loadPreferences();
-      await _loadConnectivity();
       if (nativeBridgeAvailable) _listenToNativeEvents();
       _scheduleStartupDemoEvents();
     } on Object catch (error) {
@@ -134,23 +123,6 @@ class MapAppController extends ChangeNotifier {
       ..addAll(
         preferences.getStringList(_readEventKeysPreference) ?? const <String>[],
       );
-  }
-
-  Future<void> _loadConnectivity() async {
-    try {
-      final result = await _connectivity.checkConnectivity();
-      networkAvailable = _hasNetwork(result);
-      _connectivitySubscription = _connectivity.onConnectivityChanged.listen((
-        results,
-      ) {
-        final next = _hasNetwork(results);
-        if (next == networkAvailable) return;
-        networkAvailable = next;
-        _notifyIfAlive();
-      }, onError: (_) {});
-    } on Object {
-      networkAvailable = false;
-    }
   }
 
   void _listenToNativeEvents() {
@@ -281,7 +253,6 @@ class MapAppController extends ChangeNotifier {
       timer.cancel();
     }
     _eventSubscription?.cancel();
-    _connectivitySubscription?.cancel();
     _eventUpdates.close();
     super.dispose();
   }
@@ -295,9 +266,6 @@ bool _isDemoEvent(MeshEvent event) =>
     event.namespace?.startsWith('demo.') == true ||
     event.eventId?.startsWith('demo:') == true ||
     event.attributes?['is_demo'] == true;
-
-bool _hasNetwork(List<ConnectivityResult> results) =>
-    results.any((result) => result != ConnectivityResult.none);
 
 ThemeMode _themeModeFromName(String? value) => switch (value) {
   'light' => ThemeMode.light,

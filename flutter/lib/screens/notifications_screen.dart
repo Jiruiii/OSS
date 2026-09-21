@@ -61,7 +61,9 @@ class _EventCard extends StatelessWidget {
             width: 44,
             height: 44,
             child: Icon(
-              event.isExpired ? Icons.schedule : Icons.warning_amber_rounded,
+              event.isExpired
+                  ? MapIconCatalog.expiredEvent
+                  : MapIconCatalog.disaster,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),

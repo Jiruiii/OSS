@@ -1,24 +1,24 @@
 import 'dart:async';
+import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart' as google;
-import 'package:latlong2/latlong.dart' as latlng;
+import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../data/map_models.dart';
-import '../data/map_defaults.dart';
 import '../data/map_runtime_state.dart';
 import '../data/map_search.dart';
+import '../data/map_marker_projection.dart';
 import '../data/map_zoom.dart';
-import 'google_map_layers.dart';
+import '../data/maplibre_map_config.dart';
+import '../data/maplibre_overlay.dart';
+import '../data/offline_map_asset_store.dart';
+import '../data/flutter_test_environment.dart';
 import 'map_layers.dart';
 import 'map_zoom_controls.dart';
 
-typedef GoogleMapBuilder = Widget Function(Widget platformMap);
-
-/// Chooses exactly one renderer.  Google tiles are only ever requested by the
-/// native Google SDK; the fallback uses packaged OSM assets exclusively.
+/// The single MapLibre renderer used by the app. Remote and raster tile
+/// providers are intentionally absent from this widget.
 class MapCanvas extends StatefulWidget {
   const MapCanvas({
     super.key,
@@ -39,23 +39,12 @@ class MapCanvas extends StatefulWidget {
     this.searchSelection,
     this.focusPoint,
     this.focusRequestId = 0,
-    this.networkAvailable = false,
-    this.configuredGoogleMapsKey = compileTimeGoogleMapsKey,
-    this.googleMapBuilder,
   });
 
-  /// This is deliberately not an Android manifest key.  A build that chooses
-  /// Google rendering passes the same value via --dart-define; no key is kept
-  /// in source or in an asset.
-  static const String compileTimeGoogleMapsKey = String.fromEnvironment(
-    'GOOGLE_MAPS_API_KEY',
-    defaultValue: '',
-  );
-
-  static const double googleMinZoom = 12;
-  static const double googleMaxZoom = 20;
-  static const double offlineMinZoom = 12;
-  static const double offlineMaxZoom = 17;
+  static const double minZoom = MapLibreMapConfig.minZoom;
+  static const double maxZoom = MapLibreMapConfig.maxZoom;
+  static const GeoPoint taiwanOverviewCenter =
+      MapLibreMapConfig.taiwanOverviewCenter;
 
   final MapRuntimeState runtimeState;
   final List<StaticFeature> staticFeatures;
@@ -74,177 +63,41 @@ class MapCanvas extends StatefulWidget {
   final MapSearchResult? searchSelection;
   final GeoPoint? focusPoint;
   final int focusRequestId;
-  final bool networkAvailable;
-  final String configuredGoogleMapsKey;
-  final GoogleMapBuilder? googleMapBuilder;
-
-  static MapProviderMode resolveProvider({
-    required MapProviderMode requestedMode,
-    required String configuredGoogleMapsKey,
-    required bool networkAvailable,
-  }) {
-    if (requestedMode == MapProviderMode.googleOnline &&
-        configuredGoogleMapsKey.trim().isNotEmpty &&
-        networkAvailable) {
-      return MapProviderMode.googleOnline;
-    }
-    return MapProviderMode.offline;
-  }
 
   @override
   State<MapCanvas> createState() => _MapCanvasState();
 }
 
 class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
-  static const _googleMapCreationTimeout = Duration(seconds: 4);
   static const _focusAnimationDuration = Duration(milliseconds: 650);
-  static const ColorFilter _lightOsmTileFilter = ColorFilter.matrix(<double>[
-    1,
-    0,
-    0,
-    0,
-    0,
-    0,
-    1,
-    0,
-    0,
-    0,
-    0,
-    0,
-    1,
-    0,
-    0,
-    0,
-    0,
-    0,
-    1,
-    0,
-  ]);
-  static const ColorFilter _darkOsmTileFilter = ColorFilter.matrix(<double>[
-    0.48,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0.48,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0.48,
-    0,
-    0,
-    0,
-    0,
-    0,
-    1,
-    0,
-  ]);
-  static const latlng.LatLng _demoCenter = latlng.LatLng(
-    MapDefaults.demoLatitude,
-    MapDefaults.demoLongitude,
-  );
-  static final LatLngBounds _offlineBounds = LatLngBounds(
-    const latlng.LatLng(25.0518603, 121.5519933),
-    const latlng.LatLng(25.1151519, 121.6286149),
-  );
-  static final google.LatLngBounds _googleBounds = google.LatLngBounds(
-    southwest: const google.LatLng(25.0518603, 121.5519933),
-    northeast: const google.LatLng(25.1151519, 121.6286149),
+  static const _eventsSourceId = 'app-events';
+  static const _eventsLineLayerId = 'app-events-lines';
+  static const _eventsFillLayerId = 'app-events-polygons';
+  static final _taiwanBounds = LatLngBounds(
+    southwest: const LatLng(21.8, 119.9),
+    northeast: const LatLng(25.5, 122.2),
   );
 
-  final MapControllerImpl _offlineController = MapControllerImpl();
+  final OfflineMapAssetStore _assetStore = OfflineMapAssetStore();
   final ValueNotifier<Offset?> _radarScreenPosition = ValueNotifier(null);
   late final AnimationController _pulseController;
-  google.GoogleMapController? _googleController;
-  GoogleMarkerIcons? _googleMarkerIcons;
-  String? _googleStyle;
+  MapLibreMapController? _mapController;
+  String? _styleJson;
+  Object? _styleError;
+  bool _styleLoaded = false;
+  bool _eventSourceReady = false;
+  bool _markerRefreshScheduled = false;
+  bool _markerProjectionInFlight = false;
+  final MapMarkerProjectionGate _markerProjectionGate =
+      MapMarkerProjectionGate();
+  bool _initialOverviewApplied = false;
   int _lastFocusRequestId = -1;
-  Timer? _googleMapWatchdog;
-  bool _googleMapCreated = false;
-  bool _googleMapCreationTimedOut = false;
   Timer? _pulseStartTimer;
   Timer? _pulseStopTimer;
   GeoPoint? _pendingEventFocus;
   GeoPoint? _radarEventPoint;
   bool _pendingEventAnimated = true;
-  bool _offlineMapReady = false;
   bool _radarVisible = false;
-  bool _programmaticGoogleCameraMove = false;
-
-  MapProviderMode _providerFor(MapCanvas canvas) => MapCanvas.resolveProvider(
-    requestedMode: canvas.runtimeState.providerMode,
-    configuredGoogleMapsKey: canvas.configuredGoogleMapsKey,
-    networkAvailable: canvas.networkAvailable,
-  );
-
-  MapProviderMode get _activeProvider =>
-      _googleMapCreationTimedOut
-          ? MapProviderMode.offline
-          : _providerFor(widget);
-
-  void _startGoogleMapWatchdog() {
-    if (_googleMapCreated ||
-        _googleMapCreationTimedOut ||
-        _googleMapWatchdog != null ||
-        _providerFor(widget) != MapProviderMode.googleOnline) {
-      return;
-    }
-    _googleMapWatchdog = Timer(_googleMapCreationTimeout, () {
-      _googleMapWatchdog = null;
-      if (!mounted ||
-          _googleMapCreated ||
-          _providerFor(widget) != MapProviderMode.googleOnline) {
-        return;
-      }
-      setState(() {
-        _googleMapCreationTimedOut = true;
-        _googleController = null;
-      });
-    });
-  }
-
-  void _resetGoogleMapWatchdog() {
-    _googleMapWatchdog?.cancel();
-    _googleMapWatchdog = null;
-    _googleMapCreated = false;
-    _googleMapCreationTimedOut = false;
-    _googleController = null;
-  }
-
-  void _onGoogleMapCreated(google.GoogleMapController controller) {
-    _googleMapWatchdog?.cancel();
-    _googleMapWatchdog = null;
-    if (!mounted ||
-        _googleMapCreationTimedOut ||
-        _providerFor(widget) != MapProviderMode.googleOnline) {
-      return;
-    }
-    _googleMapCreated = true;
-    _googleController = controller;
-    if (_pendingEventFocus != null) {
-      _focusPendingEvent();
-      return;
-    }
-    final focus = widget.focusPoint ?? widget.searchSelection?.coordinate;
-    if (focus != null) _focus(focus, animated: _animationsAllowed);
-  }
-
-  bool get _isDarkAppTheme => Theme.of(context).brightness == Brightness.dark;
-
-  ColorFilter get _offlineOsmTileFilter =>
-      _isDarkAppTheme ? _darkOsmTileFilter : _lightOsmTileFilter;
-
-  double get _minZoom =>
-      _activeProvider == MapProviderMode.googleOnline
-          ? MapCanvas.googleMinZoom
-          : MapCanvas.offlineMinZoom;
-  double get _maxZoom =>
-      _activeProvider == MapProviderMode.googleOnline
-          ? MapCanvas.googleMaxZoom
-          : MapCanvas.offlineMaxZoom;
 
   @override
   void initState() {
@@ -258,21 +111,26 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadGoogleStyle();
-    if (_googleMarkerIcons == null && mounted) {
-      unawaited(_loadGoogleMarkerIcons());
-    }
+    _loadStyle();
   }
 
   @override
   void didUpdateWidget(covariant MapCanvas oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_providerFor(oldWidget) != _providerFor(widget)) {
-      _resetGoogleMapWatchdog();
-      _offlineMapReady = false;
-    }
     if (oldWidget.runtimeState.themeMode != widget.runtimeState.themeMode) {
-      _loadGoogleStyle();
+      _loadStyle();
+    }
+    if (oldWidget.visibleEvents != widget.visibleEvents ||
+        oldWidget.showEvents != widget.showEvents) {
+      unawaited(_updateEventSource());
+      _queueMarkerRefresh();
+    }
+    if (oldWidget.staticFeatures != widget.staticFeatures ||
+        oldWidget.showShelters != widget.showShelters ||
+        oldWidget.showMedical != widget.showMedical ||
+        oldWidget.runtimeState.currentLocation !=
+            widget.runtimeState.currentLocation) {
+      _queueMarkerRefresh();
     }
     final focusingNewEvent = _recordNewEvents(oldWidget.visibleEvents);
     final focus = widget.focusPoint ?? widget.searchSelection?.coordinate;
@@ -281,49 +139,59 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
         widget.focusRequestId != _lastFocusRequestId) {
       _lastFocusRequestId = widget.focusRequestId;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _focus(focus, animated: _animationsAllowed);
+        if (mounted) unawaited(_focus(focus, animated: _animationsAllowed));
+      });
+    }
+    if (oldWidget.runtimeState.currentLocation !=
+            widget.runtimeState.currentLocation &&
+        widget.runtimeState.currentLocation != null &&
+        widget.focusRequestId == _lastFocusRequestId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _queueMarkerRefresh();
       });
     }
   }
 
   @override
   void dispose() {
-    _resetGoogleMapWatchdog();
     _pulseStartTimer?.cancel();
     _pulseStopTimer?.cancel();
     _pulseController.dispose();
     _radarScreenPosition.dispose();
-    _offlineController.dispose();
+    _mapController?.dispose();
     super.dispose();
   }
 
-  Future<void> _loadGoogleMarkerIcons() async {
-    try {
-      final icons = await GoogleMarkerIcons.create(
-        devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-      );
-      if (mounted) setState(() => _googleMarkerIcons = icons);
-    } on Object {
-      // Feature/event markers remain hidden if neutral bitmap generation is
-      // unavailable. The current-location marker has its own fallback.
-    }
-  }
+  bool get _animationsAllowed =>
+      widget.runtimeState.animationEnabled &&
+      !(MediaQuery.maybeOf(context)?.disableAnimations ?? false);
 
-  Future<void> _loadGoogleStyle() async {
-    final brightness = Theme.of(context).brightness;
-    final dark =
-        widget.runtimeState.themeMode == ThemeMode.dark ||
-        (widget.runtimeState.themeMode == ThemeMode.system &&
-            brightness == Brightness.dark);
+  bool get _usesPlatformMap =>
+      !isFlutterTest &&
+      (kIsWeb ||
+          defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  Future<void> _loadStyle() async {
+    final styleAsset = MapLibreMapConfig.styleAssetFor(
+      themeMode: widget.runtimeState.themeMode,
+      systemBrightness: Theme.of(context).brightness,
+    );
     try {
-      final style = await rootBundle.loadString(
-        dark
-            ? 'assets/map/google-map-dark.json'
-            : 'assets/map/google-map-light.json',
+      final style = await _assetStore.loadStyle(
+        styleAsset: styleAsset,
+        installNativeAssets: _usesPlatformMap && !kIsWeb,
       );
-      if (mounted) setState(() => _googleStyle = style);
-    } on Object {
-      // Default Google styling remains usable when a custom style asset fails.
+      if (!mounted) return;
+      setState(() {
+        _styleJson = style;
+        _styleError = null;
+        _styleLoaded = false;
+        _eventSourceReady = false;
+      });
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() => _styleError = error);
     }
   }
 
@@ -335,22 +203,18 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     if (newEvents.isEmpty) return false;
     final focus = meshEventFocusPoint(newEvents.last);
     if (focus == null) return false;
-
     _pendingEventFocus = focus;
     _pendingEventAnimated = _animationsAllowed;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _focusPendingEvent();
+      if (mounted) unawaited(_focusPendingEvent());
     });
     return true;
   }
 
-  bool get _animationsAllowed =>
-      widget.runtimeState.animationEnabled &&
-      !(MediaQuery.maybeOf(context)?.disableAnimations ?? false);
-
-  void _focusPendingEvent() {
+  Future<void> _focusPendingEvent() async {
     final focus = _pendingEventFocus;
-    if (focus == null || !_focus(focus, animated: _pendingEventAnimated)) {
+    if (focus == null ||
+        !await _focus(focus, animated: _pendingEventAnimated)) {
       return;
     }
     _pendingEventFocus = null;
@@ -360,9 +224,6 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     }
     _pulseStartTimer?.cancel();
     _pulseStopTimer?.cancel();
-    // Both renderers use the same configured camera animation duration. This
-    // keeps the Demo radar reliable even when a Google platform view does not
-    // emit its camera-idle callback during a short programmatic move.
     _pulseStartTimer = Timer(_focusAnimationDuration, () {
       if (mounted) unawaited(_showRadarAndStop(focus));
     });
@@ -397,139 +258,314 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     if (mounted && _radarVisible) setState(() => _radarVisible = false);
   }
 
-  void _setZoomPercentage(int percentage) {
+  Future<void> _setZoomPercentage(int percentage) async {
     final clamped = percentage.clamp(0, 100);
     final zoom = ZoomPercentage.toZoom(
       percentage: clamped,
-      minZoom: _minZoom,
-      maxZoom: _maxZoom,
+      minZoom: MapCanvas.minZoom,
+      maxZoom: MapCanvas.maxZoom,
     );
     widget.onZoomPercentageChanged(clamped);
-    if (_activeProvider == MapProviderMode.googleOnline) {
-      final controller = _googleController;
-      if (controller != null) {
-        _programmaticGoogleCameraMove = true;
-        unawaited(controller.animateCamera(google.CameraUpdate.zoomTo(zoom)));
-      }
-      return;
-    }
-    _offlineController.move(_offlineController.camera.center, zoom);
+    final controller = _mapController;
+    if (controller == null) return;
+    await controller.animateCamera(
+      CameraUpdate.zoomTo(zoom),
+      duration: _focusAnimationDuration,
+    );
   }
 
-  void _recenter() {
+  Future<void> _recenter() async {
     widget.onRecenter?.call();
-    widget.onZoomPercentageChanged(0);
-    if (_activeProvider == MapProviderMode.googleOnline) {
-      final controller = _googleController;
-      if (controller != null) {
-        _programmaticGoogleCameraMove = true;
-        unawaited(
-          controller.animateCamera(
-            google.CameraUpdate.newLatLngBounds(_googleBounds, 28),
-          ),
-        );
-      }
-      return;
-    }
-    _offlineController.move(_demoCenter, MapCanvas.offlineMinZoom);
+    _pendingEventFocus = null;
+    _stopRadar();
+    final controller = _mapController;
+    if (controller == null) return;
+    await _moveToTaiwanOverview(animated: _animationsAllowed);
   }
 
-  bool _focus(GeoPoint point, {required bool animated}) {
+  Future<void> _moveToTaiwanOverview({required bool animated}) async {
+    final controller = _mapController;
+    if (controller == null) return;
+    final update = CameraUpdate.newLatLngBounds(
+      _taiwanBounds,
+      left: 24,
+      top: 24,
+      right: 24,
+      bottom: 120,
+    );
+    if (animated) {
+      await controller.animateCamera(update, duration: _focusAnimationDuration);
+    } else {
+      await controller.moveCamera(update);
+    }
+  }
+
+  Future<bool> _focus(GeoPoint point, {required bool animated}) async {
+    final controller = _mapController;
+    if (controller == null || !_styleLoaded) return false;
     const focusPercentage = 70;
     final zoom = ZoomPercentage.toZoom(
       percentage: focusPercentage,
-      minZoom: _minZoom,
-      maxZoom: _maxZoom,
+      minZoom: MapCanvas.minZoom,
+      maxZoom: MapCanvas.maxZoom,
     );
-    if (_activeProvider == MapProviderMode.googleOnline) {
-      final controller = _googleController;
-      if (controller == null) return false;
-      final update = google.CameraUpdate.newCameraPosition(
-        google.CameraPosition(
-          target: google.LatLng(point.latitude, point.longitude),
-          zoom: zoom,
-        ),
-      );
-      widget.onZoomPercentageChanged(focusPercentage);
-      _programmaticGoogleCameraMove = true;
-      unawaited(
-        animated
-            ? controller.animateCamera(update)
-            : controller.moveCamera(update),
-      );
-      return true;
-    }
-    if (!_offlineMapReady) return false;
     widget.onZoomPercentageChanged(focusPercentage);
-    final target = latlng.LatLng(point.latitude, point.longitude);
+    final update = CameraUpdate.newLatLngZoom(_latLng(point), zoom);
     if (animated) {
-      _offlineController.moveAnimatedRaw(
-        target,
-        zoom,
-        duration: _focusAnimationDuration,
-        curve: Curves.easeInOutCubic,
-        hasGesture: false,
-        source: MapEventSource.mapController,
-      );
+      await controller.animateCamera(update, duration: _focusAnimationDuration);
     } else {
-      _offlineController.move(target, zoom);
+      await controller.moveCamera(update);
     }
     return true;
   }
 
-  void _onGoogleCameraMove(google.CameraPosition position) {
-    if (_programmaticGoogleCameraMove) return;
+  void _onCameraMove(CameraPosition position) {
     final percentage = ZoomPercentage.fromZoom(
       zoom: position.zoom,
-      minZoom: _minZoom,
-      maxZoom: _maxZoom,
+      minZoom: MapCanvas.minZoom,
+      maxZoom: MapCanvas.maxZoom,
     );
     if (percentage != widget.runtimeState.zoomPercentage) {
       widget.onZoomPercentageChanged(percentage);
     }
+    _queueMarkerRefresh();
   }
 
-  Future<bool> _updateRadarScreenPosition(GeoPoint point) async {
-    if (_activeProvider == MapProviderMode.googleOnline) {
-      // Google uses native Circle overlays, so it does not need a Flutter
-      // screen projection for the radar.
+  void _queueMarkerRefresh() {
+    final request = _markerProjectionGate.request();
+    if (_markerRefreshScheduled || _markerProjectionInFlight) return;
+    _markerRefreshScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _markerRefreshScheduled = false;
+      if (mounted) unawaited(_refreshMarkerPositions(request));
+    });
+  }
+
+  List<MapMarkerData> _markers() => MapLayers.buildMarkers(
+    features: widget.staticFeatures,
+    events: widget.visibleEvents,
+    showShelters: widget.showShelters,
+    showMedical: widget.showMedical,
+    showEvents: widget.showEvents,
+    onStaticFeatureSelected: widget.onStaticFeatureSelected,
+    onEventSelected: widget.onEventSelected,
+    currentLocation: widget.runtimeState.currentLocation,
+  );
+
+  final Map<Key, Offset> _markerPositions = <Key, Offset>{};
+
+  Future<void> _refreshMarkerPositions(int request) async {
+    if (_markerProjectionInFlight) return;
+    _markerProjectionInFlight = true;
+    final controller = _mapController;
+    try {
+      if (controller == null) return;
+      final markers = _markers();
+      if (markers.isEmpty) {
+        if (_markerProjectionGate.isCurrent(request) &&
+            _markerPositions.isNotEmpty &&
+            mounted) {
+          setState(_markerPositions.clear);
+        }
+        return;
+      }
+      final points = await controller.toScreenLocationBatch(
+        markers.map((marker) => _latLng(marker.point)),
+      );
+      if (!mounted || !_markerProjectionGate.isCurrent(request)) return;
+      final next = <Key, Offset>{};
+      for (
+        var index = 0;
+        index < markers.length && index < points.length;
+        index++
+      ) {
+        final point = points[index];
+        next[markers[index].key] = Offset(
+          point.x.toDouble(),
+          point.y.toDouble(),
+        );
+      }
+      setState(() {
+        _markerPositions
+          ..clear()
+          ..addAll(next);
+      });
+      final radarPoint = _radarEventPoint;
+      if (radarPoint != null) {
+        await _updateRadarScreenPosition(radarPoint, request: request);
+      }
+    } on Object {
+      // The native view can be between style/camera lifecycles. The next map
+      // idle callback will retry without interrupting the rest of the UI.
+    } finally {
+      _markerProjectionInFlight = false;
+      if (mounted && !_markerProjectionGate.isCurrent(request)) {
+        _queueMarkerRefresh();
+      }
+    }
+  }
+
+  Future<void> _onStyleLoaded() async {
+    _styleLoaded = true;
+    await _ensureEventLayers();
+    _queueMarkerRefresh();
+    if (!_initialOverviewApplied &&
+        widget.runtimeState.currentLocation == null &&
+        widget.focusPoint == null &&
+        widget.searchSelection == null) {
+      _initialOverviewApplied = true;
+      await _moveToTaiwanOverview(animated: false);
+    }
+    if (_pendingEventFocus != null) {
+      await _focusPendingEvent();
+      return;
+    }
+    final focus = widget.focusPoint ?? widget.searchSelection?.coordinate;
+    if (focus != null) {
+      _lastFocusRequestId = widget.focusRequestId;
+      await _focus(focus, animated: _animationsAllowed);
+    }
+  }
+
+  Future<void> _ensureEventLayers() async {
+    final controller = _mapController;
+    if (controller == null || !_styleLoaded) return;
+    try {
+      if (!_eventSourceReady) {
+        await controller.addGeoJsonSource(
+          _eventsSourceId,
+          MapLibreOverlayData.eventFeatureCollection(
+            widget.showEvents ? widget.visibleEvents : const <MeshEvent>[],
+          ),
+        );
+        await controller.addFillLayer(
+          _eventsSourceId,
+          _eventsFillLayerId,
+          const FillLayerProperties(
+            fillColor: ['get', 'color'],
+            fillOpacity: ['get', 'opacity'],
+            fillOutlineColor: ['get', 'color'],
+          ),
+          enableInteraction: false,
+        );
+        await controller.addLineLayer(
+          _eventsSourceId,
+          _eventsLineLayerId,
+          const LineLayerProperties(
+            lineColor: ['get', 'color'],
+            lineOpacity: 0.95,
+            lineWidth: ['get', 'line_width'],
+          ),
+          enableInteraction: false,
+        );
+        _eventSourceReady = true;
+      } else {
+        await _updateEventSource();
+      }
+    } on Object {
+      // Keep the map usable if an older native MapLibre build cannot add a
+      // runtime layer. The Flutter marker overlay still remains available.
+    }
+  }
+
+  Future<void> _updateEventSource() async {
+    if (!_eventSourceReady || _mapController == null) return;
+    try {
+      await _mapController!.setGeoJsonSource(
+        _eventsSourceId,
+        MapLibreOverlayData.eventFeatureCollection(
+          widget.showEvents ? widget.visibleEvents : const <MeshEvent>[],
+        ),
+      );
+    } on Object {
+      // A style replacement invalidates the old source; style callback will
+      // rebuild it.
+    }
+  }
+
+  Future<void> _onMapClick(math.Point<double> point, LatLng coordinates) async {
+    final controller = _mapController;
+    if (controller != null && _eventSourceReady && widget.showEvents) {
+      try {
+        final rendered = await controller.queryRenderedFeatures(point, <String>[
+          _eventsLineLayerId,
+          _eventsFillLayerId,
+        ], null);
+        for (final feature in rendered) {
+          if (feature is! Map) continue;
+          final properties = feature['properties'];
+          final id = properties is Map ? properties['event_id'] : null;
+          if (id is! String) continue;
+          final event = widget.visibleEvents.firstWhere(
+            (candidate) => meshEventIdentity(candidate) == id,
+            orElse:
+                () => const MeshEvent(
+                  namespace: null,
+                  eventId: null,
+                  eventVersion: null,
+                  eventType: null,
+                  severity: null,
+                  source: null,
+                  issuedAt: null,
+                  expiresAt: null,
+                  applyState: null,
+                  geometry: null,
+                  attributes: null,
+                ),
+          );
+          if (event.eventId != null) {
+            widget.onEventSelected(event);
+            return;
+          }
+        }
+      } on Object {
+        // A basemap tap remains a valid interaction on platforms without
+        // rendered-feature query support.
+      }
+    }
+    widget.onMapTap();
+  }
+
+  Future<bool> _updateRadarScreenPosition(
+    GeoPoint point, {
+    int? request,
+  }) async {
+    final controller = _mapController;
+    if (controller == null || !_styleLoaded) return false;
+    try {
+      final screen = await controller.toScreenLocation(_latLng(point));
+      if (request != null && !_markerProjectionGate.isCurrent(request)) {
+        return false;
+      }
+      _radarScreenPosition.value = Offset(
+        screen.x.toDouble(),
+        screen.y.toDouble(),
+      );
       return true;
-    }
-    if (!_offlineMapReady) return false;
-    final camera = _offlineController.camera;
-    _radarScreenPosition.value = camera.latLngToScreenOffset(
-      latlng.LatLng(point.latitude, point.longitude),
-    );
-    return true;
-  }
-
-  void _onOfflineMapEvent(MapEvent event) {
-    final radarPoint = _radarEventPoint;
-    if (radarPoint != null) unawaited(_updateRadarScreenPosition(radarPoint));
-    if (event.source == MapEventSource.mapController) return;
-    final percentage = ZoomPercentage.fromZoom(
-      zoom: event.camera.zoom,
-      minZoom: _minZoom,
-      maxZoom: _maxZoom,
-    );
-    if (percentage != widget.runtimeState.zoomPercentage) {
-      widget.onZoomPercentageChanged(percentage);
+    } on Object {
+      return false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final map =
-        _activeProvider == MapProviderMode.googleOnline
-            ? _buildGoogleMap()
-            : _buildOfflineMap();
+    final baseMap =
+        !_usesPlatformMap
+            ? _buildPreviewSurface()
+            : _styleError != null
+            ? _buildErrorSurface()
+            : _styleJson == null
+            ? _buildLoadingSurface()
+            : _buildMapLibreMap();
+    final markers = _markers();
     return Stack(
       fit: StackFit.expand,
       children: <Widget>[
-        map,
-        if (_activeProvider == MapProviderMode.offline &&
-            _animationsAllowed &&
-            _radarVisible)
+        baseMap,
+        if (_usesPlatformMap) ...markers.map(_buildPositionedMarker),
+        if (!_usesPlatformMap || _markerPositions.isEmpty)
+          ..._buildPreviewMarkers(markers),
+        if (_usesPlatformMap && _animationsAllowed && _radarVisible)
           Positioned.fill(
             child: ValueListenableBuilder<Offset?>(
               valueListenable: _radarScreenPosition,
@@ -549,9 +585,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
                 );
               },
             ),
-          )
-        else
-          const SizedBox.shrink(),
+          ),
         Positioned(
           right: 12,
           bottom: 12,
@@ -569,148 +603,104 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildGoogleMap() {
-    _startGoogleMapWatchdog();
-    return AnimatedBuilder(
-      animation: _pulseController,
-      builder: (context, _) => _buildGoogleMapFrame(_pulseController.value),
+  Widget _buildPositionedMarker(MapMarkerData marker) {
+    final screen = _markerPositions[marker.key];
+    if (screen == null) return const SizedBox.shrink();
+    return Positioned(
+      key: marker.key,
+      left: screen.dx - (marker.width / 2),
+      top: screen.dy - (marker.height / 2),
+      width: marker.width,
+      height: marker.height,
+      child: marker.child,
     );
   }
 
-  Widget _buildGoogleMapFrame(double radarProgress) {
-    final overlays = GoogleMapLayers.build(
-      features: widget.staticFeatures,
-      events: widget.visibleEvents,
-      showShelters: widget.showShelters,
-      showMedical: widget.showMedical,
-      showEvents: widget.showEvents,
-      onStaticFeatureSelected: widget.onStaticFeatureSelected,
-      onEventSelected: widget.onEventSelected,
-      markerIcons: _googleMarkerIcons,
+  /// Desktop Flutter does not host the MapLibre platform view. Keep the
+  /// provider-neutral marker widgets available there for UI development and
+  /// accessibility tests; Android/iOS use the real screen projection above.
+  Iterable<Widget> _buildPreviewMarkers(List<MapMarkerData> markers) sync* {
+    for (var index = 0; index < markers.length; index += 1) {
+      final marker = markers[index];
+      final column = index % 6;
+      final row = index ~/ 6;
+      yield Positioned(
+        key: marker.key,
+        left: 16 + (column * 44),
+        top: 300 + (row * 44),
+        width: marker.width,
+        height: marker.height,
+        child: marker.child,
+      );
+    }
+  }
+
+  Widget _buildMapLibreMap() {
+    final initial = MapLibreMapConfig.initialCamera(
       currentLocation: widget.runtimeState.currentLocation,
-      radarPoint: _radarVisible ? _radarEventPoint : null,
-      radarProgress: radarProgress,
     );
-    final platformMap = google.GoogleMap(
-      key: const ValueKey<String>('google-map-platform-view'),
-      initialCameraPosition: google.CameraPosition(
-        target: const google.LatLng(
-          MapDefaults.demoLatitude,
-          MapDefaults.demoLongitude,
-        ),
-        zoom: ZoomPercentage.toZoom(
-          percentage: widget.runtimeState.zoomPercentage,
-          minZoom: MapCanvas.googleMinZoom,
-          maxZoom: MapCanvas.googleMaxZoom,
-        ),
+    return MapLibreMap(
+      key: const ValueKey<String>('maplibre-platform-view'),
+      styleString: _styleJson!,
+      initialCameraPosition: CameraPosition(
+        target: _latLng(initial.target),
+        zoom: initial.zoom,
       ),
-      cameraTargetBounds: google.CameraTargetBounds(_googleBounds),
-      minMaxZoomPreference: const google.MinMaxZoomPreference(
-        MapCanvas.googleMinZoom,
-        MapCanvas.googleMaxZoom,
+      cameraTargetBounds: CameraTargetBounds.unbounded,
+      minMaxZoomPreference: const MinMaxZoomPreference(
+        MapLibreMapConfig.minZoom,
+        MapLibreMapConfig.maxZoom,
       ),
-      style: _googleStyle,
-      zoomControlsEnabled: false,
-      zoomGesturesEnabled: true,
-      scrollGesturesEnabled: true,
+      compassEnabled: false,
+      logoEnabled: false,
+      attributionButtonPosition: AttributionButtonPosition.bottomLeft,
       rotateGesturesEnabled: false,
       tiltGesturesEnabled: false,
-      // The Demo owns its current-location marker. Enabling Google's native
-      // layer here could show a second emulator GPS position.
-      myLocationEnabled: false,
-      myLocationButtonEnabled: false,
-      markers: overlays.markers,
-      polylines: overlays.polylines,
-      polygons: overlays.polygons,
-      circles: overlays.circles,
-      onMapCreated: _onGoogleMapCreated,
-      onCameraMove: _onGoogleCameraMove,
-      onCameraIdle: () {
-        _programmaticGoogleCameraMove = false;
+      featureTapsTriggersMapClick: false,
+      trackCameraPosition: true,
+      onMapCreated: (controller) {
+        _mapController = controller;
+        _queueMarkerRefresh();
       },
-      onTap: (_) => widget.onMapTap(),
+      onStyleLoadedCallback: () => unawaited(_onStyleLoaded()),
+      onCameraMove: _onCameraMove,
+      onCameraIdle: _queueMarkerRefresh,
+      onMapIdle: _queueMarkerRefresh,
+      onMapClick: _onMapClick,
     );
-    return widget.googleMapBuilder?.call(platformMap) ?? platformMap;
   }
 
-  Widget _buildOfflineMap() => FlutterMap(
-    mapController: _offlineController,
-    options: MapOptions(
-      initialCenter: _demoCenter,
-      initialZoom: ZoomPercentage.toZoom(
-        percentage: widget.runtimeState.zoomPercentage,
-        minZoom: MapCanvas.offlineMinZoom,
-        maxZoom: MapCanvas.offlineMaxZoom,
-      ),
-      minZoom: MapCanvas.offlineMinZoom,
-      maxZoom: MapCanvas.offlineMaxZoom,
-      cameraConstraint: CameraConstraint.containCenter(bounds: _offlineBounds),
-      interactionOptions: const InteractionOptions(
-        flags:
-            InteractiveFlag.drag |
-            InteractiveFlag.flingAnimation |
-            InteractiveFlag.pinchMove |
-            InteractiveFlag.pinchZoom |
-            InteractiveFlag.doubleTapZoom |
-            InteractiveFlag.doubleTapDragZoom,
-        enableMultiFingerGestureRace: true,
-      ),
-      onMapEvent: _onOfflineMapEvent,
-      onTap: (_, _) => widget.onMapTap(),
-      onMapReady: () {
-        _offlineMapReady = true;
-        if (_pendingEventFocus != null) {
-          _focusPendingEvent();
-          return;
-        }
-        final focus = widget.focusPoint ?? widget.searchSelection?.coordinate;
-        if (focus != null) _focus(focus, animated: _animationsAllowed);
-      },
-    ),
-    children: <Widget>[
-      ColorFiltered(
-        colorFilter: _offlineOsmTileFilter,
-        child: TileLayer(
-          urlTemplate: 'assets/map/tiles/{z}/{x}/{y}.png',
-          tileProvider: AssetTileProvider(),
-          minZoom: MapCanvas.offlineMinZoom,
-          maxZoom: MapCanvas.offlineMaxZoom,
-          minNativeZoom: 12,
-          maxNativeZoom: 17,
-          tileBounds: _offlineBounds,
-          keepBuffer: 0,
-          panBuffer: 0,
-          tileDisplay: const TileDisplay.instantaneous(),
-        ),
-      ),
-      ...MapLayers.build(
-        features: widget.staticFeatures,
-        events: widget.visibleEvents,
-        showShelters: widget.showShelters,
-        showMedical: widget.showMedical,
-        showEvents: widget.showEvents,
-        onStaticFeatureSelected: widget.onStaticFeatureSelected,
-        onEventSelected: widget.onEventSelected,
-        currentLocation: widget.runtimeState.currentLocation,
-      ),
-      const Positioned(
-        right: 8,
-        bottom: 8,
-        child: IgnorePointer(
-          child: DecoratedBox(
-            decoration: BoxDecoration(color: Colors.white70),
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              child: Text(
-                '© OpenStreetMap contributors',
-                style: TextStyle(fontSize: 10, color: Colors.black87),
-              ),
-            ),
-          ),
-        ),
-      ),
-    ],
+  Widget _buildPreviewSurface() => ColoredBox(
+    color:
+        Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF171B20)
+            : const Color(0xFFF2F0EC),
+    child: const Center(child: Text('MapLibre 台灣離線地圖預覽')),
   );
+
+  Widget _buildLoadingSurface() => const ColoredBox(
+    color: Color(0xFFF2F0EC),
+    child: Center(child: CircularProgressIndicator()),
+  );
+
+  Widget _buildErrorSurface() => ColoredBox(
+    color:
+        Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF171B20)
+            : const Color(0xFFF2F0EC),
+    child: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          '台灣離線地圖資產尚未安裝\n${_styleError ?? '無法載入地圖樣式'}',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    ),
+  );
+
+  static LatLng _latLng(GeoPoint point) =>
+      LatLng(point.latitude, point.longitude);
 }
 
 class _RadarPulsePainter extends CustomPainter {
@@ -740,5 +730,5 @@ class _RadarPulsePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _RadarPulsePainter oldDelegate) =>
-      oldDelegate.progress != progress;
+      oldDelegate.progress != progress || oldDelegate.center != center;
 }

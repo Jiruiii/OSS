@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.resilientgeo.mesh.bridge.FlutterMapBridge
+import com.resilientgeo.mesh.bridge.OfflineMapAssetBridge
 import com.resilientgeo.mesh.bridge.SharedPreferencesEmergencyModeState
 import com.resilientgeo.mesh.emergency.EmergencyModeService
 import io.flutter.embedding.android.FlutterFragmentActivity
@@ -25,6 +26,7 @@ import io.flutter.embedding.engine.FlutterEngine
 class MainActivity : FlutterFragmentActivity() {
 
     private var mapBridge: FlutterMapBridge? = null
+    private var offlineMapAssetBridge: OfflineMapAssetBridge? = null
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -56,11 +58,18 @@ class MainActivity : FlutterFragmentActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             onEmergencyModeChanged = ::onEmergencyModeChanged,
         )
+        offlineMapAssetBridge?.close()
+        offlineMapAssetBridge = OfflineMapAssetBridge(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
     }
 
     override fun onDestroy() {
         mapBridge?.close()
         mapBridge = null
+        offlineMapAssetBridge?.close()
+        offlineMapAssetBridge = null
         super.onDestroy()
     }
 

@@ -1,38 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:resilientgeo_flutter/data/map_runtime_state.dart';
-import 'package:resilientgeo_flutter/widgets/map_canvas.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:resilientgeo_flutter/widgets/map_layers.dart';
 import 'package:resilientgeo_flutter/widgets/map_zoom_controls.dart';
 
 void main() {
-  test('online configured Google preference selects Google renderer', () {
-    expect(
-      MapCanvas.resolveProvider(
-        requestedMode: MapProviderMode.googleOnline,
-        configuredGoogleMapsKey: 'demo-key',
-        networkAvailable: true,
-      ),
-      MapProviderMode.googleOnline,
-    );
-  });
-
-  test('missing key or network selects offline renderer', () {
-    expect(
-      MapCanvas.resolveProvider(
-        requestedMode: MapProviderMode.googleOnline,
-        configuredGoogleMapsKey: '',
-        networkAvailable: true,
-      ),
-      MapProviderMode.offline,
-    );
-    expect(
-      MapCanvas.resolveProvider(
-        requestedMode: MapProviderMode.googleOnline,
-        configuredGoogleMapsKey: 'demo-key',
-        networkAvailable: false,
-      ),
-      MapProviderMode.offline,
-    );
+  test('MapLibre marker catalog uses Lucide app-owned icons', () {
+    expect(MapIconCatalog.disaster, LucideIcons.triangleAlert);
+    expect(MapIconCatalog.expiredEvent, LucideIcons.clock3);
+    expect(MapIconCatalog.shelter, LucideIcons.house);
+    expect(MapIconCatalog.medical, LucideIcons.hospital);
   });
 
   testWidgets('percentage control exposes 0, 50, and 100 percent', (
@@ -102,5 +79,24 @@ void main() {
     await tester.tap(find.byTooltip('縮小'));
     await tester.pump();
     expect(find.text('縮放 50%'), findsOneWidget);
+  });
+
+  testWidgets('recenter control is labelled as the default view', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MapZoomControls(
+            zoomPercentage: 0,
+            onZoomPercentageChanged: (_) {},
+            onRecenter: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byTooltip('回到預設'), findsOneWidget);
+    expect(find.byTooltip('回到內湖範圍'), findsNothing);
   });
 }

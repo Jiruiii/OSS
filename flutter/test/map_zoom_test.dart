@@ -4,8 +4,8 @@ import 'package:resilientgeo_flutter/data/map_zoom.dart';
 void main() {
   group('ZoomPercentage.fromZoom', () {
     test('maps provider boundaries to 0 and 100 percent', () {
-      expect(ZoomPercentage.fromZoom(zoom: 12, minZoom: 12, maxZoom: 20), 0);
-      expect(ZoomPercentage.fromZoom(zoom: 20, minZoom: 12, maxZoom: 20), 100);
+      expect(ZoomPercentage.fromZoom(zoom: 0, minZoom: 0, maxZoom: 15), 0);
+      expect(ZoomPercentage.fromZoom(zoom: 15, minZoom: 0, maxZoom: 15), 100);
     });
 
     test('rounds midpoint values to the nearest integer', () {
@@ -30,36 +30,36 @@ void main() {
   });
 
   group('ZoomPercentage.toZoom', () {
-    test('maps 0, 50, and 100 percent across Google zoom range', () {
+    test('maps 0, 50, and 100 percent across MapLibre zoom range', () {
       expect(
-        ZoomPercentage.toZoom(percentage: 0, minZoom: 12, maxZoom: 20),
-        12,
+        ZoomPercentage.toZoom(percentage: 0, minZoom: 0, maxZoom: 15),
+        0,
       );
       expect(
-        ZoomPercentage.toZoom(percentage: 50, minZoom: 12, maxZoom: 20),
-        16,
+        ZoomPercentage.toZoom(percentage: 50, minZoom: 0, maxZoom: 15),
+        7.5,
       );
       expect(
-        ZoomPercentage.toZoom(percentage: 100, minZoom: 12, maxZoom: 20),
-        20,
+        ZoomPercentage.toZoom(percentage: 100, minZoom: 0, maxZoom: 15),
+        15,
       );
     });
 
     test('maps percentages across the offline tile range', () {
       expect(
-        ZoomPercentage.toZoom(percentage: 50, minZoom: 12, maxZoom: 17),
-        14.5,
+        ZoomPercentage.toZoom(percentage: 50, minZoom: 0, maxZoom: 15),
+        7.5,
       );
     });
 
     test('clamps percentages outside 0 through 100', () {
       expect(
-        ZoomPercentage.toZoom(percentage: -10, minZoom: 12, maxZoom: 20),
-        12,
+        ZoomPercentage.toZoom(percentage: -10, minZoom: 0, maxZoom: 15),
+        0,
       );
       expect(
-        ZoomPercentage.toZoom(percentage: 150, minZoom: 12, maxZoom: 17),
-        17,
+        ZoomPercentage.toZoom(percentage: 150, minZoom: 0, maxZoom: 15),
+        15,
       );
     });
 

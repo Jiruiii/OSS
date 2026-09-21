@@ -22,14 +22,16 @@ void main() {
   });
 
   testWidgets(
-    'initial screen keeps offline status, simulation warning, and layer control visible',
+    'initial screen shows only snapshot and current location status',
     (tester) async {
       await tester.pumpWidget(_testApp());
       await tester.pump();
 
-      expect(find.text('離線地圖可用'), findsOneWidget);
-      expect(find.text('OSM 離線底圖'), findsOneWidget);
-      expect(find.text('模擬事件，非即時官方災情'), findsOneWidget);
+      expect(find.text('資料快照：2026-09-05T00:00:00Z'), findsOneWidget);
+      expect(find.text('目前位置：尚未取得'), findsOneWidget);
+      expect(find.text('離線地圖可用'), findsNothing);
+      expect(find.text('Protomaps 台灣離線底圖'), findsNothing);
+      expect(find.text('模擬事件，非即時官方災情'), findsNothing);
       expect(find.byIcon(Icons.layers_outlined), findsOneWidget);
       expect(find.bySemanticsLabel('圖層設定'), findsOneWidget);
     },

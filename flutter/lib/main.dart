@@ -1,12 +1,20 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'app/map_app_controller.dart';
+import 'data/offline_map_web_protocol.dart';
 import 'screens/map_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/profile_screen.dart';
 import 'widgets/app_bottom_navigation.dart';
 
-void main() => runApp(const ResilientGeoApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) {
+    await registerOfflineMapProtocol();
+  }
+  runApp(const ResilientGeoApp());
+}
 
 class ResilientGeoApp extends StatefulWidget {
   const ResilientGeoApp({super.key});
@@ -96,12 +104,6 @@ class _MapAppHomeState extends State<_MapAppHome> {
             initialState: controller.initialState,
             bridge: controller.bridge,
             eventUpdates: controller.eventUpdates,
-            networkAvailable: controller.networkAvailable,
-            // The Android host owns the real key in its manifest. Passing a
-            // non-secret marker here enables Google only after the native
-            // bridge confirms that manifest entry exists.
-            configuredGoogleMapsKey:
-                controller.googleMapsConfigured ? 'android-manifest-key' : '',
             themeMode: controller.themeMode,
             animationEnabled: controller.animationEnabled,
           ),

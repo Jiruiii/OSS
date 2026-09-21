@@ -107,7 +107,7 @@ class MapZoomControls extends StatelessWidget {
                       ),
                     if (onRecenter != null)
                       IconButton(
-                        tooltip: '回到內湖範圍',
+                        tooltip: '回到預設',
                         visualDensity: VisualDensity.compact,
                         onPressed: onRecenter,
                         icon: const Icon(Icons.center_focus_strong),

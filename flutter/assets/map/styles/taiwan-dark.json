@@ -1,0 +1,149 @@
+{
+  "version": 8,
+  "name": "Taiwan Dark",
+  "metadata": {
+    "map:locale": "zh-Hant",
+    "map:source": "Protomaps v4 / OpenStreetMap"
+  },
+  "glyphs": "asset://assets/map/fonts/{fontstack}/{range}.pbf",
+  "sprite": "asset://assets/map/sprites/v4/dark",
+  "sources": {
+    "taiwan-overview": {
+      "type": "vector",
+      "url": "pmtiles://asset://assets/map/pmtiles/taiwan.pmtiles",
+      "minzoom": 0,
+      "maxzoom": 12,
+      "attribution": "© OpenStreetMap contributors · Protomaps"
+    },
+    "taiwan-north": {
+      "type": "vector",
+      "url": "pmtiles://asset://assets/map/pmtiles/taiwan-north.pmtiles",
+      "minzoom": 13,
+      "maxzoom": 15,
+      "attribution": "© OpenStreetMap contributors · Protomaps"
+    },
+    "taiwan-central": {
+      "type": "vector",
+      "url": "pmtiles://asset://assets/map/pmtiles/taiwan-central.pmtiles",
+      "minzoom": 13,
+      "maxzoom": 15,
+      "attribution": "© OpenStreetMap contributors · Protomaps"
+    },
+    "taiwan-south": {
+      "type": "vector",
+      "url": "pmtiles://asset://assets/map/pmtiles/taiwan-south.pmtiles",
+      "minzoom": 13,
+      "maxzoom": 15,
+      "attribution": "© OpenStreetMap contributors · Protomaps"
+    },
+    "taiwan-east": {
+      "type": "vector",
+      "url": "pmtiles://asset://assets/map/pmtiles/taiwan-east.pmtiles",
+      "minzoom": 13,
+      "maxzoom": 15,
+      "attribution": "© OpenStreetMap contributors · Protomaps"
+    }
+  },
+  "layers": [
+    {
+      "id": "taiwan-background",
+      "type": "background",
+      "paint": {"background-color": "#171b20"}
+    },
+    {
+      "id": "taiwan-water",
+      "type": "fill",
+      "source": "taiwan-overview",
+      "source-layer": "water",
+      "paint": {"fill-color": "#1f6570"}
+    },
+    {
+      "id": "taiwan-landuse",
+      "type": "fill",
+      "source": "taiwan-overview",
+      "source-layer": "landuse",
+      "paint": {"fill-color": "#263b35", "fill-opacity": 0.8}
+    },
+    {
+      "id": "taiwan-buildings",
+      "type": "fill",
+      "source": "taiwan-overview",
+      "source-layer": "buildings",
+      "minzoom": 13,
+      "paint": {"fill-color": "#30363d", "fill-opacity": 0.9}
+    },
+    {
+      "id": "taiwan-roads",
+      "type": "line",
+      "source": "taiwan-overview",
+      "source-layer": "roads",
+      "paint": {
+        "line-color": "#6d7780",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.5, 15, 4]
+      }
+    },
+    {
+      "id": "taiwan-places",
+      "type": "symbol",
+      "source": "taiwan-overview",
+      "source-layer": "places",
+      "minzoom": 5,
+      "maxzoom": 12,
+      "filter": ["all", ["match", ["get", "kind"], ["country", "region", "locality"], true, false], ["<=", ["coalesce", ["get", "min_zoom"], 99], 12]],
+      "layout": {
+        "text-field": ["coalesce", ["get", "name:zh-Hant"], ["get", "name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 5, 10, 10, 13],
+        "text-allow-overlap": false,
+        "text-ignore-placement": false,
+        "text-padding": 4,
+        "symbol-sort-key": ["coalesce", ["get", "min_zoom"], 99]
+      },
+      "paint": {"text-color": "#d9e1e7", "text-halo-color": "#171b20", "text-halo-width": 1}
+    },
+    {
+      "id": "taiwan-pois",
+      "type": "symbol",
+      "source": "taiwan-overview",
+      "source-layer": "pois",
+      "minzoom": 15,
+      "maxzoom": 17,
+      "filter": ["match", ["get", "kind"], ["hospital", "clinic", "doctors", "pharmacy", "fire_station", "police", "shelter", "school", "university", "station", "bus_station", "bus_stop", "supermarket", "park", "townhall", "government"], true, false],
+      "layout": {
+        "text-field": ["coalesce", ["get", "name:zh-Hant"], ["get", "name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": 10,
+        "text-optional": true,
+        "text-allow-overlap": false,
+        "text-ignore-placement": false,
+        "text-padding": 3,
+        "symbol-sort-key": ["coalesce", ["get", "sort_rank"], 99]
+      },
+      "paint": {"text-color": "#f1b15b", "text-halo-color": "#171b20", "text-halo-width": 1}
+    },
+    {"id":"taiwan-north-water","type":"fill","source":"taiwan-north","source-layer":"water","minzoom":13,"paint":{"fill-color":"#1f6570"}},
+    {"id":"taiwan-central-water","type":"fill","source":"taiwan-central","source-layer":"water","minzoom":13,"paint":{"fill-color":"#1f6570"}},
+    {"id":"taiwan-south-water","type":"fill","source":"taiwan-south","source-layer":"water","minzoom":13,"paint":{"fill-color":"#1f6570"}},
+    {"id":"taiwan-east-water","type":"fill","source":"taiwan-east","source-layer":"water","minzoom":13,"paint":{"fill-color":"#1f6570"}},
+    {"id":"taiwan-north-landuse","type":"fill","source":"taiwan-north","source-layer":"landuse","minzoom":13,"paint":{"fill-color":"#263b35","fill-opacity":0.8}},
+    {"id":"taiwan-central-landuse","type":"fill","source":"taiwan-central","source-layer":"landuse","minzoom":13,"paint":{"fill-color":"#263b35","fill-opacity":0.8}},
+    {"id":"taiwan-south-landuse","type":"fill","source":"taiwan-south","source-layer":"landuse","minzoom":13,"paint":{"fill-color":"#263b35","fill-opacity":0.8}},
+    {"id":"taiwan-east-landuse","type":"fill","source":"taiwan-east","source-layer":"landuse","minzoom":13,"paint":{"fill-color":"#263b35","fill-opacity":0.8}},
+    {"id":"taiwan-north-buildings","type":"fill","source":"taiwan-north","source-layer":"buildings","minzoom":13,"paint":{"fill-color":"#30363d","fill-opacity":0.9}},
+    {"id":"taiwan-central-buildings","type":"fill","source":"taiwan-central","source-layer":"buildings","minzoom":13,"paint":{"fill-color":"#30363d","fill-opacity":0.9}},
+    {"id":"taiwan-south-buildings","type":"fill","source":"taiwan-south","source-layer":"buildings","minzoom":13,"paint":{"fill-color":"#30363d","fill-opacity":0.9}},
+    {"id":"taiwan-east-buildings","type":"fill","source":"taiwan-east","source-layer":"buildings","minzoom":13,"paint":{"fill-color":"#30363d","fill-opacity":0.9}},
+    {"id":"taiwan-north-roads","type":"line","source":"taiwan-north","source-layer":"roads","minzoom":13,"paint":{"line-color":"#6d7780","line-width":["interpolate",["linear"],["zoom"],13,1,15,4]}},
+    {"id":"taiwan-central-roads","type":"line","source":"taiwan-central","source-layer":"roads","minzoom":13,"paint":{"line-color":"#6d7780","line-width":["interpolate",["linear"],["zoom"],13,1,15,4]}},
+    {"id":"taiwan-south-roads","type":"line","source":"taiwan-south","source-layer":"roads","minzoom":13,"paint":{"line-color":"#6d7780","line-width":["interpolate",["linear"],["zoom"],13,1,15,4]}},
+    {"id":"taiwan-east-roads","type":"line","source":"taiwan-east","source-layer":"roads","minzoom":13,"paint":{"line-color":"#6d7780","line-width":["interpolate",["linear"],["zoom"],13,1,15,4]}},
+    {"id":"taiwan-north-places","type":"symbol","source":"taiwan-north","source-layer":"places","minzoom":13,"maxzoom":14,"filter":["match",["get","kind"],["region","locality"],true,false],"layout":{"text-field":["coalesce",["get","name:zh-Hant"],["get","name"]],"text-font":["Noto Sans Regular"],"text-size":12,"text-allow-overlap":false,"text-ignore-placement":false,"text-padding":4},"paint":{"text-color":"#d9e1e7","text-halo-color":"#171b20","text-halo-width":1}},
+    {"id":"taiwan-central-places","type":"symbol","source":"taiwan-central","source-layer":"places","minzoom":13,"maxzoom":14,"filter":["match",["get","kind"],["region","locality"],true,false],"layout":{"text-field":["coalesce",["get","name:zh-Hant"],["get","name"]],"text-font":["Noto Sans Regular"],"text-size":12,"text-allow-overlap":false,"text-ignore-placement":false,"text-padding":4},"paint":{"text-color":"#d9e1e7","text-halo-color":"#171b20","text-halo-width":1}},
+    {"id":"taiwan-south-places","type":"symbol","source":"taiwan-south","source-layer":"places","minzoom":13,"maxzoom":14,"filter":["match",["get","kind"],["region","locality"],true,false],"layout":{"text-field":["coalesce",["get","name:zh-Hant"],["get","name"]],"text-font":["Noto Sans Regular"],"text-size":12,"text-allow-overlap":false,"text-ignore-placement":false,"text-padding":4},"paint":{"text-color":"#d9e1e7","text-halo-color":"#171b20","text-halo-width":1}},
+    {"id":"taiwan-east-places","type":"symbol","source":"taiwan-east","source-layer":"places","minzoom":13,"maxzoom":14,"filter":["match",["get","kind"],["region","locality"],true,false],"layout":{"text-field":["coalesce",["get","name:zh-Hant"],["get","name"]],"text-font":["Noto Sans Regular"],"text-size":12,"text-allow-overlap":false,"text-ignore-placement":false,"text-padding":4},"paint":{"text-color":"#d9e1e7","text-halo-color":"#171b20","text-halo-width":1}},
+    {"id":"taiwan-north-pois","type":"symbol","source":"taiwan-north","source-layer":"pois","minzoom":15,"maxzoom":17,"filter":["match",["get","kind"],["hospital","clinic","doctors","pharmacy","fire_station","police","shelter","school","university","station","bus_station","bus_stop","supermarket","park","townhall","government"],true,false],"layout":{"text-field":["coalesce",["get","name:zh-Hant"],["get","name"]],"text-font":["Noto Sans Regular"],"text-size":10,"text-optional":true,"text-allow-overlap":false,"text-ignore-placement":false,"text-padding":3,"symbol-sort-key":["coalesce",["get","sort_rank"],99]},"paint":{"text-color":"#f1b15b","text-halo-color":"#171b20","text-halo-width":1}},
+    {"id":"taiwan-central-pois","type":"symbol","source":"taiwan-central","source-layer":"pois","minzoom":15,"maxzoom":17,"filter":["match",["get","kind"],["hospital","clinic","doctors","pharmacy","fire_station","police","shelter","school","university","station","bus_station","bus_stop","supermarket","park","townhall","government"],true,false],"layout":{"text-field":["coalesce",["get","name:zh-Hant"],["get","name"]],"text-font":["Noto Sans Regular"],"text-size":10,"text-optional":true,"text-allow-overlap":false,"text-ignore-placement":false,"text-padding":3,"symbol-sort-key":["coalesce",["get","sort_rank"],99]},"paint":{"text-color":"#f1b15b","text-halo-color":"#171b20","text-halo-width":1}},
+    {"id":"taiwan-south-pois","type":"symbol","source":"taiwan-south","source-layer":"pois","minzoom":15,"maxzoom":17,"filter":["match",["get","kind"],["hospital","clinic","doctors","pharmacy","fire_station","police","shelter","school","university","station","bus_station","bus_stop","supermarket","park","townhall","government"],true,false],"layout":{"text-field":["coalesce",["get","name:zh-Hant"],["get","name"]],"text-font":["Noto Sans Regular"],"text-size":10,"text-optional":true,"text-allow-overlap":false,"text-ignore-placement":false,"text-padding":3,"symbol-sort-key":["coalesce",["get","sort_rank"],99]},"paint":{"text-color":"#f1b15b","text-halo-color":"#171b20","text-halo-width":1}},
+    {"id":"taiwan-east-pois","type":"symbol","source":"taiwan-east","source-layer":"pois","minzoom":15,"maxzoom":17,"filter":["match",["get","kind"],["hospital","clinic","doctors","pharmacy","fire_station","police","shelter","school","university","station","bus_station","bus_stop","supermarket","park","townhall","government"],true,false],"layout":{"text-field":["coalesce",["get","name:zh-Hant"],["get","name"]],"text-font":["Noto Sans Regular"],"text-size":10,"text-optional":true,"text-allow-overlap":false,"text-ignore-placement":false,"text-padding":3,"symbol-sort-key":["coalesce",["get","sort_rank"],99]},"paint":{"text-color":"#f1b15b","text-halo-color":"#171b20","text-halo-width":1}}
+  ]
+}

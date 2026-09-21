@@ -11,14 +11,12 @@ void main() {
   group('MapRuntimeState', () {
     test('holds presentation state without inventing a current location', () {
       const state = MapRuntimeState(
-        providerMode: MapProviderMode.offline,
         themeMode: ThemeMode.system,
         zoomPercentage: 0,
         currentLocation: null,
         animationEnabled: true,
       );
 
-      expect(state.providerMode, MapProviderMode.offline);
       expect(state.themeMode, ThemeMode.system);
       expect(state.zoomPercentage, 0);
       expect(state.currentLocation, isNull);
@@ -28,7 +26,6 @@ void main() {
     test('copyWith changes only the requested presentation values', () {
       const location = GeoPoint(longitude: 121.5908, latitude: 25.0609);
       const state = MapRuntimeState(
-        providerMode: MapProviderMode.offline,
         themeMode: ThemeMode.light,
         zoomPercentage: 25,
         currentLocation: location,
@@ -36,13 +33,11 @@ void main() {
       );
 
       final updated = state.copyWith(
-        providerMode: MapProviderMode.googleOnline,
         themeMode: ThemeMode.dark,
         zoomPercentage: 75,
         animationEnabled: false,
       );
 
-      expect(updated.providerMode, MapProviderMode.googleOnline);
       expect(updated.themeMode, ThemeMode.dark);
       expect(updated.zoomPercentage, 75);
       expect(updated.currentLocation, same(location));

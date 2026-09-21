@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/map_bridge.dart';
-import '../data/map_defaults.dart';
 import '../data/location_controller.dart';
 import '../data/map_models.dart';
 import '../data/map_runtime_state.dart';
@@ -23,8 +22,6 @@ class MapScreen extends StatefulWidget {
     this.initialState,
     this.bridge,
     this.eventUpdates,
-    this.networkAvailable = false,
-    this.configuredGoogleMapsKey = MapCanvas.compileTimeGoogleMapsKey,
     this.locationController,
     this.themeMode = ThemeMode.system,
     this.animationEnabled = true,
@@ -37,10 +34,7 @@ class MapScreen extends StatefulWidget {
   final MapBridge? bridge;
   final Stream<List<MeshEvent>>? eventUpdates;
 
-  /// Tests and keyless builds stay on the asset renderer unless the app shell
-  /// explicitly supplies both connectivity and a configured Android Maps key.
-  final bool networkAvailable;
-  final String configuredGoogleMapsKey;
+  /// Tests can inject deterministic data and a fake location controller.
   final LocationController? locationController;
   final ThemeMode themeMode;
   final bool animationEnabled;
@@ -65,10 +59,9 @@ class _MapScreenState extends State<MapScreen> {
   StaticFeature? _selectedFeature;
   MeshEvent? _selectedEvent;
   MapRuntimeState _runtimeState = const MapRuntimeState(
-    providerMode: MapProviderMode.offline,
     themeMode: ThemeMode.system,
     zoomPercentage: 0,
-    currentLocation: MapDefaults.demoCurrentLocation,
+    currentLocation: null,
     animationEnabled: true,
   );
   MapSearchResult? _searchSelection;
@@ -88,36 +81,25 @@ class _MapScreenState extends State<MapScreen> {
       });
     });
     _runtimeState = _runtimeState.copyWith(
-      providerMode: _requestedProvider,
       themeMode: widget.themeMode,
       animationEnabled: widget.animationEnabled,
     );
     _load();
   }
 
-  MapProviderMode get _requestedProvider =>
-      widget.networkAvailable &&
-              widget.configuredGoogleMapsKey.trim().isNotEmpty
-          ? MapProviderMode.googleOnline
-          : MapProviderMode.offline;
-
   @override
   void didUpdateWidget(covariant MapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final providerChanged =
-        oldWidget.networkAvailable != widget.networkAvailable ||
-        oldWidget.configuredGoogleMapsKey != widget.configuredGoogleMapsKey;
     final preferencesChanged =
         oldWidget.themeMode != widget.themeMode ||
         oldWidget.animationEnabled != widget.animationEnabled;
     final demoEventsChanged = oldWidget.demoEvents != widget.demoEvents;
-    if (!providerChanged && !preferencesChanged && !demoEventsChanged) return;
+    if (!preferencesChanged && !demoEventsChanged) return;
     setState(() {
       if (demoEventsChanged && widget.demoEvents != null) {
         _demoEvents = widget.demoEvents!;
       }
       _runtimeState = _runtimeState.copyWith(
-        providerMode: providerChanged ? _requestedProvider : null,
         themeMode: preferencesChanged ? widget.themeMode : null,
         animationEnabled: preferencesChanged ? widget.animationEnabled : null,
       );
@@ -340,9 +322,12 @@ class _MapScreenState extends State<MapScreen> {
     _focusRequestId += 1;
   });
 
-  void _focusDemoCurrentLocation() {
+  Future<void> _focusCurrentLocation() async {
+    final location = await _locationController.requestCurrentLocation();
+    if (!mounted) return;
     setState(() {
-      _focusPoint = MapDefaults.demoCurrentLocation;
+      _runtimeState = _runtimeState.copyWith(currentLocation: location);
+      _focusPoint = location;
       _focusRequestId += 1;
     });
   }
@@ -356,11 +341,6 @@ class _MapScreenState extends State<MapScreen> {
     final searchResults = MapSearchIndex(
       staticFeatures.features,
     ).query(_searchText);
-    final activeProvider = MapCanvas.resolveProvider(
-      requestedMode: _runtimeState.providerMode,
-      configuredGoogleMapsKey: widget.configuredGoogleMapsKey,
-      networkAvailable: widget.networkAvailable,
-    );
     return Scaffold(
       body: Stack(
         children: <Widget>[
@@ -375,13 +355,11 @@ class _MapScreenState extends State<MapScreen> {
             onEventSelected: _showEvent,
             onZoomPercentageChanged: _setZoomPercentage,
             onOpenLayerSettings: _openLayerPanel,
-            onRequestLocation: _focusDemoCurrentLocation,
+            onRequestLocation: _focusCurrentLocation,
             onMapTap: _closeDetails,
             searchSelection: _searchSelection,
             focusPoint: _focusPoint,
             focusRequestId: _focusRequestId,
-            networkAvailable: widget.networkAvailable,
-            configuredGoogleMapsKey: widget.configuredGoogleMapsKey,
           ),
           SafeArea(
             child: Padding(
@@ -399,10 +377,7 @@ class _MapScreenState extends State<MapScreen> {
                   const SizedBox(height: 8),
                   _StatusOverlay(
                     snapshotAt: staticFeatures.snapshotAt,
-                    providerMode: activeProvider,
-                    showingDemoLocation:
-                        _runtimeState.currentLocation ==
-                        MapDefaults.demoCurrentLocation,
+                    hasCurrentLocation: _runtimeState.currentLocation != null,
                   ),
                   const Spacer(),
                 ],
@@ -435,13 +410,11 @@ class _MapScreenState extends State<MapScreen> {
 class _StatusOverlay extends StatelessWidget {
   const _StatusOverlay({
     required this.snapshotAt,
-    required this.providerMode,
-    required this.showingDemoLocation,
+    required this.hasCurrentLocation,
   });
 
   final String? snapshotAt;
-  final MapProviderMode providerMode;
-  final bool showingDemoLocation;
+  final bool hasCurrentLocation;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -457,18 +430,8 @@ class _StatusOverlay extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const Text('離線地圖可用'),
-          Text(
-            providerMode == MapProviderMode.googleOnline
-                ? 'Google 線上地圖'
-                : 'OSM 離線底圖',
-          ),
           Text('資料快照：${snapshotAt ?? '無資料'}'),
-          if (showingDemoLocation) const Text('目前位置：成功路二段附近（模擬）'),
-          const Text(
-            '模擬事件，非即時官方災情',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
+          Text('目前位置：${hasCurrentLocation ? '已取得' : '尚未取得'}'),
         ],
       ),
     ),

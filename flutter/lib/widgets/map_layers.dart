@@ -1,20 +1,49 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/map_models.dart';
 
 typedef StaticFeatureSelection = void Function(List<StaticFeature> features);
 typedef MeshEventSelection = void Function(MeshEvent event);
 
-const Color shelterMarkerColor = Color(0xFF00796B);
-const Color medicalMarkerColor = Color(0xFF5E35B1);
+const Color shelterMarkerColor = Color(0xFF0F766E);
+const Color medicalMarkerColor = Color(0xFF4F46E5);
 
-/// Converts display models to the map layers; selection state remains in MapScreen.
+/// App-owned icons stay in one catalog so map markers and notification cards
+/// cannot drift back to platform-specific Material glyphs.
+class MapIconCatalog {
+  const MapIconCatalog._();
+
+  static const IconData disaster = LucideIcons.triangleAlert;
+  static const IconData expiredEvent = LucideIcons.clock3;
+  static const IconData shelter = LucideIcons.house;
+  static const IconData medical = LucideIcons.hospital;
+}
+
+class MapMarkerData {
+  const MapMarkerData({
+    required this.key,
+    required this.point,
+    required this.width,
+    required this.height,
+    required this.child,
+  });
+
+  final Key key;
+  final GeoPoint point;
+  final double width;
+  final double height;
+  final Widget child;
+}
+
+/// Converts provider-neutral map models to Flutter overlay markers.
+///
+/// MapLibre owns basemap and line/polygon rendering. These widgets stay above
+/// the platform view to preserve overlap selection and accessibility semantics.
 class MapLayers {
   const MapLayers._();
 
-  static List<Widget> build({
+  static List<MapMarkerData> buildMarkers({
     required List<StaticFeature> features,
     required List<MeshEvent> events,
     required bool showShelters,
@@ -25,38 +54,23 @@ class MapLayers {
     GeoPoint? currentLocation,
   }) {
     final visibleFacilities = features
-        .where((feature) {
-          return (showShelters && feature.kind == 'shelter') ||
-              (showMedical && feature.kind == 'medical');
-        })
+        .where(
+          (feature) =>
+              (showShelters && feature.kind == 'shelter') ||
+              (showMedical && feature.kind == 'medical'),
+        )
         .toList(growable: false);
-    final facilityMarkers = _facilityMarkers(
-      visibleFacilities,
-      onStaticFeatureSelected,
-    );
-    final visibleEvents =
-        showEvents
-            ? events
-                .where((event) => meshEventFocusPoint(event) != null)
-                .toList(growable: false)
-            : const <MeshEvent>[];
-
-    return <Widget>[
-      _EventGeometryLayers(
-        events: visibleEvents,
-        onEventSelected: onEventSelected,
-      ),
-      MarkerLayer(
-        markers: <Marker>[
-          ...facilityMarkers,
-          ...visibleEvents.map((event) => _eventMarker(event, onEventSelected)),
-          if (currentLocation != null) _locationMarker(currentLocation),
-        ],
-      ),
+    return <MapMarkerData>[
+      ..._facilityMarkers(visibleFacilities, onStaticFeatureSelected),
+      if (showEvents)
+        ...events
+            .where((event) => meshEventFocusPoint(event) != null)
+            .map((event) => _eventMarker(event, onEventSelected)),
+      if (currentLocation != null) _locationMarker(currentLocation),
     ];
   }
 
-  static List<Marker> _facilityMarkers(
+  static List<MapMarkerData> _facilityMarkers(
     List<StaticFeature> features,
     StaticFeatureSelection onSelected,
   ) {
@@ -76,15 +90,27 @@ class MapLayers {
           final isMedicalOnly = group.every(
             (feature) => feature.kind == 'medical',
           );
-          return Marker(
+          return MapMarkerData(
             key: ValueKey<String>('static-marker-${group.first.id ?? names}'),
-            point: _latLng(point),
-            width: 34,
-            height: 34,
+            point: point,
+            width: 40,
+            height: 40,
             child: _MapMarkerButton(
               semanticLabel: label,
-              icon: isMedicalOnly ? Icons.local_hospital : Icons.home_work,
+              icon:
+                  isMedicalOnly
+                      ? MapIconCatalog.medical
+                      : MapIconCatalog.shelter,
               color: isMedicalOnly ? medicalMarkerColor : shelterMarkerColor,
+              shape:
+                  isMedicalOnly
+                      ? RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: const BorderSide(color: Colors.white, width: 2),
+                      )
+                      : const CircleBorder(
+                        side: BorderSide(color: Colors.white, width: 2),
+                      ),
               onTap: () => onSelected(group),
             ),
           );
@@ -92,137 +118,53 @@ class MapLayers {
         .toList(growable: false);
   }
 
-  static Marker _eventMarker(MeshEvent event, MeshEventSelection onSelected) {
+  static MapMarkerData _eventMarker(
+    MeshEvent event,
+    MeshEventSelection onSelected,
+  ) {
     final point = meshEventFocusPoint(event)!;
     final name = eventName(event);
-    return Marker(
+    return MapMarkerData(
       key: ValueKey<String>('event-marker-${meshEventIdentity(event)}'),
-      point: _latLng(point),
-      width: 34,
-      height: 34,
+      point: point,
+      width: 38,
+      height: 38,
       child: _MapMarkerButton(
         semanticLabel: '事件：$name${event.isExpired ? '，已過期' : ''}',
-        icon: event.isExpired ? Icons.schedule : Icons.warning_amber_rounded,
+        icon:
+            event.isExpired
+                ? MapIconCatalog.expiredEvent
+                : MapIconCatalog.disaster,
         color: eventColor(event),
+        shape:
+            event.isExpired
+                ? const CircleBorder(
+                  side: BorderSide(color: Colors.white, width: 2),
+                )
+                : BeveledRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: const BorderSide(color: Colors.white, width: 2),
+                ),
         onTap: () => onSelected(event),
       ),
     );
   }
 
-  static Polyline<MeshEvent> _eventPolyline(MeshEvent event) {
-    final geometry = event.geometry! as LineStringGeometry;
-    return Polyline<MeshEvent>(
-      points: geometry.points.map(_latLng).toList(growable: false),
-      color: eventColor(event),
-      strokeWidth: event.isExpired ? 4 : 6,
-      pattern:
-          event.isExpired
-              ? const StrokePattern.dotted(spacingFactor: 2)
-              : const StrokePattern.solid(),
-      hitValue: event,
-    );
-  }
-
-  static Polygon<MeshEvent> _eventPolygon(MeshEvent event) {
-    final geometry = event.geometry! as PolygonGeometry;
-    final rings = geometry.rings;
-    return Polygon<MeshEvent>(
-      points: rings.first.map(_latLng).toList(growable: false),
-      holePointsList:
-          rings.length > 1
-              ? rings.skip(1).map((ring) => ring.map(_latLng).toList()).toList()
-              : null,
-      color: eventColor(event).withValues(alpha: event.isExpired ? 0.12 : 0.28),
-      borderColor: eventColor(event),
-      borderStrokeWidth: 3,
-      hitValue: event,
-    );
-  }
-
-  static LatLng _latLng(GeoPoint point) =>
-      LatLng(point.latitude, point.longitude);
-
-  static Marker _locationMarker(GeoPoint location) => Marker(
+  static MapMarkerData _locationMarker(GeoPoint location) => MapMarkerData(
     key: const ValueKey<String>('current-location-marker'),
-    point: _latLng(location),
+    point: location,
     width: 24,
     height: 24,
-    child: DecoratedBox(
+    child: const DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFF1A73E8),
+        color: Color(0xFF1A73E8),
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(color: Colors.black26, blurRadius: 4),
-        ],
+        border: Border.fromBorderSide(
+          BorderSide(color: Colors.white, width: 3),
+        ),
+        boxShadow: <BoxShadow>[BoxShadow(color: Colors.black26, blurRadius: 4)],
       ),
     ),
-  );
-}
-
-class _EventGeometryLayers extends StatefulWidget {
-  const _EventGeometryLayers({
-    required this.events,
-    required this.onEventSelected,
-  });
-
-  final List<MeshEvent> events;
-  final MeshEventSelection onEventSelected;
-
-  @override
-  State<_EventGeometryLayers> createState() => _EventGeometryLayersState();
-}
-
-class _EventGeometryLayersState extends State<_EventGeometryLayers> {
-  final LayerHitNotifier<MeshEvent> _lineHits = ValueNotifier(null);
-  final LayerHitNotifier<MeshEvent> _polygonHits = ValueNotifier(null);
-
-  @override
-  void initState() {
-    super.initState();
-    _lineHits.addListener(_selectLineHit);
-    _polygonHits.addListener(_selectPolygonHit);
-  }
-
-  @override
-  void dispose() {
-    _lineHits
-      ..removeListener(_selectLineHit)
-      ..dispose();
-    _polygonHits
-      ..removeListener(_selectPolygonHit)
-      ..dispose();
-    super.dispose();
-  }
-
-  void _selectLineHit() => _select(_lineHits.value?.hitValues);
-
-  void _selectPolygonHit() => _select(_polygonHits.value?.hitValues);
-
-  void _select(List<MeshEvent>? events) {
-    if (events == null || events.isEmpty) return;
-    widget.onEventSelected(events.first);
-  }
-
-  @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    children: <Widget>[
-      PolylineLayer<MeshEvent>(
-        polylines: widget.events
-            .where((event) => event.geometry is LineStringGeometry)
-            .map(MapLayers._eventPolyline)
-            .toList(growable: false),
-        hitNotifier: _lineHits,
-      ),
-      PolygonLayer<MeshEvent>(
-        polygons: widget.events
-            .where((event) => event.geometry is PolygonGeometry)
-            .map(MapLayers._eventPolygon)
-            .toList(growable: false),
-        hitNotifier: _polygonHits,
-      ),
-    ],
   );
 }
 
@@ -247,12 +189,12 @@ String eventName(MeshEvent event) {
 }
 
 Color eventColor(MeshEvent event) {
-  if (event.isExpired) return Colors.grey.shade700;
+  if (event.isExpired) return const Color(0xFF64748B);
   return switch (event.severity) {
-    'CRITICAL' => const Color(0xFFC62828),
-    'HIGH' => const Color(0xFFEF6C00),
-    'MEDIUM' => const Color(0xFFF9A825),
-    _ => const Color(0xFF1565C0),
+    'CRITICAL' => const Color(0xFFD92D20),
+    'HIGH' => const Color(0xFFF97316),
+    'MEDIUM' => const Color(0xFFD97706),
+    _ => const Color(0xFF2563EB),
   };
 }
 
@@ -261,36 +203,34 @@ class _MapMarkerButton extends StatelessWidget {
     required this.semanticLabel,
     required this.icon,
     required this.color,
+    required this.shape,
     required this.onTap,
   });
 
   final String semanticLabel;
   final IconData icon;
   final Color color;
+  final ShapeBorder shape;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => Semantics(
     button: true,
+    container: true,
     label: semanticLabel,
-    child: Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(9),
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            color: Color.alphaBlend(
-              color.withValues(alpha: 0.14),
-              Theme.of(context).colorScheme.surface,
-            ),
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(color: color, width: 1.4),
-            boxShadow: const <BoxShadow>[
-              BoxShadow(color: Colors.black26, blurRadius: 4),
-            ],
-          ),
-          child: Icon(icon, color: color, size: 20),
+    child: SizedBox.expand(
+      child: Material(
+        color: color,
+        elevation: 4,
+        shadowColor: color.withValues(alpha: 0.55),
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          customBorder: shape,
+          onTap: onTap,
+          splashColor: Colors.white.withValues(alpha: 0.24),
+          highlightColor: Colors.white.withValues(alpha: 0.12),
+          child: Icon(icon, color: Colors.white, size: 21),
         ),
       ),
     ),

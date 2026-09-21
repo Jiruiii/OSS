@@ -1,7 +1,6 @@
 package com.resilientgeo.mesh.bridge
 
 import android.content.Context
-import android.content.pm.PackageManager
 import com.resilientgeo.mesh.data.MeshRepository
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
@@ -32,7 +31,6 @@ class FlutterMapBridge(
     private val onEmergencyModeChanged: (Boolean) -> Unit = {},
 ) : MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
 
-    private val applicationContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val methodChannel = MethodChannel(messenger, METHOD_CHANNEL_NAME)
     private val eventChannel = EventChannel(messenger, EVENT_CHANNEL_NAME)
@@ -48,8 +46,6 @@ class FlutterMapBridge(
             METHOD_GET_INITIAL_STATE -> getInitialState(result)
             METHOD_LOAD_BUNDLED_FIXTURE -> loadBundledFixture(result)
             METHOD_SET_EMERGENCY_MODE -> setEmergencyMode(call, result)
-            METHOD_HAS_GOOGLE_MAPS_API_KEY ->
-                result.success(hasGoogleMapsApiKey())
             else -> result.notImplemented()
         }
     }
@@ -127,28 +123,12 @@ class FlutterMapBridge(
         }
     }
 
-    private fun hasGoogleMapsApiKey(): Boolean = try {
-        applicationContext.packageManager
-            .getApplicationInfo(
-                applicationContext.packageName,
-                PackageManager.GET_META_DATA,
-            )
-            .metaData
-            ?.getString(GOOGLE_MAPS_API_KEY_META_DATA)
-            ?.trim()
-            ?.isNotEmpty() == true
-    } catch (_: PackageManager.NameNotFoundException) {
-        false
-    }
-
     private companion object {
         const val METHOD_CHANNEL_NAME = "com.resilientgeo.mesh/map"
         const val EVENT_CHANNEL_NAME = "com.resilientgeo.mesh/events"
         const val METHOD_GET_INITIAL_STATE = "getInitialState"
         const val METHOD_LOAD_BUNDLED_FIXTURE = "loadBundledFixture"
         const val METHOD_SET_EMERGENCY_MODE = "setEmergencyMode"
-        const val METHOD_HAS_GOOGLE_MAPS_API_KEY = "hasGoogleMapsApiKey"
-        const val GOOGLE_MAPS_API_KEY_META_DATA = "com.google.android.geo.API_KEY"
         const val INVALID_ARGUMENTS = "invalid_arguments"
         const val METHOD_ERROR = "map_bridge_error"
         const val EVENT_OBSERVATION_ERROR = "event_observation_error"
