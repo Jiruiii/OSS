@@ -2,7 +2,10 @@
 
 > 建立日期：2026-09-05
 > 取代分工方式：不再按「甲／乙」或「需不需要實機」切分，只按「離 MVP 通過條件有多近」排序。
-> 對應文件：`system.md`（開發階段與驗收條件）、`team-assignments.md`（保留原始分工細節與已完成證據）、`docs/review-system-md-2026-09-05.md`（結構性風險分析）
+> 對應文件：`system.md`（開發階段與驗收條件）。
+> 已移除的文件（2026-09-24，內容已過時，需要時可從 git 歷史取回）：
+> - `team-assignments.md`：原始分工與各里程碑的實機證據細節。下文 A 段幾處「細節見 `team-assignments.md`」指的就是它，最後版本在 commit `b9bd906`，可用 `git show b9bd906:team-assignments.md` 查看。
+> - `docs/review-system-md-2026-09-05.md`：結構性風險分析，裡面的建議已於 commit `232b62d` 全部落實。
 >
 > **2026-09-05 更新：黑客松明天截止，真實資料源整合（原 D 段：OSM/避難所/醫療接線、TDX/CWA 申請金鑰、NCDR）全部砍掉，不做。** 現有的可重播 fixture 已經滿足 MVP §2「先接一個官方或可重播的測試資料源」的定義，時間不夠不是妥協，是本來就不需要。以下只保留剩下時間內真正做得到、也值得做的項目。
 
@@ -27,6 +30,9 @@
 
 - [x] **6. 回填 ADR-001 與 targetSizeBytes 決策**（2026-09-05 完成）
   多輪接觸窗（3.8–4.4 KB/s）、connection rate（亮屏 17/20、鎖屏 0/19）、energy cost（已於同日重測取代，見 D 段第 10 項）都已寫進 `docs/adr/ADR-001-transport-layer.md`「回填」段落；`pipeline/lib/bundle.mjs` 的 `targetSizeBytes = 4096` 保留原值，但補上用接觸窗吞吐量反推的理由（4096 bytes 在 3.8–4.4 KB/s 下約 1–1.5 秒傳完，符合最短 10 秒接觸窗的需求）。
+
+- [ ] **Emergency Mode 自動同步實機驗證**（2026-09-24 新增）
+  PR #18 的 `AutoPeerSyncEngine` 讓前景服務發現 peer 後自動跑 HELLO→DIFF→REQUEST→TRANSFER，並由 `chunk-cache` 供應中繼分片，但目前只有 JVM 與 instrumented 測試。要補的實機驗證有三項：(1) 兩機都開 Emergency Mode、不做任何操作，確認會自動完成交換，第二次相遇時 `missing=[]`；(2) 三機 A→B→C，確認 B 從 `chunk-cache` 轉傳給 C，不依賴 `assets/`；(3) 鎖屏狀態下是否仍會同步，這一項和第 3 項一起做。驗證完要更新 README 的限制段落。已知限制：真的斷線時不會跨接觸續傳，會從 byte 0 重傳。
 
 - [x] **（額外修復，不在原始清單內）BleGattTransport 訊息序號 race bug**（2026-09-05 完成）
   team-assignments.md 記錄的「跨接觸續傳疊加 critical-first 時收到雜訊 payload、後續 chunk ack 逾時」的深層限制已修好：每個 GATT write 加 1-byte 訊息序號，接收端用 `(peer address, seq)` 取代單一 peer 一個 slot。修復過程中在真機上又抓到一個新 bug（sender 端記錄中斷 seq 的表被無關的後續訊息成功清掉）並修正。兩輪 Pixel 7 ↔ Pixel 8a 實機驗證，logcat 佐證 `interrupted → 其他 3 個 chunk 正常送達 → resume 成功組出完整訊息`，無雜訊、無逾時。細節見 `team-assignments.md` 該條目與 commit `cabf6ca`。
@@ -64,7 +70,7 @@
 對照程式碼而非文件自述，找出九項「文件說有、程式碼沒有」或「與自訂通過條件相違」的問題並修正。全部已驗證：40 項 JVM 單元測試、115 項 Node 測試、`npm run sim:check` PASS、`assembleDebug` 成功。
 
 - [x] **1. TTL 過期狀態永遠不更新（真 bug）** — `applyState` 原本只在 ingest 當下算一次就存進 Room，列表與地圖直接讀存下來的字串。事件離線放到過期後仍顯示 CURRENT，直接違反階段 2 通過條件「TTL 到期時不把它顯示為目前有效資料」。改為由 `ApplyState.at(namespace, expiresAt, now)` 單一來源在**繪製當下**推導，ingest 與顯示共用同一份定義；`MainActivity` 加 30 秒 ticker 讓 badge 會真的翻成 EXPIRED。新增 `ApplyStateTest`（7 例，含到期邊界與 crowd namespace 的優先序）。既有 fixture 只有「已過期」與「2099 過期」兩種，永遠踩不到中間，這是它沒被抓到的原因。
-- [x] **2. Emergency Mode 是空殼** — 服務原本只有心跳 log 與通知，沒有任何 BLE。已接上 `BleDiscovery` 廣播＋掃描、以 30 秒視窗統計附近節點數並顯示在通知列，權限或藍牙未就緒時如實顯示 "Discovery off" 而非假裝正常。**仍未做**：自動建立 GATT 連線與角色協商，已寫進 README 限制。
+- [x] **2. Emergency Mode 是空殼** — 服務原本只有心跳 log 與通知，沒有任何 BLE。已接上 `BleDiscovery` 廣播＋掃描、以 30 秒視窗統計附近節點數並顯示在通知列，權限或藍牙未就緒時如實顯示 "Discovery off" 而非假裝正常。**仍未做**：自動建立 GATT 連線與角色協商，已寫進 README 限制。（2026-09-24 註：PR #18 的 `AutoPeerSyncEngine` 已經實作這部分，實機驗證的待辦見 A 段「Emergency Mode 自動同步實機驗證」。）
 - [x] **3. Peer Sync 在 App 裡按不到** — `PeerSyncMilestoneActivity` 原本只能 `adb shell am start`，裝了 APK 的人無法操作本專案核心功能。主畫面加上「Peer Sync (2 devices)」按鈕。
 - [x] **4. 節點不知道自己有什麼** — 新增 `chunks` 資料表（`ChunkEntity`/`ChunkDao`，Room v1→v2 真 migration，不用 destructive fallback 以免清掉離線持有的資料）。`MeshRepository.ingestChunk` 在驗證通過後記錄分片，`localPeerSummary()` 據此組出真正的 `peer-summary-v0`；requester 端 HELLO 已改用它，不再是寫死的「我什麼都沒有」。新增 5 項 instrumented 測試（未在本次執行，無裝置）。
 - [x] **5. 續傳沒有進協定層** — `buildRequest` 原本兩邊都硬寫 `offset_bytes: 0`，續傳訊息只能由 demo activity 手工組。JS 與 Kotlin 版皆加上 `offsets` 參數（超出範圍會拋錯、已完整持有的分片直接不請求），各補 3 項測試。ADR-001 自己說在 3.8–4.4 KB/s 下跨接觸續傳是同步能不能推進的關鍵，它本來不在可重用的那一層。
@@ -101,6 +107,108 @@
   **第二次交換（關鍵驗證）**：force-stop 兩台重跑同一流程，這次 Node A 已持有全部 4 片。結果是 **`DIFF: missing=[] stale=[]` → 「nothing to request, already in sync」**，一個 byte 都沒有重傳。改動前寫死的 `NODE_A_SUMMARY` 永遠宣告空庫存，第二次相遇會把同樣 4 片全部重抓一次——**這條就是本專案「不要讓同一份資料被重複下載」的核心主張，現在是實機可證的，而不只是設計意圖**。
 
   另外直接讀 Pixel 7 的 Room 確認新的 `chunks` 表確實寫入了 4 筆分片記錄（不只信 log），這是第二次交換能正確回報持有的來源。
+
+---
+
+## F. 新功能規劃：民眾回報 + 政府驗證（2026-09-24 規劃，尚未實作）
+
+> 狀態：只有規劃，還沒動程式碼。本段不屬於 MVP 通過條件，是 MVP 之後的功能擴充。
+> 實作計畫（逐步驟、含檔案清單與測試）：`docs/superpowers/plans/2026-09-24-crowd-report-verification.md`
+
+### 目標
+
+讓民眾在 App 上回報災情（道路受阻、淹水、受困求助等），回報先以 `UNVERIFIED` 顯示並經 mesh 流通；政府查證後簽發官方確認，手機上的狀態升級為「已查證」。
+
+### 既有基礎（不用重做）
+
+- `crowd.*` namespace 已由 `ApplyState.at()` 判定為 `UNVERIFIED`（`android/.../ingest/ApplyState.kt`、`pipeline/lib/contract.mjs`）。
+- `EventIngestor` 以 `(namespace, event_id)` 為身分，群眾回報不會覆蓋官方事件，有 `EventIngestorTest` 釘住。
+- Flutter 端已能把 `UNVERIFIED` 顯示為「未驗證」（`notifications_screen.dart`、`feature_details_sheet.dart`）。
+- 缺的是：手機端「產生」回報的路徑、非伺服器金鑰的簽章規則、crowd 事件的 mesh 轉傳，以及政府驗證的回傳路徑。
+
+### 設計決策
+
+1. **簽章：每台裝置自產 Ed25519 金鑰**。首次回報時用 Bouncy Castle 產生，私鑰只存在該裝置。`crowd.*` 事件接受任何裝置金鑰，公鑰隨事件一起送出。簽章只證明「內容沒被竄改、出自同一台裝置」，不代表內容屬實，所以仍然是 `UNVERIFIED`。`official.*` 維持只信任內建的 `trusted-keys.json`，這條規則不能因為 crowd 的放寬而鬆動。
+2. **驗證不修改原回報**。政府簽發一筆獨立的 `official.*` 確認事件（暫定 `official.verified/report:<id>`），用原回報的 `payload_hash` 指回去；也可以簽發「查證為假」。這樣符合現有的「namespace 永不互相覆蓋」規則，`EventIngestor` 不用改，原回報也保留可追溯性。
+3. **伺服器是升級管道，不是前提**。回報送不到政府時維持 `UNVERIFIED`、照樣流通。README「沒有後端服務相依」的定位要改成「驗證需要政府端，但沒有它系統仍可運作」（README 已先加註）。
+4. **上行靠 Store-Carry-Forward**。一筆回報約 0.5 KB，任何剛好有訊號的節點都能代傳，不需要回報者本人有網路。
+5. **Flutter 仍然不直接寫 Room**。bridge 新增一個送出回報的 method，Flutter 只傳表單欄位；組事件、簽章、寫入都由 Android 端負責，維持 `FlutterMapBridge`「Flutter 沒有 Room 寫入路徑」的原則。
+
+### 任務拆分
+
+**F1. 本機回報（不需要伺服器）**
+- [ ] `event-v0` schema 與資料契約：定義 crowd 事件如何攜帶裝置公鑰（例如 `signing_key_id = device:<公鑰指紋>` 加上公鑰欄位），同步更新 `docs/data-contract-v0.md`。
+- [ ] `EventVerifier`（Kotlin）與 `pipeline/lib/contract.mjs`（JS）：`crowd.*` 走裝置金鑰驗證；補「用裝置金鑰偽造 `official.*` 必須被拒」的反向測試。
+- [ ] Android：裝置金鑰產生與保存、`MeshRepository` 新增建立並 ingest 本機回報的方法。
+- [ ] Bridge：`FlutterMapBridge` 新增送出回報的 method，並寫 `MapBridgeProtocol` 測試。
+- [ ] Flutter UI：回報入口（長按地圖選位置和／或浮動按鈕用目前位置，**待決定**）；表單包含類型、嚴重度、備註；加上防誤觸確認。
+- [ ] TTL 預設值：群眾回報的 `expires_at` 要比官方短（**待決定**，例如 6 小時）。
+
+**F2. crowd 回報經 mesh 轉傳**
+- [ ] 目前的 chunk 以伺服器簽章的 manifest 為單位，crowd 回報要另開路徑：例如每筆回報單獨成一個小分片、由裝置金鑰簽章，列進 HELLO 的獨立 dataset（`crowd.reports`）。
+- [ ] `AutoPeerSyncEngine` 與 `computeDiff`／`buildRequest`（JS／Kotlin 兩版）支援這個 dataset，simulator 共用同一套邏輯。
+- [ ] 防濫用：單一裝置的回報數量上限、單筆大小上限，避免有人灌爆鄰居的儲存空間和接觸窗頻寬。
+- [ ] 實機驗證：A 回報 → B 轉傳 → C 收到並顯示 `UNVERIFIED`。
+
+**F3. 政府驗證**
+- [ ] 上行：有網路的節點把收到的 crowd 回報上傳到政府端（新 API，或 demo 時先用檔案匯出）。
+- [ ] 政府端：`pipeline/cli.mjs` 新增 `attest` 指令，讀取回報、驗證裝置簽章，再用官方金鑰簽發確認或否定事件。demo 時用筆電跑 CLI 充當政府端即可，不必架真的伺服器。
+- [ ] 手機端：收到確認事件後，地圖上的原回報顯示為「已查證」或「查證為假」（顯示邏輯要能把兩筆事件關聯起來）。
+- [ ] 實機 demo：A 回報 → mesh → 筆電簽發確認 → mesh 傳回 → A、B、C 都顯示已查證。
+
+**F4. 多裝置佐證（選做）**
+- [ ] 同一地點、一定時間內 N 台不同裝置回報同類事件，就顯示「N 人回報」。這不需要伺服器，但**不等於驗證**，UI 文字要清楚區分。已知弱點：一個人用多支手機就能灌票。
+
+### 待討論
+
+- 回報入口的 UI 形式，以及回報類型清單。
+- 群眾回報的 TTL 與數量上限。
+- 是否要做「現場授權人員驗證」（政府根金鑰替消防員、里長簽發授權憑證，讓他們不經伺服器就能在現場簽確認事件）？好處是離線也能驗證；風險是手機遺失時，撤銷消息在離線環境很難傳出去。目前傾向**不做**，先以政府端驗證為主。
+- 隱私：回報帶有位置和裝置金鑰，同一把金鑰的所有回報可以被串起來。要考慮是否定期換金鑰，以及備註欄的個資提醒。
+
+---
+
+## G. 新功能規劃：離線逃生路線（2026-09-24 規劃，尚未實作）
+
+> 狀態：只有規劃，還沒動程式碼。和 F 段一樣屬於 MVP 之後的功能擴充，兩者可以獨立開發。
+> 實作計畫：`docs/superpowers/plans/2026-09-24-evacuation-routing.md`
+
+### 目標
+
+用手機上已經有的資料，完全離線地計算步行逃生路線：從使用者位置出發，找出最近、開設中、適用於當前災害的避難所，避開封閉道路和危險區域。mesh 帶來新事件時自動重算，並說明路線為什麼改變。
+
+### 可用資料（已實際檢查）
+
+- 道路：`static-features.json` 有 5,774 條道路，路口頂點共用，可以直接建成可連通的圖。有 `road_class`，沒有 `oneway`。
+- 避難所：26 處，含容量與適用災害類別。
+- 事件：`ROAD_STATUS` 的 id 內含 OSM way id，能 10/10 對上靜態道路；`FLOOD_WARNING`、`LANDSLIDE_RISK` 是多邊形；`SHELTER_STATUS` 能以名稱 5/5 對上靜態避難所。
+- 缺口：沒有高程、沒有 `oneway`，避難所只能靠名稱對應，demo 資料集只有 1 條封路。
+
+### 設計決策
+
+- 只做步行路線；在 Flutter 端用純 Dart 計算；用多目標 Dijkstra，跑一次就得到到所有避難所的距離。
+- CLOSED 道路和 CRITICAL 危險區**封鎖**；PARTIAL 道路和 HIGH 危險區**加權**。
+- 群眾回報（`UNVERIFIED`）**只加權、不封鎖**，避免一筆假回報就能把所有人導離最佳路線。
+- `EXPIRED` 事件不參與計算，但要提示使用者。
+- 畫面固定顯示「僅供參考，請遵從現場人員指示」，並附上所依據資料的最新時間。
+
+### 任務拆分
+
+- [ ] **G1. 道路圖建構**：從 static features 建出步行圖，含最近節點查詢；建圖在 isolate 執行，目標不超過 1 秒。
+- [ ] **G2. 災情覆蓋層**：把事件轉成邊的封鎖或加權，並列出警告。
+- [ ] **G3. 避難所目的地**：用狀態事件、剩餘容量、災害類型過濾；名稱對不上時，改用距離備援比對。
+- [ ] **G4. 路線計算**：回傳前 3 名路線；無解、起點不在路網上、起點在危險區內，都要有明確的狀態。
+- [ ] **G5. 事件或位置更新時自動重算**，並發出「路線變更」通知與原因。
+- [ ] **G6. UI**：入口、路線折線、選項面板，Google 與 OSM 兩種底圖都要支援。
+- [ ] **G7. Demo 情境**：mesh 送來封路事件 → 路線改道；再送來避難所額滿 → 目的地更換。
+- [ ] **G8. 文件與限制說明。**
+
+### 待討論
+
+- 入口形式：按鈕用目前位置，是否也要能長按指定起點。
+- 災害類型：自動推斷，還是讓使用者手動選擇。
+- 危險區加權倍率（暫定 PARTIAL ×3、HIGH ×5、UNVERIFIED ×2）。
+- 起點本身在危險區內時的提示文字。
 
 ---
 

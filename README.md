@@ -38,7 +38,7 @@
 - **Peer-to-peer 分片交換** — 兩台手機經 BLE GATT 完成 `HELLO`（交換資料集摘要）→ `DIFF`（算出雙方缺哪些分片）→ `REQUEST`（依 critical／稀有度／大小／TTL 排序）→ `TRANSFER`（分段、位元組級可中斷續傳）→ `VERIFY/APPLY`（驗證後原子寫入），**只交換對方缺少的分片**。
 - **Store-Carry-Forward（DTN）** — A 傳給 B，B 移動後遇到 C 再傳給 C；A 與 C 從不需要同時連線。已用三台實機驗證：force-stop A 之後，C 仍經 B 收到並驗證全部事件。節點會把通過驗證的分片記進本機庫存，因此收到資料後能對下一個 peer 如實宣告「我有這些」，而不是回報空手。
 - **端到端可信度** — 伺服器端以 Ed25519 簽章，手機端在寫入前驗證 hash、簽章、版本與 TTL。版本倒退一律拒絕；官方資料與群眾回報分屬不同 namespace，永不互相覆蓋。私鑰從不進入 repo，也不隨 App 出貨。
-- **Emergency Mode** — 使用者手動開啟、有明顯狀態提示的前景服務。開啟後持續進行 BLE 廣播與掃描，在鎖屏、App 切到背景時仍維持運作，通知列即時顯示附近節點數。（**分片交換本身仍需由使用者在 Peer Sync 畫面發動**——兩台素未謀面的手機自動協商誰當 requester、誰當 server 尚未實作，見下方限制。）
+- **Emergency Mode** — 使用者手動開啟、有明顯狀態提示的前景服務。開啟後持續進行 BLE 廣播與掃描，在鎖屏、App 切到背景時仍維持運作，通知列即時顯示附近節點數。發現附近節點後，`AutoPeerSyncEngine` 會**自動**跑 HELLO → DIFF → REQUEST → TRANSFER，不需要任何人操作。這裡不需要協商角色：兩邊都送出自己的 HELLO，各自向對方請求自己缺的分片，也各自回應對方的請求，因為 `computeDiff`／`buildRequest` 本身就是對稱的。通知列會顯示已同步的分片數。（目前只有 JVM 與 instrumented 測試，**尚未做實機驗證**，見下方限制。）
 - **可重現的量測工具** — 決定性 DTN 模擬器比較「無協作／一般 replication／rarest-first」三種策略 × 10/20/50/100 節點 × 地理過濾開關，產出 Coverage、Freshness、Cellular Savings、Transfer Efficiency 四項指標報告，固定 seed 可位元比對。
 
 ## 系統架構
@@ -59,7 +59,7 @@ flowchart LR
 
 **協作方式**：後端（`pipeline/`）是純 Node.js CLI，負責把多來源資料正規化成統一的 `event-v0` 格式，依 `(area_id, theme)` 分組切片、計算 canonical SHA-256 並以 Ed25519 簽章，輸出 manifest + chunks。**私鑰只存在伺服器端**。行動端（`android/`）在收到任何分片時，先由 `ChunkVerifier` 驗證 chunk hash 與簽章、再由 `EventVerifier` 逐筆驗證事件，最後才交給 `EventIngestor` 套用版本／TTL／namespace 規則寫入 Room；驗證不過的資料絕不進入 APPLY，也不覆蓋既有資料。傳輸層藏在 `PeerTransport` 介面後方（實作為 `BleGattTransport`），同步邏輯不綁死任何單一 Android API。模擬器（`simulator/`）刻意**共用手機端同一套 `computeDiff`／`buildRequest`／驗證邏輯**，只把傳輸層換成種子化的接觸模型，因此模擬結果與實機行為出自同一份決策程式碼。
 
-沒有雲端資料庫、沒有後端服務相依。App 的地圖有兩種 renderer：有網路且配置 Google key 時由 `google_maps_flutter` 使用 Google Maps Android SDK；否則使用打包的 OSM asset tiles。Google SDK 的 `INTERNET` 權限只服務線上底圖，Room／BLE 與 OSM fallback 仍可離線運作。ADR-001 否決的 Nearby Connections 與 Wi-Fi Direct 實作已連同它們所需的 Wi-Fi／Play Services 權限一併移除，只保留在 git 歷史與 ADR 記錄中。
+沒有雲端資料庫、沒有後端服務相依。（規劃中的「民眾回報 + 政府驗證」會在驗證這一步引入政府端，但設計上沒有後端時系統仍可運作，回報只是停留在 `UNVERIFIED`，見下方「未來工作」。）App 的地圖有兩種 renderer：有網路且配置 Google key 時由 `google_maps_flutter` 使用 Google Maps Android SDK；否則使用打包的 OSM asset tiles。Google SDK 的 `INTERNET` 權限只服務線上底圖，Room／BLE 與 OSM fallback 仍可離線運作。ADR-001 否決的 Nearby Connections 與 Wi-Fi Direct 實作已連同它們所需的 Wi-Fi／Play Services 權限一併移除，只保留在 git 歷史與 ADR 記錄中。
 
 ## 使用技術
 
@@ -74,7 +74,7 @@ flowchart LR
 | 密碼學 | Bouncy Castle `bcprov-jdk18on` 1.78.1 | Android 端 Ed25519 驗簽（平台 provider 至 API 33 才支援 EdDSA） |
 | 傳輸層 | Android BLE GATT（自訂 service：DATA write／ACK notify／CONTROL characteristic） | Peer discovery、連線、分片傳輸與位元組級續傳 |
 | 資料契約 | JSON Schema（`event-v0`／`manifest-v0`／`chunk-v0`／`peer-summary-v0`／`feature-v0`） | 跨模組介面，pipeline 與 Android 各自實作、以同一份 fixture 交叉驗證 |
-| 測試 | Flutter test、JUnit 4、AndroidX Test、`node:test`、Python `unittest` | 19 項 Flutter 測試、48 項 JVM 單元測試、14 項 instrumented 測試、122 項 Node 測試、6 項 Python 測試 |
+| 測試 | Flutter test、JUnit 4、AndroidX Test、`node:test`、Python `unittest` | 45 項 Flutter 測試、57 項 JVM 單元測試、17 項 instrumented 測試、122 項 Node 測試、10 項 Python 測試（Node／Python 於 2026-09-24 實跑通過；Flutter／Android 為程式碼中的測試宣告數） |
 | Sponsor 技術 | 未使用 | 本次未使用主辦方或贊助商提供的服務；pipeline 與 simulator 零第三方相依，Android 端僅用 AndroidX 與 Bouncy Castle |
 
 > 曾評估但**否決**的技術，實測記錄見 [`docs/adr/ADR-001-transport-layer.md`](docs/adr/ADR-001-transport-layer.md)：**Nearby Connections**（兩台實機皆回傳 Google 側 `INTERNAL_ERROR`，非 App 端可控）、**原生 Wi-Fi Direct**（discovery／連線可行，但 TCP 卡在疑似 Android per-app 網路路由限制）。
@@ -94,7 +94,7 @@ cd OSS
 
 # ---------- 1. 驗證整套資料契約與模擬器（不需要手機，約 1 分鐘） ----------
 npm test                                   # 122 項通過（pipeline + simulator）
-python -m unittest discover -s tests -v    # 4 項通過（replay fixture）
+python -m unittest discover -s tests -v    # 10 項通過（Windows 繁中環境請先設 PYTHONUTF8=1）
 
 # ---------- 2. 產生並驗證一份真實簽章的資料封包 ----------
 node pipeline/cli.mjs keygen --out-dir .stage2-keys --key-id neihu-demo-2026
@@ -125,8 +125,8 @@ flutter run
 # 先建立 android/local.properties，內容為 sdk.dir=<Android SDK 路徑>
 # Google key 可改放 repo 根目錄 .env（已被 gitignore）
 cd ../android
-./gradlew testDebugUnitTest                # 48 項 JVM 單元測試
-./gradlew connectedDebugAndroidTest        # 14 項 instrumented 測試（需接實機）
+./gradlew testDebugUnitTest                # 57 項 JVM 單元測試
+./gradlew connectedDebugAndroidTest        # 17 項 instrumented 測試（需接實機）
 ./gradlew assembleDebug                    # 產生含 Flutter 地圖的 debug APK
 ./gradlew installDebug                     # 安裝到已連線的裝置
 ```
@@ -175,10 +175,11 @@ App 主畫面直接進入 Flutter 內湖地圖，提供 Google 線上底圖、OS
 - **不宣稱在任何固定時間覆蓋全城。** 所有模擬數字只適用於 [`experiments/scenario.md`](experiments/scenario.md) 描述的內湖情境與接觸模型，單一 seed，非多次抽樣的信賴區間。
 - **模擬參數只校準了一半。** `max_bytes_per_round` 已用實機 BLE 接觸窗量測校準；`contact_probability`（社交接觸機率）與 `transfer_failure_prob` 仍是工程估計值 — 現有實機數據沒有一項直接對應到這兩個參數，硬套上去會是假精確。
 - **耗電只有單一機型、單一 60 秒視窗、只涵蓋持續傳輸**，不是 Emergency Mode 真實的間歇性接觸型態，也未涵蓋鎖屏情境。
-- **Emergency Mode 只做到「發現」，還沒做到「自動同步」。** 服務會持續 BLE 廣播與掃描並回報附近節點數，但不會自行建立 GATT 連線跑 HELLO/DIFF/REQUEST——兩台素未謀面的手機要自動協商誰當 requester、誰當 server，這件事尚未實作，分片交換仍需使用者在 Peer Sync 畫面發動。
+- **Emergency Mode 的自動同步還沒做實機驗證。** `AutoPeerSyncEngine`（PR #18）已經接進前景服務，有 JVM 單元測試與 instrumented 測試，但還沒在兩台以上的實機上跑過「開著 Emergency Mode 放著，自己完成交換」的情境。上方實機結果表裡的同步數據全部來自手動操作的 Peer Sync 畫面。
+- **自動同步不支援跨接觸續傳。** 如果接觸窗關閉導致真的斷線，傳到一半的分片不會保留狀態，下次相遇會從第 0 個 byte 重傳。位元組級續傳目前只在同一條連線還開著時有效。
 - **鎖屏／背景存活尚未用正式前景服務重跑**（先前一次嘗試因螢幕被意外喚醒而無效），跨機型的 20 次連線成功率統計也尚未補齊。
 - **耗電只涵蓋「持續發現」，不含傳輸。** 目前服務不會自行建立 GATT 連線交換分片，所以 +54 mW 是待命成本，實際同步時的耗電尚未量測；且只有 1 台機型、鄰居數固定為 1。（同日稍早那組 22.35→26.78 mW 已作廢——當時手機插著 USB 且滿電，量到的是計量器雜訊，詳見 `experiments/results/energy-raw/README.md`。）
-- **Peer 摘要只有 requester 端是動態的。** 節點現在會把驗證通過的分片記進本機庫存並據此組出 HELLO，但 demo 中的 server 端仍從 `assets/` 供應分片內容——本機庫存刻意不存分片本體（事件已寫進資料庫，再存一份是重複），所以「我驗證過這片」與「我能重新供應這片的位元組」目前仍是兩件事。
+- **手動 Peer Sync 畫面的 server 端仍然從 `assets/` 供應分片。** 自動同步則不同：節點會把驗證通過的分片本體存進本機 `chunk-cache`（上限 8 MB，超過時先刪最舊的），再從這裡供應給下一個 peer，所以中繼節點真的能轉傳自己收到的資料。不過這條中繼路徑同樣還沒做實機驗證。
 
 - **固定大小切分讓版本更新無法真正 delta**：`fixed-size` 切分下，資料集只要有一筆事件變動，同組後面所有 chunk 的邊界就會位移、hash 全變。
 - **HELLO 表示法會隨資料集線性膨脹**：目前逐條列舉 chunk（183 chunk 約 36 KB）；全台規模會膨脹到數百 KB，在一次接觸窗內傳不完。
@@ -189,9 +190,14 @@ App 主畫面直接進入 Flutter 內湖地圖，提供 Google 線上底圖、OS
 - 以 **Bloom filter 或對 manifest 順序的 bitmap** 取代逐條列舉的 HELLO（同樣 183 chunk 只要 23 bytes，省約 1,500 倍），讓資料集可擴展到全台規模。
 - 導入**內容導向切分（CDC / rolling hash）或組內單事件對齊**，讓版本更新能真正 delta 傳輸而非整組重傳。
 - 補齊跨機型連線成功率統計、鎖屏／Doze 長時存活驗證，以及間歇性接觸模式下的耗電量測。
-- 讓 Emergency Mode 服務自行完成連線與同步（含兩台裝置相遇時的自動角色協商），把「開著就會自己交換」變成真的。
-- 讓節點能重新供應自己持有的分片位元組，而不只是宣告持有；群眾回報的信譽評分與多裝置共識。
-- 擴大目前版本化 raster tiles 的覆蓋範圍，並加入離線路徑規劃。
+- 用兩機、三機實機驗證 Emergency Mode 的自動同步與中繼轉傳，並補上跨接觸的續傳狀態保存。
+- **民眾回報 + 政府驗證**（規劃中，尚未實作，完整規劃見 [`docs/mvp-remaining-tasks.md`](docs/mvp-remaining-tasks.md) F 段）：
+  - 民眾在 App 上回報災情，事件寫入 `crowd.*` namespace、以裝置自產的 Ed25519 金鑰簽章，一律標為 `UNVERIFIED`，並經 mesh 在附近手機間流通。這一段完全不需要伺服器。
+  - 任何剛好有訊號的節點都可以代為上傳回報（上行的 Store-Carry-Forward）。政府端查證後，另外簽發一筆 `official.*` 確認事件，用 `payload_hash` 指回原回報，再走現有的 pipeline 與 mesh 傳回手機；原回報不會被修改。
+  - 送不到政府時，回報維持 `UNVERIFIED`，照樣可以參考。伺服器只負責「把回報升級為已查證」，不是系統運作的前提。
+  - 另外規劃「多裝置佐證」（同地點 N 台不同裝置回報），作為不需要伺服器的補充訊號，但它不等於驗證。
+- **離線逃生路線**（規劃中，尚未實作，計畫見 [`docs/superpowers/plans/2026-09-24-evacuation-routing.md`](docs/superpowers/plans/2026-09-24-evacuation-routing.md)）：用打包的 OSM 道路圖和已驗證的事件，在手機上計算步行到避難所的路線，避開封閉道路與淹水、土石流區域。避難所會依開設狀態、剩餘容量和災害類型篩選。mesh 帶來新事件時自動改道；群眾回報只加權、不封鎖。
+- 擴大目前版本化 raster tiles 的覆蓋範圍。
 
 完整版見 [`experiments/limitations.md`](experiments/limitations.md) 與 [`docs/mvp-remaining-tasks.md`](docs/mvp-remaining-tasks.md)。
 
@@ -239,7 +245,7 @@ pipeline 與 simulator **不使用任何第三方 npm 套件**，僅使用 Node.
 | <!-- TODO: 姓名 --> ([@CC10206](https://github.com/CC10206)) | 協定邏輯與量測分析：Kotlin 版 `computeDiff`／`buildRequest` 與 JVM 單元測試、Emergency Mode UI 與前景服務骨架、simulator 校準、實驗報告與文件維護 |
 | <!-- TODO: 姓名 --> (wangchingchuen) | 資料管線與資料來源：多來源 collector、正規化、`(area_id, theme)` 地理分片、Ed25519 簽章與驗證、內湖資料集生成 |
 
-> 分工依據為 [`team-assignments.md`](team-assignments.md)（含各里程碑的完成證據與交接點）。上表的 GitHub 帳號取自 commit 紀錄，**請團隊補上對應真實姓名後再送出**。
+> 上表的 GitHub 帳號取自 commit 紀錄，**請團隊補上對應真實姓名後再送出**。
 
 ## License
 

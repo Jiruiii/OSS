@@ -57,8 +57,8 @@ used by this Android Flutter implementation; this app uses
 
 Flutter reads native state through `FlutterMapBridge`:
 
-- `com.resilientgeo.mesh/map`: `getInitialState`, `loadBundledFixture` and
-  `setEmergencyMode`.
+- `com.resilientgeo.mesh/map`: `getInitialState`, `loadBundledFixture`,
+  `setEmergencyMode` and `hasGoogleMapsApiKey`.
 - `com.resilientgeo.mesh/events`: verified Room event snapshots, including
   Android's authoritative `apply_state`.
 
@@ -72,7 +72,7 @@ shows `無資料`, never zero. Bundled demo events are labeled
 ### Current build result
 
 Flutter static asset validation, Flutter analyze/tests, Android unit tests
-(48 tests), and the embedded host `assembleDebug` build pass. The host APK
+(57 tests as of PR #18 by `@Test` count; last full run predates PR #18), and the embedded host `assembleDebug` build pass. The host APK
 is produced at `android/app/build/outputs/apk/debug/app-debug.apk` and
 contains the committed Neihu static data and zoom-17 tiles. Gradle emits a
 non-blocking warning that `path_provider_android` requests NDK
@@ -127,7 +127,7 @@ just assumed from reading the build files:
    relaunched: map and event list showed the same data **without**
    re-tapping the load button, confirming it's read from Room and not
    re-derived. This is phase 1's actual acceptance criterion
-   (`team-assignments.md`) and it holds.
+   and it holds.
 
 4. **"BLE Spike (Stage 0)" button navigation** — verified on the same
    Pixel 8a. Tapping it correctly starts `BleSpikeActivity`, which
@@ -284,7 +284,7 @@ combination:
 
 ## What's implemented (module B)
 
-| Requirement (team-assignments.md) | Where |
+| Requirement (module B) | Where |
 | --- | --- |
 | 顯示測試區域離線底圖（道路、避難所圖層） | `../flutter/lib/screens/map_screen.dart`, `../flutter/lib/widgets/map_layers.dart` |
 | 本機資料庫，保存事件、版本、到期時間 | `data/EventEntity.kt`, `data/EventDao.kt`, `data/AppDatabase.kt` |
@@ -375,13 +375,14 @@ acceptance checks.
   GeometryCollection return `null` (skipped, not crashed).
 - No UI for namespace filtering or TTL countdown; Flutter now provides marker
   details for shelters, medical facilities and events.
-- Module C's `PeerTransport.kt` interface has no implementation wired
-  into `EventIngestor` yet — per `C_BLEbroadcast.md`'s handoff notes,
-  that's expected to land once Stage 0's two-device discovery test and a
-  real `NearbyConnectionsTransport`/similar are done. `EventStore`'s
-  interface boundary (see above) is what will make that plug in without
-  touching the apply rules.
-- `system.md`/`team-assignments.md` progress notes from B's original
-  standalone branch (`b/android-standalone-wip`) still need to be
-  reapplied here — `team-assignments.md`'s module B section has now been
-  updated to reflect this branch's actual state, but `system.md` has not.
+- `PeerTransport` is implemented by `BleGattTransport` (ADR-001 rejected
+  Nearby Connections and Wi-Fi Direct; both implementations were removed).
+  Received chunks go through `MeshRepository.ingestChunk` →
+  `ChunkVerifier` → `EventIngestor`, so peer data follows the same apply
+  rules as the bundled fixture. `EmergencyModeService` runs
+  `AutoPeerSyncEngine`, which syncs automatically with every discovered
+  peer and relays chunks from the local `chunk-cache`. That path has
+  JVM and instrumented tests but **has not yet been verified on real
+  devices** (see `docs/mvp-remaining-tasks.md` section A). A transfer
+  interrupted by a real disconnect restarts from byte 0 at the next
+  contact; byte-level resume only works within one open connection.
