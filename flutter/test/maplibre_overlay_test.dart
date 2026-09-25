@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:resilientgeo_flutter/data/evacuation_models.dart';
 import 'package:resilientgeo_flutter/data/map_models.dart';
 import 'package:resilientgeo_flutter/data/maplibre_overlay.dart';
 
@@ -87,4 +88,55 @@ void main() {
     },
   );
 
+  test('converts an ok route to a lon-lat GeoJSON line', () {
+    final route = EvacuationRouteResult.fromMessage(<String, dynamic>{
+      'status': 'ok',
+      'polyline': <List<double>>[
+        <double>[121.5, 25.0],
+        <double>[121.6, 25.1],
+      ],
+      'distance_m': 1200,
+      'duration_s': 900,
+      'graph_version': 'taiwan-walk-test',
+      'event_snapshot_at': '2026-09-25T00:00:00Z',
+      'warnings': <Object?>[],
+      'blocked_event_ids': <String>[],
+    });
+
+    expect(routeFeatureCollection(route), <String, dynamic>{
+      'type': 'FeatureCollection',
+      'features': <Map<String, dynamic>>[
+        <String, dynamic>{
+          'type': 'Feature',
+          'properties': <String, dynamic>{},
+          'geometry': <String, dynamic>{
+            'type': 'LineString',
+            'coordinates': <List<double>>[
+              <double>[121.5, 25.0],
+              <double>[121.6, 25.1],
+            ],
+          },
+        },
+      ],
+    });
+  });
+
+  test('does not expose a route line for null or non-success results', () {
+    final noRoute = EvacuationRouteResult.fromMessage(<String, dynamic>{
+      'status': 'no_route',
+      'polyline': <Object?>[
+        <double>[121.5, 25.0],
+        <double>[121.6, 25.1],
+      ],
+      'distance_m': 1200,
+      'duration_s': 900,
+      'graph_version': 'ignored',
+      'event_snapshot_at': 'ignored',
+      'warnings': <Object?>[],
+      'blocked_event_ids': <String>[],
+    });
+
+    expect(routeFeatureCollection(null)['features'], isEmpty);
+    expect(routeFeatureCollection(noRoute)['features'], isEmpty);
+  });
 }

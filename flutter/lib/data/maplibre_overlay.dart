@@ -1,3 +1,4 @@
+import 'evacuation_models.dart';
 import 'map_models.dart';
 
 /// GeoJSON owned by the app and rendered as MapLibre runtime layers.
@@ -25,9 +26,7 @@ class MapLibreOverlayData {
         PolygonGeometry(:final rings) => <String, dynamic>{
           'type': 'Polygon',
           'coordinates': rings
-              .map(
-                (ring) => ring.map(_coordinate).toList(growable: false),
-              )
+              .map((ring) => ring.map(_coordinate).toList(growable: false))
               .toList(growable: false),
         },
         _ => null,
@@ -48,10 +47,7 @@ class MapLibreOverlayData {
         'geometry': geometryJson,
       });
     }
-    return <String, dynamic>{
-      'type': 'FeatureCollection',
-      'features': features,
-    };
+    return <String, dynamic>{'type': 'FeatureCollection', 'features': features};
   }
 
   static List<double> _coordinate(GeoPoint point) => <double>[
@@ -59,6 +55,38 @@ class MapLibreOverlayData {
     point.latitude,
   ];
 }
+
+Map<String, dynamic> routeFeatureCollection(EvacuationRouteResult? route) {
+  if (route == null ||
+      route.status != EvacuationRouteStatus.ok ||
+      route.polyline.length < 2) {
+    return <String, dynamic>{
+      'type': 'FeatureCollection',
+      'features': <Map<String, dynamic>>[],
+    };
+  }
+
+  return <String, dynamic>{
+    'type': 'FeatureCollection',
+    'features': <Map<String, dynamic>>[
+      <String, dynamic>{
+        'type': 'Feature',
+        'properties': <String, dynamic>{},
+        'geometry': <String, dynamic>{
+          'type': 'LineString',
+          'coordinates': route.polyline
+              .map(_routeCoordinate)
+              .toList(growable: false),
+        },
+      },
+    ],
+  };
+}
+
+List<double> _routeCoordinate(GeoPoint point) => <double>[
+  point.longitude,
+  point.latitude,
+];
 
 String eventColorHex(MeshEvent event) {
   if (event.isExpired) return '#616161';

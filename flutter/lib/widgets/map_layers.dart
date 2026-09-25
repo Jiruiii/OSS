@@ -26,6 +26,7 @@ class MapIconCatalog {
   static const IconData disaster = LucideIcons.triangleAlert;
   static const IconData expiredEvent = LucideIcons.clock3;
   static const IconData shelter = LucideIcons.house;
+  static const IconData shelterRecommendation = LucideIcons.mapPinHouse;
   static const IconData medical = LucideIcons.hospital;
 }
 

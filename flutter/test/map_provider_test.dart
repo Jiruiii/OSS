@@ -9,6 +9,7 @@ void main() {
     expect(MapIconCatalog.disaster, LucideIcons.triangleAlert);
     expect(MapIconCatalog.expiredEvent, LucideIcons.clock3);
     expect(MapIconCatalog.shelter, LucideIcons.house);
+    expect(MapIconCatalog.shelterRecommendation, LucideIcons.mapPinHouse);
     expect(MapIconCatalog.medical, LucideIcons.hospital);
   });
 

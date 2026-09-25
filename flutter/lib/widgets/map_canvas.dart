@@ -8,6 +8,7 @@ import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../data/map_camera_projection.dart';
 import '../data/map_administrative.dart';
+import '../data/evacuation_models.dart';
 import '../data/map_models.dart';
 import '../data/map_runtime_state.dart';
 import '../data/map_search.dart';
@@ -37,6 +38,10 @@ class MapCanvas extends StatefulWidget {
     required this.onOpenLayerSettings,
     required this.onRequestLocation,
     required this.onMapTap,
+    this.onCoordinatePicked,
+    this.onReportCameraIdle,
+    this.showReportLocationPicker = false,
+    this.route,
     this.administrativeIndex,
     this.onSearchFocus,
     this.onRecenter,
@@ -62,6 +67,10 @@ class MapCanvas extends StatefulWidget {
   final VoidCallback onOpenLayerSettings;
   final VoidCallback onRequestLocation;
   final VoidCallback onMapTap;
+  final ValueChanged<GeoPoint>? onCoordinatePicked;
+  final ValueChanged<GeoPoint>? onReportCameraIdle;
+  final bool showReportLocationPicker;
+  final EvacuationRouteResult? route;
   final MapAdministrativeIndex? administrativeIndex;
   final VoidCallback? onSearchFocus;
   final VoidCallback? onRecenter;
@@ -79,6 +88,8 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   static const _eventsSourceId = 'app-events';
   static const _eventsLineLayerId = 'app-events-lines';
   static const _eventsFillLayerId = 'app-events-polygons';
+  static const _routeSourceId = 'app-evacuation-route';
+  static const _routeLineLayerId = 'app-evacuation-route-line';
 
   final OfflineMapAssetStore _assetStore = OfflineMapAssetStore();
   final ValueNotifier<Offset?> _radarScreenPosition = ValueNotifier(null);
@@ -88,6 +99,8 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   Object? _styleError;
   bool _styleLoaded = false;
   bool _eventSourceReady = false;
+  bool _routeSourceReady = false;
+  bool _routeLayerReady = false;
   bool _markerRefreshScheduled = false;
   bool _markerProjectionInFlight = false;
   Size? _mapViewportSize;
@@ -139,6 +152,9 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
         oldWidget.showEvents != widget.showEvents) {
       unawaited(_updateEventSource());
       _queueMarkerRefresh();
+    }
+    if (oldWidget.route != widget.route) {
+      unawaited(_ensureRouteLayer());
     }
     if (oldWidget.staticFeatures != widget.staticFeatures ||
         oldWidget.showShelters != widget.showShelters ||
@@ -203,6 +219,8 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
         _styleError = null;
         _styleLoaded = false;
         _eventSourceReady = false;
+        _routeSourceReady = false;
+        _routeLayerReady = false;
       });
     } on Object catch (error) {
       if (!mounted) return;
@@ -386,6 +404,12 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     _cameraIsMoving = false;
     final position = _cameraPosition;
     if (position == null) return;
+    widget.onReportCameraIdle?.call(
+      GeoPoint(
+        longitude: position.target.longitude,
+        latitude: position.target.latitude,
+      ),
+    );
     // MapLibre initially settles at its provider minimum zoom before the
     // fitted 10% overview is applied. Do not expose that transient 0% value
     // in the controls while the initial camera handoff is still pending.
@@ -803,6 +827,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   Future<void> _onStyleLoaded() async {
     _styleLoaded = true;
     await _ensureEventLayers();
+    await _ensureRouteLayer();
     _queueMarkerRefresh();
     _scheduleInitialOverviewIfReady();
     if (_pendingEventFocus != null) {
@@ -880,7 +905,52 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     }
   }
 
+  Future<void> _ensureRouteLayer() async {
+    final controller = _mapController;
+    if (controller == null || !_styleLoaded) return;
+    try {
+      if (!_routeSourceReady) {
+        await controller.addGeoJsonSource(
+          _routeSourceId,
+          routeFeatureCollection(widget.route),
+        );
+        _routeSourceReady = true;
+      }
+      if (!_routeLayerReady) {
+        await controller.addLineLayer(
+          _routeSourceId,
+          _routeLineLayerId,
+          const LineLayerProperties(
+            lineColor: '#2563EB',
+            lineOpacity: 0.95,
+            lineWidth: 6,
+          ),
+          enableInteraction: false,
+        );
+        _routeLayerReady = true;
+      }
+      await controller.setGeoJsonSource(
+        _routeSourceId,
+        routeFeatureCollection(widget.route),
+      );
+    } on Object {
+      // A route layer is an enhancement. Native layer incompatibility must not
+      // hide the map or the Flutter route summary.
+    }
+  }
+
   Future<void> _onMapClick(math.Point<double> point, LatLng coordinates) async {
+    if (widget.onReportCameraIdle != null) return;
+    final coordinatePicker = widget.onCoordinatePicked;
+    if (coordinatePicker != null) {
+      coordinatePicker(
+        GeoPoint(
+          longitude: coordinates.longitude,
+          latitude: coordinates.latitude,
+        ),
+      );
+      return;
+    }
     final markers = _markers(zoom: _cameraPosition?.zoom);
     final markerHits = hitTestMapMarkers(
       markers: markers,
@@ -1006,6 +1076,22 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
               ),
             if (_usesPlatformMap) ...markers.map(_buildPositionedMarker),
             if (!_usesPlatformMap) ..._buildPreviewMarkers(markers),
+            if (widget.showReportLocationPicker)
+              const Positioned.fill(
+                child: IgnorePointer(
+                  child: Center(
+                    child: Padding(
+                      key: ValueKey<String>('report-location-center-pin'),
+                      padding: EdgeInsets.only(bottom: 34),
+                      child: Icon(
+                        Icons.location_pin,
+                        size: 48,
+                        color: Color(0xFF00796B),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             Positioned(
               right: 12,
               bottom: 12,
@@ -1117,7 +1203,16 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
 
   Widget _buildPreviewSurface() => GestureDetector(
     behavior: HitTestBehavior.opaque,
-    onTap: widget.onMapTap,
+    onTap: () {
+      final reportCameraIdle = widget.onReportCameraIdle;
+      if (reportCameraIdle != null) {
+        reportCameraIdle(MapCanvas.taiwanOverviewCenter);
+      } else if (widget.onCoordinatePicked != null) {
+        widget.onCoordinatePicked!(MapCanvas.taiwanOverviewCenter);
+      } else {
+        widget.onMapTap();
+      }
+    },
     child: ColoredBox(
       color:
           Theme.of(context).brightness == Brightness.dark

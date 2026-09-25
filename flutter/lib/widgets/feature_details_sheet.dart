@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/display_time.dart';
 import '../data/map_models.dart';
 import 'map_layers.dart';
 
@@ -9,6 +10,7 @@ class FeatureDetailsSheet extends StatelessWidget {
     required StaticFeature feature,
     required this.snapshotAt,
     required this.onClose,
+    this.onPlanEvacuationRoute,
   }) : _feature = feature,
        _event = null;
 
@@ -18,12 +20,14 @@ class FeatureDetailsSheet extends StatelessWidget {
     required this.onClose,
   }) : _event = event,
        _feature = null,
-       snapshotAt = null;
+       snapshotAt = null,
+       onPlanEvacuationRoute = null;
 
   final StaticFeature? _feature;
   final MeshEvent? _event;
   final String? snapshotAt;
   final VoidCallback onClose;
+  final VoidCallback? onPlanEvacuationRoute;
 
   @override
   Widget build(BuildContext context) {
@@ -88,7 +92,25 @@ class FeatureDetailsSheet extends StatelessWidget {
         _DetailLine('收容人數', _peopleText(details['available_count'])),
         _DetailLine('適用災害類別', _listText(details['disaster_types'])),
         _DetailLine('來源', _text(details['source'])),
-        _DetailLine('快照', _text(snapshotAt)),
+        _DetailLine('更新時間', formatUpdateTime(snapshotAt)),
+        if (onPlanEvacuationRoute != null) ...<Widget>[
+          const SizedBox(height: 4),
+          SizedBox(
+            width: double.infinity,
+            height: 36,
+            child: OutlinedButton.icon(
+              key: const ValueKey<String>('plan-evacuation-route'),
+              onPressed: onPlanEvacuationRoute,
+              style: OutlinedButton.styleFrom(
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              icon: const Icon(Icons.directions_walk),
+              label: const Text('規劃逃生路線'),
+            ),
+          ),
+        ],
       ];
     }
     if (kind == 'medical') {
@@ -96,7 +118,7 @@ class FeatureDetailsSheet extends StatelessWidget {
         _DetailLine('類型', _text(details['facility_type'])),
         _DetailLine('地址', _text(details['address'])),
         _DetailLine('來源', _text(details['source'])),
-        _DetailLine('快照', _text(snapshotAt)),
+        _DetailLine('更新時間', formatUpdateTime(snapshotAt)),
       ];
     }
     return <Widget>[

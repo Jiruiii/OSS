@@ -1,5 +1,8 @@
 import 'package:flutter/services.dart';
 
+import 'bridge_failure.dart';
+import 'crowd_report_models.dart';
+import 'evacuation_models.dart';
 import 'map_models.dart';
 
 /// Typed, read-only access to Android-owned map state.
@@ -38,6 +41,48 @@ class MapBridge {
     return responseEnabled;
   }
 
+  Future<CrowdReportSubmission> submitCrowdReport(
+    CrowdReportDraft draft,
+  ) async {
+    try {
+      final response = await _invokeRequiredMap(
+        'submitCrowdReport',
+        draft.toChannelArguments(),
+      );
+      return CrowdReportSubmission.fromMessage(response);
+    } catch (error) {
+      throw _normalizeFeatureError(error);
+    }
+  }
+
+  Future<EvacuationRouteResult> calculateEvacuationRoute({
+    required GeoPoint origin,
+    required ShelterRouteCandidate destination,
+    String mode = 'walk',
+  }) async {
+    if (mode != 'walk') {
+      throw const FormatException(
+        'calculateEvacuationRoute supports walk only',
+      );
+    }
+    try {
+      final response = await _invokeRequiredMap(
+        'calculateEvacuationRoute',
+        <String, Object?>{
+          'origin': <String, Object?>{
+            'lon': origin.longitude,
+            'lat': origin.latitude,
+          },
+          'destination': destination.toChannelArguments(),
+          'mode': mode,
+        },
+      );
+      return EvacuationRouteResult.fromMessage(response);
+    } catch (error) {
+      throw _normalizeFeatureError(error);
+    }
+  }
+
   Stream<List<MeshEvent>> get events => _eventChannel
       .receiveBroadcastStream()
       .map<List<MeshEvent>>(eventsFromMessage);
@@ -51,5 +96,28 @@ class MapBridge {
       arguments,
     );
     return requireMapFromMessage(response, '$method response');
+  }
+
+  Object _normalizeFeatureError(Object error) {
+    if (error is FormatException || error is BridgeFailure) return error;
+    if (error is MissingPluginException) {
+      return const BridgeFailure(
+        code: BridgeFailureCode.unavailable,
+        message: 'Native map feature is unavailable on this host',
+      );
+    }
+    if (error is PlatformException) {
+      final code = switch (error.code) {
+        'invalid_input' => BridgeFailureCode.invalidInput,
+        'signing_unavailable' => BridgeFailureCode.signingUnavailable,
+        'storage_unavailable' => BridgeFailureCode.storageUnavailable,
+        'graph_unavailable' => BridgeFailureCode.graphUnavailable,
+        'route_engine_error' => BridgeFailureCode.routeEngineError,
+        'map_bridge_error' => BridgeFailureCode.unknown,
+        _ => BridgeFailureCode.unknown,
+      };
+      return BridgeFailure(code: code, message: error.message ?? error.code);
+    }
+    return BridgeFailure(code: BridgeFailureCode.unknown, message: '$error');
   }
 }

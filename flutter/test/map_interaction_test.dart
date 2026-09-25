@@ -57,7 +57,7 @@ void main() {
     expect(find.text('預計收容人數：81人'), findsOneWidget);
     expect(find.text('收容人數：無資料'), findsOneWidget);
     expect(find.text('來源：taipei-shelter'), findsOneWidget);
-    expect(find.text('快照：2026-09-05T00:00:00Z'), findsOneWidget);
+    expect(find.text('更新時間：2026-9-5 00:00:00'), findsNWidgets(2));
   });
 
   testWidgets('tapping a medical marker opens medical details', (tester) async {
@@ -140,6 +140,7 @@ void main() {
 
     await tester.enterText(find.bySemanticsLabel('搜尋地點'), '潭美');
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
     expect(find.text('潭美國小'), findsOneWidget);
 
     await tester.tap(find.text('潭美國小'));
@@ -238,9 +239,8 @@ void main() {
     await tester.pump();
 
     expect(find.byType(FeatureDetailsSheet), findsNothing);
-    expect(find.text('資料快照：2026-09-05T00:00:00Z'), findsOneWidget);
+    expect(find.text('更新時間：2026-9-5 00:00:00'), findsOneWidget);
   });
-
 }
 
 Future<void> _finishMapLoad(WidgetTester tester) async {
