@@ -26,13 +26,13 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  # 2.14.0 is the newest supported release for this checkout's Dart 3.7.2.
-  google_maps_flutter: 2.14.0
-  connectivity_plus: 6.1.4
+  maplibre_gl: 0.27.1
+  lucide_icons_flutter: 3.1.20
+  path_provider: 2.1.5
+  crypto: 3.0.7
   geolocator: 13.0.2
+  pointer_interceptor: 0.10.1+2
   shared_preferences: 2.5.3
-  flutter_map: 8.3.2
-  latlong2: 0.10.1
 
 dev_dependencies:
   flutter_test:
@@ -49,72 +49,29 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/Geo_light_phone_logo.png
+    - assets/Geo_dark_phone_logo.png
+    - assets/fonts/
     - assets/data/neihu/static-features.json
-    - assets/data/neihu/demo-events.json
-    - assets/map/google-map-light.json
-    - assets/map/google-map-dark.json
-    - assets/map/tiles/12/3430/
-    - assets/map/tiles/12/3431/
-    - assets/map/tiles/13/6861/
-    - assets/map/tiles/13/6862/
-    - assets/map/tiles/13/6863/
-    - assets/map/tiles/14/13723/
-    - assets/map/tiles/14/13724/
-    - assets/map/tiles/14/13725/
-    - assets/map/tiles/14/13726/
-    - assets/map/tiles/14/13727/
-    - assets/map/tiles/15/27447/
-    - assets/map/tiles/15/27448/
-    - assets/map/tiles/15/27449/
-    - assets/map/tiles/15/27450/
-    - assets/map/tiles/15/27451/
-    - assets/map/tiles/15/27452/
-    - assets/map/tiles/15/27453/
-    - assets/map/tiles/15/27454/
-    - assets/map/tiles/16/54895/
-    - assets/map/tiles/16/54896/
-    - assets/map/tiles/16/54897/
-    - assets/map/tiles/16/54898/
-    - assets/map/tiles/16/54899/
-    - assets/map/tiles/16/54900/
-    - assets/map/tiles/16/54901/
-    - assets/map/tiles/16/54902/
-    - assets/map/tiles/16/54903/
-    - assets/map/tiles/16/54904/
-    - assets/map/tiles/16/54905/
-    - assets/map/tiles/16/54906/
-    - assets/map/tiles/16/54907/
-    - assets/map/tiles/16/54908/
-    - assets/map/tiles/16/54909/
-    - assets/map/tiles/17/109791/
-    - assets/map/tiles/17/109792/
-    - assets/map/tiles/17/109793/
-    - assets/map/tiles/17/109794/
-    - assets/map/tiles/17/109795/
-    - assets/map/tiles/17/109796/
-    - assets/map/tiles/17/109797/
-    - assets/map/tiles/17/109798/
-    - assets/map/tiles/17/109799/
-    - assets/map/tiles/17/109800/
-    - assets/map/tiles/17/109801/
-    - assets/map/tiles/17/109802/
-    - assets/map/tiles/17/109803/
-    - assets/map/tiles/17/109804/
-    - assets/map/tiles/17/109805/
-    - assets/map/tiles/17/109806/
-    - assets/map/tiles/17/109807/
-    - assets/map/tiles/17/109808/
-    - assets/map/tiles/17/109809/
-    - assets/map/tiles/17/109810/
-    - assets/map/tiles/17/109811/
-    - assets/map/tiles/17/109812/
-    - assets/map/tiles/17/109813/
-    - assets/map/tiles/17/109814/
-    - assets/map/tiles/17/109815/
-    - assets/map/tiles/17/109816/
-    - assets/map/tiles/17/109817/
-    - assets/map/tiles/17/109818/
-    - assets/map/tiles/17/109819/
+    - assets/map/styles/taiwan-light.json
+    - assets/map/styles/taiwan-dark.json
+    - assets/map/labels/taiwan-reference-labels.geojson
+    - assets/map/search/taiwan-roads.json
+    - assets/map/pmtiles/taiwan.pmtiles
+    - assets/map/pmtiles/taiwan-north.pmtiles
+    - assets/map/pmtiles/taiwan-central.pmtiles
+    - assets/map/pmtiles/taiwan-south.pmtiles
+    - assets/map/pmtiles/taiwan-east.pmtiles
+    - assets/map/fonts/
+    - assets/map/fonts/NotoSansRegular/
+    - assets/map/sprites/v4/light.json
+    - assets/map/sprites/v4/light.png
+    - assets/map/sprites/v4/light@2x.json
+    - assets/map/sprites/v4/light@2x.png
+    - assets/map/sprites/v4/dark.json
+    - assets/map/sprites/v4/dark.png
+    - assets/map/sprites/v4/dark@2x.json
+    - assets/map/sprites/v4/dark@2x.png
 
   # To add Flutter specific assets to your application, add an assets section,
   # like this:
@@ -148,6 +105,19 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
+  fonts:
+    - family: NotoSansTC
+      fonts:
+        - asset: assets/fonts/NotoSansTC-Regular.ttf
+        - asset: assets/fonts/NotoSansTC-Medium.ttf
+          weight: 500
+    # Flutter Web's Material fallback asks for Roboto during startup. Keep
+    # that family local so the engine never needs an external font CDN.
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/NotoSansTC-Regular.ttf
+        - asset: assets/fonts/NotoSansTC-Medium.ttf
+          weight: 500
 
   # This section identifies your Flutter project as a module meant for
   # embedding in a native host app.  These identifiers should _not_ ordinarily

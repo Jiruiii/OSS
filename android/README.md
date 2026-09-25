@@ -1,6 +1,6 @@
 # ResilientGeo Mesh — Android
 
-> 2026-09-06 更新：Android 現在是原生資料與服務的 host，`MainActivity` 直接嵌入 Flutter 內湖地圖。線上且有 key 時使用 Google Maps Android SDK，無網路或無 key 時回退 OSM 離線 tiles。下方較早的 native-only baseline 驗證紀錄仍保留作為歷史證據。
+> 2026-09-21 更新：Android 現在是原生資料與服務的 host，`MainActivity` 直接嵌入 Flutter 台灣 MapLibre 地圖。五個 Protomaps PMTiles 會隨 App 打包，啟動時串流複製到 app-private `files/maps/`；下方較早的 native-only baseline 驗證紀錄仍保留作為歷史證據。
 
 Single Android project, jointly owned:
 
@@ -19,48 +19,36 @@ under `flutter/` and is included as the `:flutter` source-code subproject by
 `flutter/.android/include_flutter.groovy`; generated `.android/` files are not
 hand-edited. The user-facing surface is `flutter/lib/screens/map_screen.dart`.
 
-The fallback map uses only committed assets: `flutter_map`'s
-`AssetTileProvider` loads the versioned Neihu tiles at zoom 12–17. When an
-Android-restricted key is supplied at build time and the device has network,
-`google_maps_flutter` renders the online Google Maps SDK instead. The snapshot
-contains 5,774 OSM road geometries, 26 shelters and 4 medical facilities.
-The UI shows zoom as 0–100%: 0% is the full Neihu extent, 100% is the maximum
-street detail available from the active provider.
+The map uses only committed local assets. `OfflineMapAssetBridge` receives the
+five PMTiles paths from Flutter and copies them with a bounded buffer to
+`files/maps/`; MapLibre then reads the `file://` URLs with byte-range access.
+The overview archive covers Taiwan at z0–12, while the north, central, south
+and east archives cover z13–15 street detail. The UI fits the Taiwan bbox at
+0% and exposes MapLibre z6.5–17; z17 is overzoom beyond the z15 package. The
+app-owned event, shelter and medical markers remain
+Flutter overlays and use the Lucide icon catalog.
 
-### Google Maps Demo key
-
-Google tiles are not downloaded or cached by this project. For a demo, create
-an Android-restricted key in Google Cloud, restrict it by package name
-`com.resilientgeo.mesh` and the debug/release SHA-1, then enable Maps SDK for
-Android. Put the key in the ignored repository-root `.env` file:
-
-```dotenv
-GOOGLE_MAPS_API_KEY=AIza...
-```
-
-The Gradle manifest placeholder reads values in this order: the
-`GOOGLE_MAPS_API_KEY` environment variable, `android/local.properties`, then
-the repository-root `.env`. The Android host bridge checks the resulting
-Manifest metadata before enabling Google Maps, so Android Studio `app` runs do
-not need a second Dart define. The standalone generated Flutter module host
-does not contain this app Manifest and intentionally stays on the OSM fallback.
+During Flutter startup, the full-screen phone logo is selected from
+`Geo_light_phone_logo.png` or `Geo_dark_phone_logo.png`. The native Android
+starting window uses the matching square logo through `drawable-night`.
 
 ```bash
 cd android
 ./gradlew assembleDebug
 ```
 
-If the Android key is omitted, or network is unavailable, the app intentionally
-uses the bundled OSM map. The supplied Google Maps JavaScript sample is not
-used by this Android Flutter implementation; this app uses
-`google_maps_flutter` and the native Android SDK.
+The map does not require a network, a map-service key, or a server-side style.
+The OSM / Protomaps attribution is kept in both bundled styles.
 
-Flutter reads native state through `FlutterMapBridge`:
+Flutter reads native state through `FlutterMapBridge` and requests map assets
+through `OfflineMapAssetBridge`:
 
 - `com.resilientgeo.mesh/map`: `getInitialState`, `loadBundledFixture`,
   `setEmergencyMode` and `hasGoogleMapsApiKey`.
 - `com.resilientgeo.mesh/events`: verified Room event snapshots, including
   Android's authoritative `apply_state`.
+- `com.resilientgeo.mesh/offline_map_assets`: streaming PMTiles installation
+  into the app-private maps directory.
 
 Room ingestion, signature verification, TTL/version rules, BLE and the
 foreground Emergency Mode service remain Android-owned. Flutter is read-only
@@ -71,6 +59,11 @@ shows `無資料`, never zero. Bundled demo events are labeled
 
 ### Current build result
 
+Flutter static asset validation, Flutter analyze/tests, Chrome web build,
+Android unit tests, and the embedded host `assembleDebug` build pass. The host
+APK is produced at `android/app/build/outputs/apk/debug/app-debug.apk` and
+contains the Taiwan PMTiles packages plus the existing Neihu data fixtures.
+Gradle emits a
 Flutter static asset validation, Flutter analyze/tests, Android unit tests
 (57 tests as of PR #18 by `@Test` count; last full run predates PR #18), and the embedded host `assembleDebug` build pass. The host APK
 is produced at `android/app/build/outputs/apk/debug/app-debug.apk` and
@@ -81,15 +74,30 @@ the module's generated `.android/` files remain unedited. Device-level
 offline restart and marker interaction should still be checked on the target
 phone before release.
 
+### Chrome offline UI preview
+
+For frontend-only work, run the Flutter module from `../flutter`:
+
+```bash
+cd ../flutter
+git lfs pull
+flutter pub get
+flutter run -d chrome --no-web-resources-cdn --web-port 8787
+```
+
+For a static offline preview, use `flutter build web --release
+--no-web-resources-cdn` and serve `build/web` locally. Chrome uses the bundled
+MapLibre GL JS runtime; the Android host continues to use native MapLibre and
+app-private PMTiles.
+
 ### 在 Android Studio 查看 Flutter 畫面
 
 1. 用 Android Studio 開啟 `<repo>/android`，不要把 `flutter/.android/`
    當成要編輯的專案。
 2. 確認 `android/local.properties` 指向 Android SDK 與 Flutter SDK；這個檔案
-   已被 gitignore，不會提交。需要線上 Google 地圖時，建議在 repo 根目錄
-   `.env` 加入 `GOOGLE_MAPS_API_KEY`；也可放在此檔案，兩者都不會提交。
+   已被 gitignore，不會提交。地圖不需要 API key。
 3. 啟動 Android Emulator 或連接手機，在 Android Studio 選 `app` 設定並執行
-   debug。App 啟動後會直接進入 Flutter 內湖地圖。
+   debug。App 啟動後會直接進入 Flutter 台灣離線地圖。
 4. Flutter 畫面程式在 `flutter/lib/`；要使用 Dart hot reload，可另外在
    Android Studio 安裝 Flutter／Dart plugin，開啟 `flutter/` 編輯，但最終
    整合畫面仍應由 `android` host 的 debug APK 驗證。
@@ -270,17 +278,11 @@ combination:
   (platform theme, works for `BleSpikeActivity`) and adds
   `Theme.ResilientGeoMesh.OfflineGis` (MaterialComponents-derived),
   applied only to `MainActivity` via `android:theme` in the manifest.
-- **Demo geography moved from Hualien to Neihu.** B's original fixtures
-  and `OfflineMapView`'s hardcoded bounding box used placeholder
-  coordinates from before the team standardized the whole project's demo
-  area on Taipei's Neihu district (`data/fixtures/neihu/scenario.json`, module
-  A). Both have been updated: `pipeline/tools/generate-android-fixture.mjs`
-  now signs events near the `neihu.dahu` / `neihu.wende` seed points, and
-  `OfflineMapView`'s bounding box covers all five `neihu.*` areas with
-  margin. The event IDs, hashes, and signatures are freshly generated
-  (re-run `npm run generate:android-fixture` any time this needs to
-  change) — this is still B's own small demo dataset, distinct from and
-  much smaller than module A's real `data/fixtures/neihu/*.json` datasets.
+- **Demo geography remains Neihu while the basemap is Taiwan-wide.** B's
+  original fixtures use the `neihu.dahu` / `neihu.wende` seed points and are
+  still the small Android event dataset. The current Flutter basemap is no
+  longer bounded to those fixtures: Taiwan PMTiles provide the map context,
+  while the event IDs, hashes and signatures remain Android-owned.
 
 ## What's implemented (module B)
 
@@ -301,10 +303,10 @@ code from the baseline and are not the normal Flutter launcher surface.
 
 ### Previous native-only map implementation
 
-`OfflineMapView` is retained as the earlier native-only vector implementation.
-It is no longer the normal launcher surface: the Flutter map owns the current
-offline basemap and marker/details interaction. The native event and trust
-layers remain unchanged and are exposed to Flutter through the bridge above.
+The legacy native map implementation and tile assets were removed during the
+MapLibre migration. The Flutter map now owns the
+offline basemap and marker/details interaction; the native event and trust
+layers remain unchanged and are exposed through the bridge above.
 
 ### Why Bouncy Castle instead of the platform provider
 

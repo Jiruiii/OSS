@@ -1,0 +1,62 @@
+{
+  "features": [
+    {
+      "id": "way/20",
+      "properties": {
+        "highway": "secondary",
+        "name": "中山路",
+        "addr:city": "高雄市",
+        "alt_name": "中山路二段"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[120.30, 22.63], [120.31, 22.64]]
+      }
+    },
+    {
+      "id": "way/10",
+      "properties": {
+        "highway": "primary",
+        "name:zh-Hant": "中山路",
+        "addr:city": "臺北市"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[121.52, 25.04], [121.53, 25.05]]
+      }
+    },
+    {
+      "id": "way/30",
+      "properties": {
+        "highway": "residential",
+        "name": "和平街",
+        "addr:city": "臺中市"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[120.67, 24.15], [120.68, 24.16]]
+      }
+    },
+    {
+      "id": "way/40",
+      "properties": {
+        "highway": "service"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [[121.50, 25.00], [121.51, 25.01]]
+      }
+    },
+    {
+      "id": "node/50",
+      "properties": {
+        "amenity": "hospital",
+        "name": "測試醫院"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [121.54, 25.02]
+      }
+    }
+  ]
+}

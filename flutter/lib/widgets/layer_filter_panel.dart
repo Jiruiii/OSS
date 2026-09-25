@@ -11,7 +11,6 @@ class LayerFilterPanel extends StatelessWidget {
     required this.onMedicalChanged,
     required this.onEventsChanged,
     required this.onEmergencyModeChanged,
-    required this.onLoadFixture,
   });
 
   final bool showShelters;
@@ -22,7 +21,6 @@ class LayerFilterPanel extends StatelessWidget {
   final ValueChanged<bool> onMedicalChanged;
   final ValueChanged<bool> onEventsChanged;
   final ValueChanged<bool> onEmergencyModeChanged;
-  final Future<void> Function() onLoadFixture;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -53,12 +51,6 @@ class LayerFilterPanel extends StatelessWidget {
               title: const Text('緊急模式'),
               value: emergencyModeEnabled,
               onChanged: onEmergencyModeChanged,
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: onLoadFixture,
-              icon: const Icon(Icons.inventory_2_outlined),
-              label: const Text('載入內建 fixture'),
             ),
           ],
         ),

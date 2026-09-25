@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:resilientgeo_flutter/data/map_models.dart';
 import 'package:resilientgeo_flutter/data/map_search.dart';
+import 'package:resilientgeo_flutter/data/map_search_asset.dart';
 
 void main() {
   final hospital = StaticFeature.fromJson(<String, dynamic>{
@@ -130,5 +131,80 @@ void main() {
 
     expect(index.query('   '), isEmpty);
     expect(index.query('無座標'), isEmpty);
+  });
+
+  test('parses latitude then longitude within Taiwan', () {
+    expect(
+      parseTaiwanCoordinate('25.011549, 121.545053'),
+      const GeoPoint(longitude: 121.545053, latitude: 25.011549),
+    );
+  });
+
+  test('rejects coordinates outside Taiwan', () {
+    expect(parseTaiwanCoordinate('35.0, 139.0'), isNull);
+  });
+
+  test('returns a coordinate result without a facility feature', () {
+    final query = MapSearchIndex(
+      <StaticFeature>[],
+    ).search('25.011549, 121.545053');
+
+    expect(query.isCoordinate, isTrue);
+    expect(query.results, hasLength(1));
+    expect(query.results.single.feature, isNull);
+    expect(query.results.single.typeLabel, '經緯度');
+    expect(
+      query.results.single.coordinate,
+      const GeoPoint(longitude: 121.545053, latitude: 25.011549),
+    );
+  });
+
+  test('does not treat an invalid coordinate-shaped query as a name', () {
+    final feature = StaticFeature.fromJson(<String, dynamic>{
+      'id': 'road:coordinate-like',
+      'kind': 'road',
+      'name': '35.0, 139.0',
+      'geometry': <String, dynamic>{
+        'type': 'Point',
+        'coordinates': <double>[121.5, 25.0],
+      },
+    });
+
+    expect(
+      MapSearchIndex(<StaticFeature>[feature]).query('35.0, 139.0'),
+      isEmpty,
+    );
+  });
+
+  test('preserves two same-name roads in different regions', () {
+    final index = MapSearchIndex(
+      const [],
+      roadEntries: <TaiwanSearchEntry>[
+        TaiwanSearchEntry.fromJson(<String, dynamic>{
+          'id': 'way:1',
+          'name': '中山路',
+          'aliases': <String>[],
+          'kind': 'road',
+          'region': '臺北市',
+          'coordinate': <double>[121.52, 25.04],
+        }),
+        TaiwanSearchEntry.fromJson(<String, dynamic>{
+          'id': 'way:2',
+          'name': '中山路',
+          'aliases': <String>[],
+          'kind': 'road',
+          'region': '高雄市',
+          'coordinate': <double>[120.30, 22.63],
+        }),
+      ],
+    );
+
+    final results = index.query('中山路');
+
+    expect(
+      results.map((item) => item.region),
+      containsAll(<String>['臺北市', '高雄市']),
+    );
+    expect(results.every((item) => item.feature == null), isTrue);
   });
 }

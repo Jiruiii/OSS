@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ResilientGeoMesh" parent="android:Theme.Material.NoActionBar" />
+
+    <style name="Theme.ResilientGeoMesh.OfflineGis" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/resilientgeo_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.ResilientGeoMesh</item>
+    </style>
+</resources>

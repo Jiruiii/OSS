@@ -1,0 +1,424 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "離線 Mesh 災害應變系統架構",
+    "output": "system-architecture.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "offline-map",
+        "label": "離線地圖資料鏈",
+        "focus": [
+          "tiles",
+          "pmtiles",
+          "maplibre",
+          "app"
+        ],
+        "note": "OpenStreetMap 經 Protomaps 產製為 PMTiles，由 MapLibre GL 在斷網下直接渲染。"
+      },
+      {
+        "id": "mesh-path",
+        "label": "Mesh 多跳傳播",
+        "focus": [
+          "app",
+          "store",
+          "mesh",
+          "ble",
+          "peers"
+        ],
+        "note": "事件寫入裝置後經 BLE 多跳轉發，TTL 與訊息 ID 負責去重。"
+      },
+      {
+        "id": "planned",
+        "label": "規劃中功能",
+        "focus": [
+          "citizen",
+          "app",
+          "report",
+          "store",
+          "evac"
+        ],
+        "note": "民眾通報與逃生路線計算尚未實作，此處僅定位其在架構中的位置。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "tiles",
+      "type": "external",
+      "label": "OpenStreetMap",
+      "sublabel": "Protomaps Basemap 產製",
+      "tag": "離線預先產製",
+      "pos": [
+        40,
+        60
+      ],
+      "size": [
+        175,
+        84
+      ]
+    },
+    {
+      "id": "citizen",
+      "type": "external",
+      "label": "現場民眾",
+      "sublabel": "災區使用者",
+      "pos": [
+        40,
+        410
+      ],
+      "size": [
+        175,
+        84
+      ]
+    },
+    {
+      "id": "gnss",
+      "type": "external",
+      "label": "GPS / GNSS",
+      "sublabel": "裝置定位",
+      "pos": [
+        40,
+        550
+      ],
+      "size": [
+        175,
+        84
+      ]
+    },
+    {
+      "id": "pmtiles",
+      "type": "database",
+      "label": "PMTiles 圖磚檔",
+      "sublabel": "單檔多層級向量圖磚",
+      "tag": "裝置本地",
+      "pos": [
+        315,
+        60
+      ],
+      "size": [
+        175,
+        84
+      ]
+    },
+    {
+      "id": "maplibre",
+      "type": "frontend",
+      "label": "MapLibre GL",
+      "sublabel": "向量地圖渲染引擎",
+      "pos": [
+        315,
+        232
+      ],
+      "size": [
+        175,
+        84
+      ]
+    },
+    {
+      "id": "app",
+      "type": "frontend",
+      "label": "Flutter App",
+      "sublabel": "跨平台行動端 · Android",
+      "tag": "地圖 · 事件 · Check-in",
+      "pos": [
+        315,
+        404
+      ],
+      "size": [
+        175,
+        130
+      ]
+    },
+    {
+      "id": "report",
+      "type": "frontend",
+      "label": "民眾通報（告警）",
+      "sublabel": "現場災情提交",
+      "tag": "規劃中",
+      "pos": [
+        590,
+        232
+      ],
+      "size": [
+        175,
+        94
+      ]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "裝置端資料管理",
+      "sublabel": "事件 · 訊息 ID · TTL",
+      "tag": "本機儲存",
+      "pos": [
+        590,
+        404
+      ],
+      "size": [
+        175,
+        94
+      ]
+    },
+    {
+      "id": "evac",
+      "type": "backend",
+      "label": "逃生路線計算",
+      "sublabel": "離線路網 + 事件避讓",
+      "tag": "規劃中",
+      "pos": [
+        590,
+        576
+      ],
+      "size": [
+        175,
+        94
+      ]
+    },
+    {
+      "id": "mesh",
+      "type": "messagebus",
+      "label": "Mesh 多跳轉發",
+      "sublabel": "TTL · 訊息 ID · 去重",
+      "pos": [
+        865,
+        404
+      ],
+      "size": [
+        175,
+        94
+      ]
+    },
+    {
+      "id": "ble",
+      "type": "messagebus",
+      "label": "Bluetooth Low Energy",
+      "sublabel": "探索 · 連線 · 識別",
+      "pos": [
+        865,
+        576
+      ],
+      "size": [
+        175,
+        94
+      ]
+    },
+    {
+      "id": "cloud",
+      "type": "cloud",
+      "label": "雲端資料服務",
+      "sublabel": "事件同步 · 備援",
+      "tag": "連網時",
+      "pos": [
+        1140,
+        60
+      ],
+      "size": [
+        175,
+        94
+      ]
+    },
+    {
+      "id": "peers",
+      "type": "external",
+      "label": "鄰近節點",
+      "sublabel": "Node B → C → D",
+      "pos": [
+        1140,
+        500
+      ],
+      "size": [
+        175,
+        94
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "裝置端（斷網可運作）",
+      "wraps": [
+        "pmtiles",
+        "maplibre",
+        "app",
+        "report",
+        "store",
+        "evac",
+        "mesh",
+        "ble"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "tiles-to-pmtiles",
+      "from": "tiles",
+      "to": "pmtiles",
+      "label": "離線產製圖磚",
+      "variant": "dashed"
+    },
+    {
+      "id": "pmtiles-to-maplibre",
+      "from": "pmtiles",
+      "to": "maplibre",
+      "label": "讀取本地圖磚",
+      "labelAt": [
+        403,
+        188
+      ]
+    },
+    {
+      "id": "maplibre-to-app",
+      "from": "maplibre",
+      "to": "app",
+      "label": "道路 · 建物 · POI",
+      "labelAt": [
+        403,
+        360
+      ]
+    },
+    {
+      "id": "citizen-to-app",
+      "from": "citizen",
+      "to": "app",
+      "label": "操作 · Check-in",
+      "variant": "emphasis"
+    },
+    {
+      "id": "gnss-to-app",
+      "from": "gnss",
+      "to": "app",
+      "label": "目前位置"
+    },
+    {
+      "id": "app-to-report",
+      "from": "app",
+      "to": "report",
+      "label": "提交災情告警",
+      "variant": "dashed",
+      "labelAt": [
+        540,
+        355
+      ]
+    },
+    {
+      "id": "report-to-store",
+      "from": "report",
+      "to": "store",
+      "label": "寫入告警事件",
+      "variant": "dashed",
+      "labelAt": [
+        678,
+        365
+      ]
+    },
+    {
+      "id": "app-to-store",
+      "from": "app",
+      "to": "store",
+      "label": "事件 · 集合點",
+      "labelAt": [
+        540,
+        505
+      ]
+    },
+    {
+      "id": "store-to-evac",
+      "from": "store",
+      "to": "evac",
+      "label": "事件 + 路網 + 位置",
+      "variant": "dashed",
+      "labelAt": [
+        678,
+        537
+      ]
+    },
+    {
+      "id": "evac-to-app",
+      "from": "evac",
+      "to": "app",
+      "label": "建議逃生路線",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "bottom",
+      "via": [
+        [
+          402.5,
+          623
+        ]
+      ],
+      "labelAt": [
+        497,
+        623
+      ]
+    },
+    {
+      "id": "store-to-mesh",
+      "from": "store",
+      "to": "mesh",
+      "label": "待轉發事件",
+      "labelAt": [
+        828,
+        451
+      ]
+    },
+    {
+      "id": "mesh-to-ble",
+      "from": "mesh",
+      "to": "ble",
+      "label": "多跳封包",
+      "labelAt": [
+        953,
+        537
+      ]
+    },
+    {
+      "id": "ble-to-peers",
+      "from": "ble",
+      "to": "peers",
+      "label": "近距連線交換",
+      "variant": "emphasis"
+    },
+    {
+      "id": "store-to-cloud",
+      "from": "store",
+      "to": "cloud",
+      "label": "連網時同步",
+      "variant": "dashed",
+      "labelAt": [
+        815,
+        185
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "行動端與離線空間資料",
+      "items": [
+        "Flutter 單一程式碼支援 Android，預留 iOS",
+        "OSM + Protomaps 產製台灣向量圖磚，封裝為單一 PMTiles",
+        "MapLibre GL 讀取本地檔案，斷網仍可瀏覽"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "BLE Mesh 通訊與定位",
+      "items": [
+        "BLE 負責探索、連線、裝置識別與小量資料交換",
+        "多跳轉發 Node A → B → C → D，TTL + 訊息 ID 去重",
+        "GPS / GNSS 供事件定位、距離計算與優先排序"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "規劃中（尚未實作）",
+      "items": [
+        "民眾通報（告警）：現場提交災情，經 Mesh 擴散",
+        "逃生路線計算：離線路網 + 已知事件 + GPS 位置",
+        "兩者沿用既有裝置端資料管理與去重機制"
+      ]
+    }
+  ]
+}

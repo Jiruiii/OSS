@@ -43,5 +43,27 @@ __pycache__/
 /docs/jia-task-sequence.md
 /.superpowers/
 
+# OSM/PMTiles/search build inputs and intermediate files. Versioned app assets under
+# flutter/assets/map/ remain visible and are intentionally not ignored.
+/tools/maps/.cache/
+/tools/maps/.work/
+/tools/maps/*.osm.pbf
+/tools/maps/*.osc.gz
+/tools/maps/*.zip
+
+# The Taiwan styles currently reference only NotoSansRegular. Keep the
+# downloaded fallback font families local without adding their glyph shards.
+/flutter/assets/map/fonts/Noto Sans Medium/
+/flutter/assets/map/fonts/Noto Sans Italic/
+/flutter/assets/map/fonts/Noto Sans Devanagari Regular v1/
+
+# Only the light and dark sprite sets are referenced by the Taiwan styles.
+/flutter/assets/map/sprites/v4/black*
+/flutter/assets/map/sprites/v4/grayscale*
+/flutter/assets/map/sprites/v4/white*
+
+未來際
+
+output
 # Local session transcript
 /transcript.md

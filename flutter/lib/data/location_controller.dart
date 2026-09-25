@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'map_models.dart';
@@ -43,10 +44,12 @@ class GeolocatorLocationGateway implements LocationGateway {
 
 /// Requests device location only in response to an explicit user action.
 class LocationController {
-  LocationController({LocationGateway? gateway})
-    : _gateway = gateway ?? const GeolocatorLocationGateway();
+  LocationController({LocationGateway? gateway, bool? webPlatform})
+    : _gateway = gateway ?? const GeolocatorLocationGateway(),
+      _webPlatform = webPlatform ?? kIsWeb;
 
   final LocationGateway _gateway;
+  final bool _webPlatform;
   final StreamController<GeoPoint> _locations =
       StreamController<GeoPoint>.broadcast();
   StreamSubscription<GeoPoint>? _locationSubscription;
@@ -58,6 +61,16 @@ class LocationController {
     if (_disposed) return null;
 
     try {
+      // Browsers can report `denied` from the Permissions API even though
+      // navigator.geolocation is usable. Calling the browser API directly
+      // also makes the permission prompt happen in the user's click handler.
+      if (_webPlatform) {
+        final location = await _gateway.getCurrentLocation();
+        if (location == null) return null;
+        _listenForUpdates();
+        return location;
+      }
+
       if (!await _gateway.isServiceEnabled()) return null;
 
       var permission = await _gateway.checkPermission();

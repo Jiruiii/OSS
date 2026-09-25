@@ -1,6 +1,3 @@
-import java.io.File
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,56 +5,11 @@ plugins {
 }
 
 val splashResDir = layout.buildDirectory.dir("generated/res/splash/main")
-val localProperties = Properties()
-val localPropertiesFile = rootProject.file("local.properties")
-
-if (localPropertiesFile.isFile) {
-    localPropertiesFile.inputStream().use(localProperties::load)
-}
-
-fun readDotEnv(file: File): Properties {
-    val properties = Properties()
-    if (!file.isFile) return properties
-
-    file.forEachLine { rawLine ->
-        val line = rawLine.trim()
-        if (line.isEmpty() || line.startsWith("#")) return@forEachLine
-        val assignment = line.removePrefix("export ").trim()
-        val separator = assignment.indexOf('=')
-        if (separator <= 0) return@forEachLine
-
-        val name = assignment.substring(0, separator).trim()
-        var value = assignment.substring(separator + 1).trim()
-        if (value.length >= 2 &&
-            value.first() == value.last() &&
-            (value.first() == '\'' || value.first() == '"')
-        ) {
-            value = value.substring(1, value.length - 1)
-        }
-        properties.setProperty(name, value)
-    }
-    return properties
-}
-
-// The repository-root .env is ignored by git and is convenient for Android
-// Studio users. Never print these values or copy them into Flutter assets.
-val dotEnv = readDotEnv(rootProject.file("../.env"))
-
-// A shell/CI environment value wins over the ignored developer-local file.
-// Empty is intentional: the Flutter renderer detects it and keeps the OSM
-// asset map available when a Google Maps key has not been configured yet.
-val googleMapsApiKey = System.getenv("GOOGLE_MAPS_API_KEY")
-    ?.trim()
-    .takeUnless { it.isNullOrEmpty() }
-    ?: localProperties.getProperty("GOOGLE_MAPS_API_KEY")?.trim().orEmpty()
-        .takeUnless { it.isEmpty() }
-    ?: dotEnv.getProperty("GOOGLE_MAPS_API_KEY")?.trim().orEmpty()
-
 android {
     namespace = "com.resilientgeo.mesh"
-    // AGP 8.7.3 (the Flutter 3.29.2 plugin baseline) is tested through API
-    // 35 on this checkout; targetSdk can remain newer independently.
-    compileSdk = 35
+    // MapLibre GL 0.27.1 and its Android dependencies require API 36.
+    // targetSdk remains independently controlled for runtime behavior.
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.resilientgeo.mesh"
@@ -65,8 +17,6 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
-        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = googleMapsApiKey
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -96,6 +46,11 @@ android {
         // with no Compose UI. Re-add compose = true and the Compose BOM
         // dependencies if a future screen genuinely wants Compose.
         viewBinding = true
+    }
+
+    packaging {
+        resources.excludes +=
+            "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
     }
 
     sourceSets["main"].res.srcDir(splashResDir)
@@ -153,12 +108,18 @@ dependencies {
     androidTestImplementation(libs.androidx.room.testing)
 }
 
-val copySplashLogo = tasks.register<Copy>("copySplashLogo") {
-    from(project.file("../../flutter/assets/Logo.png"))
+val copySplashLightLogo = tasks.register<Copy>("copySplashLightLogo") {
+    from(project.file("../../flutter/assets/Geo_light_square_logo.png"))
     into(splashResDir.map { it.dir("drawable-nodpi") })
     rename { "resilientgeo_logo.png" }
 }
 
+val copySplashDarkLogo = tasks.register<Copy>("copySplashDarkLogo") {
+    from(project.file("../../flutter/assets/Geo_dark_square_logo.png"))
+    into(splashResDir.map { it.dir("drawable-night-nodpi") })
+    rename { "resilientgeo_logo.png" }
+}
+
 tasks.named("preBuild").configure {
-    dependsOn(copySplashLogo)
+    dependsOn(copySplashLightLogo, copySplashDarkLogo)
 }

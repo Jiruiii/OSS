@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:resilientgeo_flutter/data/location_controller.dart';
 import 'package:resilientgeo_flutter/data/map_models.dart';
 import 'package:resilientgeo_flutter/screens/map_screen.dart';
+import 'package:resilientgeo_flutter/widgets/feature_details_sheet.dart';
 
 void main() {
   test('parses point, line, and polygon event geometries', () {
@@ -38,7 +42,7 @@ void main() {
     expect(event.isExpired, isTrue);
   });
 
-  testWidgets('tapping a shelter opens its details with unknown occupancy', (
+  testWidgets('tapping a shelter opens its details with occupancy', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -51,7 +55,7 @@ void main() {
 
     expect(find.text('潭美國小'), findsOneWidget);
     expect(find.text('預計收容人數：81人'), findsOneWidget);
-    expect(find.text('目前收容人數：無資料'), findsOneWidget);
+    expect(find.text('收容人數：無資料'), findsOneWidget);
     expect(find.text('來源：taipei-shelter'), findsOneWidget);
     expect(find.text('快照：2026-09-05T00:00:00Z'), findsOneWidget);
   });
@@ -91,7 +95,7 @@ void main() {
     expect(find.text('資料狀態：已過期'), findsOneWidget);
   });
 
-  testWidgets('overlapping shelter and medical markers show a chooser', (
+  testWidgets('overlapping shelter and medical markers show every record', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -99,16 +103,12 @@ void main() {
     );
     await _finishMapLoad(tester);
 
-    await tester.tap(find.bySemanticsLabel('重疊地點：潭美國小、測試醫院'));
+    await tester.tap(find.bySemanticsLabel('潭美國小、測試醫院（地圖標記）'));
     await tester.pumpAndSettle();
 
     expect(find.text('選擇地點'), findsOneWidget);
     expect(find.text('潭美國小'), findsOneWidget);
     expect(find.text('測試醫院'), findsOneWidget);
-
-    await tester.tap(find.text('潭美國小'));
-    await tester.pumpAndSettle();
-    expect(find.text('目前收容人數：無資料'), findsOneWidget);
   });
 
   testWidgets('layer panel can hide the event layer', (tester) async {
@@ -144,8 +144,103 @@ void main() {
 
     await tester.tap(find.text('潭美國小'));
     await tester.pump();
-    expect(find.text('目前收容人數：無資料'), findsOneWidget);
+    expect(find.text('收容人數：無資料'), findsOneWidget);
+    expect(find.byType(FeatureDetailsSheet), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('map-search-field')),
+      findsOneWidget,
+    );
   });
+
+  testWidgets('tapping map whitespace closes an open feature sheet', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _testApp(features: const <StaticFeature>[_shelter]),
+    );
+    await _finishMapLoad(tester);
+
+    await tester.tap(find.bySemanticsLabel('潭美國小'));
+    await tester.pump();
+    expect(find.byType(FeatureDetailsSheet), findsOneWidget);
+
+    await tester.tap(find.text('MapLibre 台灣離線地圖預覽'));
+    await tester.pump();
+
+    expect(find.byType(FeatureDetailsSheet), findsNothing);
+  });
+
+  testWidgets('explicit current location updates marker and focus state', (
+    tester,
+  ) async {
+    const location = GeoPoint(longitude: 121.545053, latitude: 25.011549);
+    final controller = _FakeLocationController(location);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      _testApp(
+        features: const <StaticFeature>[],
+        locationController: controller,
+      ),
+    );
+    await _finishMapLoad(tester);
+
+    await tester.tap(find.byTooltip('目前位置'));
+    await tester.pump();
+
+    expect(find.text('目前位置：已取得'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('current-location-marker')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('failed current location preserves the previous location', (
+    tester,
+  ) async {
+    const previousLocation = GeoPoint(
+      longitude: 121.545053,
+      latitude: 25.011549,
+    );
+    final controller = _FakeLocationController(previousLocation);
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      _testApp(
+        features: const <StaticFeature>[],
+        locationController: controller,
+      ),
+    );
+    await _finishMapLoad(tester);
+    await tester.tap(find.byTooltip('目前位置'));
+    await tester.pump();
+    expect(find.text('目前位置：已取得'), findsOneWidget);
+
+    controller.result = null;
+    await tester.tap(find.byTooltip('目前位置'));
+    await tester.pump();
+
+    expect(find.text('目前位置：已取得'), findsOneWidget);
+    expect(find.text('無法取得目前位置，請開啟瀏覽器或裝置定位權限'), findsOneWidget);
+  });
+
+  testWidgets('selecting an offline road does not open a facility sheet', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testApp(features: const <StaticFeature>[]));
+    await _finishMapLoad(tester);
+
+    await tester.enterText(find.bySemanticsLabel('搜尋地點'), '中山路');
+    await tester.pump();
+    expect(find.text('中山路'), findsWidgets);
+
+    await tester.tap(find.text('中山路').first);
+    await tester.pump();
+
+    expect(find.byType(FeatureDetailsSheet), findsNothing);
+    expect(find.text('資料快照：2026-09-05T00:00:00Z'), findsOneWidget);
+  });
+
 }
 
 Future<void> _finishMapLoad(WidgetTester tester) async {
@@ -156,6 +251,7 @@ Future<void> _finishMapLoad(WidgetTester tester) async {
 Widget _testApp({
   required List<StaticFeature> features,
   List<MeshEvent> events = const <MeshEvent>[],
+  LocationController? locationController,
 }) => MaterialApp(
   home: MapScreen(
     staticFeatures: StaticFeatureCollection(
@@ -164,13 +260,29 @@ Widget _testApp({
       snapshotAt: '2026-09-05T00:00:00Z',
       features: features,
     ),
-    demoEvents: events,
-    initialState: const MapInitialState(
-      events: <MeshEvent>[],
-      emergencyModeEnabled: false,
-    ),
+    initialState: MapInitialState(events: events, emergencyModeEnabled: false),
+    locationController: locationController,
   ),
 );
+
+class _FakeLocationController extends LocationController {
+  _FakeLocationController(this.result);
+
+  GeoPoint? result;
+  final StreamController<GeoPoint> _updates =
+      StreamController<GeoPoint>.broadcast();
+
+  @override
+  Stream<GeoPoint> get locations => _updates.stream;
+
+  @override
+  Future<GeoPoint?> requestCurrentLocation() async => result;
+
+  void emit(GeoPoint location) => _updates.add(location);
+
+  @override
+  Future<void> dispose() => _updates.close();
+}
 
 Map<String, dynamic> _eventJson(
   String geometryType,

@@ -1,17 +1,113 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'dart:math' as math;
 
+import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import '../data/map_administrative.dart';
 import '../data/map_models.dart';
+import '../data/map_zoom.dart';
+import '../data/maplibre_map_config.dart';
 
 typedef StaticFeatureSelection = void Function(List<StaticFeature> features);
 typedef MeshEventSelection = void Function(MeshEvent event);
+typedef MapClusterSelection =
+    void Function(GeoPoint point, {double? targetZoom});
 
-/// Converts display models to the map layers; selection state remains in MapScreen.
+const Color shelterMarkerColor = Color(0xFF0F766E);
+const Color medicalMarkerColor = Color(0xFF4F46E5);
+
+enum MapMarkerKind { facility, event, currentLocation, cluster }
+
+/// App-owned icons stay in one catalog so map markers and notification cards
+/// cannot drift back to platform-specific Material glyphs.
+class MapIconCatalog {
+  const MapIconCatalog._();
+
+  static const IconData disaster = LucideIcons.triangleAlert;
+  static const IconData expiredEvent = LucideIcons.clock3;
+  static const IconData shelter = LucideIcons.house;
+  static const IconData medical = LucideIcons.hospital;
+}
+
+class MapMarkerData {
+  const MapMarkerData({
+    required this.key,
+    required this.point,
+    required this.width,
+    required this.height,
+    required this.child,
+    required this.onTap,
+    required this.kind,
+    this.administrativeAreaName,
+    this.itemCount = 1,
+    this.shelterCount = 0,
+    this.medicalCount = 0,
+    this.eventCount = 0,
+    this.hasCriticalEvent = false,
+  });
+
+  final Key key;
+  final GeoPoint point;
+  final double width;
+  final double height;
+  final Widget child;
+  final VoidCallback onTap;
+  final MapMarkerKind kind;
+  final String? administrativeAreaName;
+  final int itemCount;
+  final int shelterCount;
+  final int medicalCount;
+  final int eventCount;
+  final bool hasCriticalEvent;
+}
+
+class MapMarkerCluster {
+  const MapMarkerCluster({required this.members, required this.point});
+
+  final List<MapMarkerData> members;
+  final GeoPoint point;
+
+  int get itemCount =>
+      members.fold(0, (total, marker) => total + marker.itemCount);
+
+  int get shelterCount =>
+      members.fold(0, (total, marker) => total + marker.shelterCount);
+
+  int get medicalCount =>
+      members.fold(0, (total, marker) => total + marker.medicalCount);
+
+  int get eventCount =>
+      members.fold(0, (total, marker) => total + marker.eventCount);
+
+  bool get hasCriticalEvent => members.any((marker) => marker.hasCriticalEvent);
+}
+
+/// Converts provider-neutral map models to Flutter overlay markers.
+///
+/// MapLibre owns basemap and line/polygon rendering. These widgets stay above
+/// the platform view to preserve marker hit-testing and accessibility
+/// semantics while the map itself remains pannable.
 class MapLayers {
   const MapLayers._();
 
-  static List<Widget> build({
+  static const double _compactMarkerZoom = 12;
+  static const double _compactMarkerSize = 18;
+  static const double _fullMarkerSize = 28;
+  static final double _defaultRevealAllZoom = ZoomPercentage.toZoom(
+    percentage: MapLibreMapConfig.revealAllPercentage,
+    minZoom: MapLibreMapConfig.minZoom,
+    maxZoom: MapLibreMapConfig.maxZoom,
+    overviewZoom: MapLibreMapConfig.overviewZoom,
+  );
+  static const double _countyClusterMaxZoom = 8.5;
+  static const double _subdivisionClusterMaxZoom = 11.5;
+  static const double _countyDrillZoom = 10.2;
+  static const double _subdivisionDrillZoom = 11.6;
+  static const int _countyCountPercentage = 25;
+  static const int _subdivisionCountPercentage = 45;
+  static const int _genericCountPercentage = 25;
+
+  static List<MapMarkerData> buildMarkers({
     required List<StaticFeature> features,
     required List<MeshEvent> events,
     required bool showShelters,
@@ -19,61 +115,205 @@ class MapLayers {
     required bool showEvents,
     required StaticFeatureSelection onStaticFeatureSelected,
     required MeshEventSelection onEventSelected,
+    MapClusterSelection? onClusterSelected,
+    MapAdministrativeIndex? administrativeIndex,
+    double? revealAllAtZoom,
     GeoPoint? currentLocation,
-    Set<String> pulsingEventKeys = const <String>{},
-    double pulseFraction = 0,
+    double? zoom,
+    int? zoomPercentage,
   }) {
+    final compactMarkers =
+        zoomPercentage != null
+            ? zoomPercentage < MapLibreMapConfig.fullMarkerPercentage
+            : zoom != null && zoom < _compactMarkerZoom;
     final visibleFacilities = features
-        .where((feature) {
-          return (showShelters && feature.kind == 'shelter') ||
-              (showMedical && feature.kind == 'medical');
-        })
+        .where(
+          (feature) =>
+              (showShelters && feature.kind == 'shelter') ||
+              (showMedical && feature.kind == 'medical'),
+        )
         .toList(growable: false);
-    final facilityMarkers = _facilityMarkers(
-      visibleFacilities,
-      onStaticFeatureSelected,
-    );
-    final visibleEvents =
-        showEvents
-            ? events
-                .where((event) => event.geometry != null)
-                .toList(growable: false)
-            : const <MeshEvent>[];
-
-    return <Widget>[
-      _EventGeometryLayers(
-        events: visibleEvents,
-        onEventSelected: onEventSelected,
+    final rawMarkers = <MapMarkerData>[
+      ..._facilityMarkers(
+        visibleFacilities,
+        onStaticFeatureSelected,
+        compactMarkers: compactMarkers,
+        administrativeIndex: administrativeIndex,
       ),
-      if (pulsingEventKeys.isNotEmpty)
-        CircleLayer(
-          circles: visibleEvents
-              .where((event) => pulsingEventKeys.contains(eventKey(event)))
-              .map(
-                (event) => CircleMarker(
-                  point: _eventPoint(event),
-                  radius: 14 + (18 * pulseFraction),
-                  color: eventColor(event).withValues(alpha: 0.10),
-                  borderColor: eventColor(event).withValues(alpha: 0.65),
-                  borderStrokeWidth: 2,
-                ),
-              )
-              .toList(growable: false),
-        ),
-      MarkerLayer(
-        markers: <Marker>[
-          ...facilityMarkers,
-          ...visibleEvents.map((event) => _eventMarker(event, onEventSelected)),
-          if (currentLocation != null) _locationMarker(currentLocation),
-        ],
-      ),
+      if (showEvents)
+        ...events
+            .where((event) => meshEventFocusPoint(event) != null)
+            .map(
+              (event) =>
+                  _eventMarker(event, onEventSelected, compact: compactMarkers),
+            ),
+      if (currentLocation != null) _locationMarker(currentLocation),
     ];
+    if (zoom == null || onClusterSelected == null) return rawMarkers;
+    final revealAllZoom = revealAllAtZoom ?? _defaultRevealAllZoom;
+    if (zoom >= revealAllZoom) return rawMarkers;
+    final displayPercentage = (zoomPercentage ?? 100).clamp(0, 100).toInt();
+    if (zoomPercentage != null &&
+        displayPercentage >= MapLibreMapConfig.revealAllPercentage) {
+      return rawMarkers;
+    }
+    if (administrativeIndex != null) {
+      return _administrativeMarkers(
+        rawMarkers,
+        zoom: zoom,
+        zoomPercentage: displayPercentage,
+        index: administrativeIndex,
+        revealAllAtZoom: revealAllZoom,
+        onClusterSelected: onClusterSelected,
+        usePercentageLevel: zoomPercentage != null,
+      );
+    }
+    return _clusterMarkers(
+      rawMarkers,
+      zoom: zoom,
+      zoomPercentage: displayPercentage,
+      countThreshold: _genericCountPercentage,
+      onClusterSelected: onClusterSelected,
+    );
   }
 
-  static List<Marker> _facilityMarkers(
+  static List<MapMarkerData> _administrativeMarkers(
+    List<MapMarkerData> markers, {
+    required double zoom,
+    required int zoomPercentage,
+    required MapAdministrativeIndex index,
+    required double revealAllAtZoom,
+    required MapClusterSelection onClusterSelected,
+    required bool usePercentageLevel,
+  }) {
+    final level = _administrativeLevelForZoom(
+      zoom,
+      zoomPercentage: usePercentageLevel ? zoomPercentage : null,
+    );
+    if (level == MapAdministrativeLevel.village) return markers;
+    final countThreshold = switch (level) {
+      MapAdministrativeLevel.county => _countyCountPercentage,
+      MapAdministrativeLevel.subdivision => _subdivisionCountPercentage,
+      MapAdministrativeLevel.village => 100,
+    };
+
+    final groups = <String, _AdministrativeMarkerGroup>{};
+    final unassigned = <MapMarkerData>[];
+    final standalone = <MapMarkerData>[];
+
+    for (final marker in markers) {
+      if (marker.kind != MapMarkerKind.facility &&
+          marker.kind != MapMarkerKind.event) {
+        standalone.add(marker);
+        continue;
+      }
+      final fallbackArea = index.areaFor(marker.point, level);
+      final areaHint = marker.administrativeAreaName;
+      final area =
+          areaHint == null
+              ? fallbackArea
+              : index.findByName(
+                    level,
+                    areaHint,
+                    parent:
+                        level == MapAdministrativeLevel.subdivision
+                            ? index
+                                .nearest(
+                                  marker.point,
+                                  MapAdministrativeLevel.county,
+                                )
+                                ?.name
+                            : null,
+                  ) ??
+                  fallbackArea;
+      if (area == null) {
+        unassigned.add(marker);
+        continue;
+      }
+      final group = groups.putIfAbsent(
+        area.key,
+        () => _AdministrativeMarkerGroup(area),
+      );
+      group.members.add(marker);
+    }
+
+    final output = <MapMarkerData>[...standalone];
+    for (final group in groups.values) {
+      final cluster = MapMarkerCluster(
+        members: List<MapMarkerData>.unmodifiable(group.members),
+        // The reference label is used for the name/bucket only. Its
+        // representative coordinate can be far from the app data, especially
+        // for village/hamlet labels, so keep the bubble beside its members.
+        point: _clusterPoint(group.members),
+      );
+      output.add(
+        _clusterMarker(
+          cluster,
+          onClusterSelected: onClusterSelected,
+          zoomPercentage: zoomPercentage,
+          targetZoom: _nextAdministrativeZoom(
+            level,
+            revealAllAtZoom: revealAllAtZoom,
+          ),
+          areaName: group.area.displayName,
+          countThreshold: countThreshold,
+          forceBubble: true,
+        ),
+      );
+    }
+    if (unassigned.isNotEmpty) {
+      output.addAll(
+        _clusterMarkers(
+          unassigned,
+          zoom: zoom,
+          zoomPercentage: zoomPercentage,
+          countThreshold: countThreshold,
+          onClusterSelected: onClusterSelected,
+        ),
+      );
+    }
+    return output;
+  }
+
+  static MapAdministrativeLevel _administrativeLevelForZoom(
+    double zoom, {
+    int? zoomPercentage,
+  }) {
+    if (zoomPercentage != null) {
+      if (zoomPercentage <= _countyCountPercentage) {
+        return MapAdministrativeLevel.county;
+      }
+      if (zoomPercentage < MapLibreMapConfig.revealAllPercentage) {
+        return MapAdministrativeLevel.subdivision;
+      }
+      return MapAdministrativeLevel.village;
+    }
+    if (zoom < _countyClusterMaxZoom) {
+      return MapAdministrativeLevel.county;
+    }
+    if (zoom < _subdivisionClusterMaxZoom) {
+      return MapAdministrativeLevel.subdivision;
+    }
+    return MapAdministrativeLevel.village;
+  }
+
+  static double _nextAdministrativeZoom(
+    MapAdministrativeLevel level, {
+    required double revealAllAtZoom,
+  }) => switch (level) {
+    // Give adjacent districts enough screen space to avoid overlapping
+    // bubbles immediately after a county-level drill-down.
+    MapAdministrativeLevel.county => _countyDrillZoom,
+    MapAdministrativeLevel.subdivision => _subdivisionDrillZoom,
+    MapAdministrativeLevel.village => revealAllAtZoom,
+  };
+
+  static List<MapMarkerData> _facilityMarkers(
     List<StaticFeature> features,
-    StaticFeatureSelection onSelected,
-  ) {
+    StaticFeatureSelection onSelected, {
+    required bool compactMarkers,
+    MapAdministrativeIndex? administrativeIndex,
+  }) {
     final grouped = <String, List<StaticFeature>>{};
     for (final feature in features) {
       final geometry = feature.geometry;
@@ -86,168 +326,410 @@ class MapLayers {
         .map((group) {
           final point = (group.first.geometry! as PointGeometry).point;
           final names = group.map(featureName).join('、');
-          final label = group.length == 1 ? names : '重疊地點：$names';
+          final administrativeNames =
+              group
+                  .map(
+                    (feature) => _administrativeNameForFeature(
+                      feature,
+                      administrativeIndex,
+                    ),
+                  )
+                  .whereType<String>()
+                  .toSet();
+          final label = group.length == 1 ? names : '$names（地圖標記）';
           final isMedicalOnly = group.every(
             (feature) => feature.kind == 'medical',
           );
-          return Marker(
+          return MapMarkerData(
             key: ValueKey<String>('static-marker-${group.first.id ?? names}'),
-            point: _latLng(point),
-            width: 34,
-            height: 34,
-            child: _MapMarkerButton(
-              semanticLabel: label,
-              icon: isMedicalOnly ? Icons.local_hospital : Icons.home_work,
-              onTap: () => onSelected(group),
-            ),
+            point: point,
+            width: compactMarkers ? _compactMarkerSize : _fullMarkerSize,
+            height: compactMarkers ? _compactMarkerSize : _fullMarkerSize,
+            child:
+                compactMarkers
+                    ? _MapMarkerDot(
+                      semanticLabel: label,
+                      color:
+                          isMedicalOnly
+                              ? medicalMarkerColor
+                              : shelterMarkerColor,
+                      onTap: () => onSelected(group),
+                    )
+                    : _MapMarkerButton(
+                      semanticLabel: label,
+                      icon:
+                          isMedicalOnly
+                              ? MapIconCatalog.medical
+                              : MapIconCatalog.shelter,
+                      color:
+                          isMedicalOnly
+                              ? medicalMarkerColor
+                              : shelterMarkerColor,
+                      shape:
+                          isMedicalOnly
+                              ? RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: const BorderSide(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
+                              )
+                              : const CircleBorder(
+                                side: BorderSide(color: Colors.white, width: 2),
+                              ),
+                      onTap: () => onSelected(group),
+                    ),
+            onTap: () => onSelected(group),
+            kind: MapMarkerKind.facility,
+            administrativeAreaName:
+                administrativeNames.length == 1
+                    ? administrativeNames.single
+                    : null,
+            itemCount: group.length,
+            shelterCount:
+                group.where((feature) => feature.kind == 'shelter').length,
+            medicalCount:
+                group.where((feature) => feature.kind == 'medical').length,
           );
         })
         .toList(growable: false);
   }
 
-  static Marker _eventMarker(MeshEvent event, MeshEventSelection onSelected) {
-    final point = _eventGeoPoint(event);
-    final name = eventName(event);
-    return Marker(
-      key: ValueKey<String>('event-marker-${meshEventIdentity(event)}'),
-      point: _latLng(point),
-      width: 34,
-      height: 34,
-      child: _MapMarkerButton(
-        semanticLabel: '事件：$name${event.isExpired ? '，已過期' : ''}',
-        icon: event.isExpired ? Icons.schedule : Icons.warning_amber_rounded,
-        onTap: () => onSelected(event),
-      ),
-    );
-  }
-
-  static Polyline<MeshEvent> _eventPolyline(MeshEvent event) {
-    final geometry = event.geometry! as LineStringGeometry;
-    return Polyline<MeshEvent>(
-      points: geometry.points.map(_latLng).toList(growable: false),
-      color: eventColor(event),
-      strokeWidth: event.isExpired ? 4 : 6,
-      pattern:
-          event.isExpired
-              ? const StrokePattern.dotted(spacingFactor: 2)
-              : const StrokePattern.solid(),
-      hitValue: event,
-    );
-  }
-
-  static Polygon<MeshEvent> _eventPolygon(MeshEvent event) {
-    final geometry = event.geometry! as PolygonGeometry;
-    final rings = geometry.rings;
-    return Polygon<MeshEvent>(
-      points: rings.first.map(_latLng).toList(growable: false),
-      holePointsList:
-          rings.length > 1
-              ? rings.skip(1).map((ring) => ring.map(_latLng).toList()).toList()
-              : null,
-      color: eventColor(event).withValues(alpha: event.isExpired ? 0.12 : 0.28),
-      borderColor: eventColor(event),
-      borderStrokeWidth: 3,
-      hitValue: event,
-    );
-  }
-
-  static LatLng _latLng(GeoPoint point) =>
-      LatLng(point.latitude, point.longitude);
-
-  static GeoPoint _eventGeoPoint(MeshEvent event) {
-    final geometry = event.geometry!;
-    return switch (geometry) {
+  static String? _administrativeNameForFeature(
+    StaticFeature feature,
+    MapAdministrativeIndex? index,
+  ) {
+    if (index == null) return null;
+    final textValues = feature.details.values.whereType<String>();
+    final matches = index.subdivisions
+        .where((area) => textValues.any((value) => value.contains(area.name)))
+        .toList(growable: false);
+    if (matches.isEmpty) return null;
+    final point = switch (feature.geometry) {
       PointGeometry(:final point) => point,
-      LineStringGeometry(:final points) => points[points.length ~/ 2],
-      PolygonGeometry(:final rings) => rings.first.first,
+      _ => null,
     };
+    matches.sort((left, right) {
+      final lengthComparison = right.name.length.compareTo(left.name.length);
+      if (lengthComparison != 0 || point == null) return lengthComparison;
+      return _distanceSquared(
+        point,
+        left.point,
+      ).compareTo(_distanceSquared(point, right.point));
+    });
+    return matches.first.name;
   }
 
-  static LatLng _eventPoint(MeshEvent event) => _latLng(_eventGeoPoint(event));
+  static double _distanceSquared(GeoPoint left, GeoPoint right) {
+    final latitudeRadians =
+        ((left.latitude + right.latitude) / 2) * math.pi / 180;
+    final longitudeDelta =
+        (left.longitude - right.longitude) * math.cos(latitudeRadians);
+    final latitudeDelta = left.latitude - right.latitude;
+    return longitudeDelta * longitudeDelta + latitudeDelta * latitudeDelta;
+  }
 
-  static Marker _locationMarker(GeoPoint location) => Marker(
+  static MapMarkerData _eventMarker(
+    MeshEvent event,
+    MeshEventSelection onSelected, {
+    required bool compact,
+  }) {
+    final point = meshEventFocusPoint(event)!;
+    final name = eventName(event);
+    return MapMarkerData(
+      key: ValueKey<String>('event-marker-${meshEventIdentity(event)}'),
+      point: point,
+      width: compact ? _compactMarkerSize : _fullMarkerSize,
+      height: compact ? _compactMarkerSize : _fullMarkerSize,
+      child:
+          compact
+              ? _MapMarkerDot(
+                semanticLabel: '事件：$name${event.isExpired ? '，已過期' : ''}',
+                color: eventColor(event),
+                onTap: () => onSelected(event),
+              )
+              : _MapMarkerButton(
+                semanticLabel: '事件：$name${event.isExpired ? '，已過期' : ''}',
+                icon:
+                    event.isExpired
+                        ? MapIconCatalog.expiredEvent
+                        : MapIconCatalog.disaster,
+                color: eventColor(event),
+                shape:
+                    event.isExpired
+                        ? const CircleBorder(
+                          side: BorderSide(color: Colors.white, width: 2),
+                        )
+                        : BeveledRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          side: const BorderSide(color: Colors.white, width: 2),
+                        ),
+                onTap: () => onSelected(event),
+              ),
+      onTap: () => onSelected(event),
+      kind: MapMarkerKind.event,
+      eventCount: 1,
+      hasCriticalEvent:
+          event.severity == 'CRITICAL' || event.severity == 'HIGH',
+    );
+  }
+
+  static MapMarkerData _locationMarker(GeoPoint location) => MapMarkerData(
     key: const ValueKey<String>('current-location-marker'),
-    point: _latLng(location),
-    width: 24,
-    height: 24,
-    child: DecoratedBox(
+    point: location,
+    width: 22,
+    height: 22,
+    child: const DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFF1A73E8),
+        color: Color(0xFF1A73E8),
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(color: Colors.black26, blurRadius: 4),
-        ],
+        border: Border.fromBorderSide(
+          BorderSide(color: Colors.white, width: 3),
+        ),
+        boxShadow: <BoxShadow>[BoxShadow(color: Colors.black26, blurRadius: 4)],
       ),
     ),
+    onTap: () {},
+    kind: MapMarkerKind.currentLocation,
   );
 }
 
-class _EventGeometryLayers extends StatefulWidget {
-  const _EventGeometryLayers({
-    required this.events,
-    required this.onEventSelected,
-  });
+class _AdministrativeMarkerGroup {
+  _AdministrativeMarkerGroup(this.area);
 
-  final List<MeshEvent> events;
-  final MeshEventSelection onEventSelected;
-
-  @override
-  State<_EventGeometryLayers> createState() => _EventGeometryLayersState();
+  final MapAdministrativeArea area;
+  final List<MapMarkerData> members = <MapMarkerData>[];
 }
 
-class _EventGeometryLayersState extends State<_EventGeometryLayers> {
-  final LayerHitNotifier<MeshEvent> _lineHits = ValueNotifier(null);
-  final LayerHitNotifier<MeshEvent> _polygonHits = ValueNotifier(null);
+List<MapMarkerData> _clusterMarkers(
+  List<MapMarkerData> markers, {
+  required double zoom,
+  required int zoomPercentage,
+  required int countThreshold,
+  required MapClusterSelection onClusterSelected,
+}) {
+  final clusters = clusterMapMarkers(markers, zoom: zoom);
+  return clusters
+      .map((cluster) {
+        if (cluster.members.length == 1 && cluster.itemCount == 1) {
+          return cluster.members.single;
+        }
+        return _clusterMarker(
+          cluster,
+          onClusterSelected: onClusterSelected,
+          zoomPercentage: zoomPercentage,
+          countThreshold: countThreshold,
+        );
+      })
+      .toList(growable: false);
+}
 
-  @override
-  void initState() {
-    super.initState();
-    _lineHits.addListener(_selectLineHit);
-    _polygonHits.addListener(_selectPolygonHit);
+MapMarkerData _clusterMarker(
+  MapMarkerCluster cluster, {
+  required MapClusterSelection onClusterSelected,
+  required int zoomPercentage,
+  required int countThreshold,
+  double? targetZoom,
+  String? areaName,
+  bool forceBubble = false,
+}) {
+  if (!forceBubble && cluster.members.length == 1 && cluster.itemCount == 1) {
+    return cluster.members.single;
   }
-
-  @override
-  void dispose() {
-    _lineHits
-      ..removeListener(_selectLineHit)
-      ..dispose();
-    _polygonHits
-      ..removeListener(_selectPolygonHit)
-      ..dispose();
-    super.dispose();
-  }
-
-  void _selectLineHit() => _select(_lineHits.value?.hitValues);
-
-  void _selectPolygonHit() => _select(_polygonHits.value?.hitValues);
-
-  void _select(List<MeshEvent>? events) {
-    if (events == null || events.isEmpty) return;
-    widget.onEventSelected(events.first);
-  }
-
-  @override
-  Widget build(BuildContext context) => Stack(
-    fit: StackFit.expand,
-    children: <Widget>[
-      PolylineLayer<MeshEvent>(
-        polylines: widget.events
-            .where((event) => event.geometry is LineStringGeometry)
-            .map(MapLayers._eventPolyline)
-            .toList(growable: false),
-        hitNotifier: _lineHits,
-      ),
-      PolygonLayer<MeshEvent>(
-        polygons: widget.events
-            .where((event) => event.geometry is PolygonGeometry)
-            .map(MapLayers._eventPolygon)
-            .toList(growable: false),
-        hitNotifier: _polygonHits,
-      ),
-    ],
+  final key = cluster.members.map((marker) => marker.key).join('|');
+  final label = _clusterLabel(cluster, areaName: areaName);
+  final showCount = zoomPercentage >= countThreshold;
+  final diameter = _clusterDiameter(
+    itemCount: cluster.itemCount,
+    zoomPercentage: zoomPercentage,
+    countThreshold: countThreshold,
+    showCount: showCount,
+  );
+  final child = _MapClusterBubble(
+    itemCount: cluster.itemCount,
+    shelterCount: cluster.shelterCount,
+    medicalCount: cluster.medicalCount,
+    eventCount: cluster.eventCount,
+    hasCriticalEvent: cluster.hasCriticalEvent,
+    semanticLabel: label,
+    onTap: () => onClusterSelected(cluster.point, targetZoom: targetZoom),
+    diameter: diameter,
+    showCount: showCount,
+  );
+  return MapMarkerData(
+    key: ValueKey<String>('map-cluster-$key'),
+    point: cluster.point,
+    width: diameter,
+    height: diameter,
+    child: child,
+    onTap: () => onClusterSelected(cluster.point, targetZoom: targetZoom),
+    kind: MapMarkerKind.cluster,
+    itemCount: cluster.itemCount,
+    shelterCount: cluster.shelterCount,
+    medicalCount: cluster.medicalCount,
+    eventCount: cluster.eventCount,
+    hasCriticalEvent: cluster.hasCriticalEvent,
   );
 }
+
+double _clusterDiameter({
+  required int itemCount,
+  required int zoomPercentage,
+  required int countThreshold,
+  required bool showCount,
+}) {
+  if (!showCount) return 18;
+
+  final countContribution = math.log(math.max(1, itemCount) + 1) / math.ln2;
+  final zoomRange = math.max(1, 100 - countThreshold);
+  final zoomShrink =
+      (((zoomPercentage - countThreshold) / zoomRange).clamp(0, 1).toDouble()) *
+      2;
+  return (20 + countContribution * 0.55 - zoomShrink).clamp(20, 26).toDouble();
+}
+
+List<MapMarkerCluster> clusterMapMarkers(
+  List<MapMarkerData> markers, {
+  required double zoom,
+  double radius = 44,
+}) {
+  final clusterable = <int>[];
+  final positions = <int, Offset>{};
+  final cells = <({int x, int y}), List<int>>{};
+  for (var index = 0; index < markers.length; index += 1) {
+    final marker = markers[index];
+    if (marker.kind != MapMarkerKind.facility &&
+        marker.kind != MapMarkerKind.event) {
+      continue;
+    }
+    final point = _worldPixel(marker.point, zoom);
+    final cell = (
+      x: (point.dx / radius).floor(),
+      y: (point.dy / radius).floor(),
+    );
+    clusterable.add(index);
+    positions[index] = point;
+    cells.putIfAbsent(cell, () => <int>[]).add(index);
+  }
+
+  final parent = <int, int>{for (final index in clusterable) index: index};
+
+  int root(int index) {
+    var current = index;
+    while (parent[current] != current) {
+      current = parent[current]!;
+    }
+    var compressed = index;
+    while (parent[compressed] != compressed) {
+      final next = parent[compressed]!;
+      parent[compressed] = current;
+      compressed = next;
+    }
+    return current;
+  }
+
+  void join(int left, int right) {
+    final leftRoot = root(left);
+    final rightRoot = root(right);
+    if (leftRoot != rightRoot) parent[rightRoot] = leftRoot;
+  }
+
+  for (final entry in cells.entries) {
+    for (var dx = -1; dx <= 1; dx += 1) {
+      for (var dy = -1; dy <= 1; dy += 1) {
+        final neighbour = cells[(x: entry.key.x + dx, y: entry.key.y + dy)];
+        if (neighbour == null) continue;
+        for (final left in entry.value) {
+          for (final right in neighbour) {
+            if (left >= right) continue;
+            final difference = positions[left]! - positions[right]!;
+            if (difference.distance <= radius) join(left, right);
+          }
+        }
+      }
+    }
+  }
+
+  final grouped = <int, List<MapMarkerData>>{};
+  for (final index in clusterable) {
+    grouped
+        .putIfAbsent(root(index), () => <MapMarkerData>[])
+        .add(markers[index]);
+  }
+
+  final output = <MapMarkerCluster>[];
+  final emittedRoots = <int>{};
+  for (var index = 0; index < markers.length; index += 1) {
+    final marker = markers[index];
+    if (marker.kind != MapMarkerKind.facility &&
+        marker.kind != MapMarkerKind.event) {
+      output.add(
+        MapMarkerCluster(members: <MapMarkerData>[marker], point: marker.point),
+      );
+      continue;
+    }
+    final markerRoot = root(index);
+    if (!emittedRoots.add(markerRoot)) continue;
+    final members = grouped[markerRoot]!;
+    output.add(
+      MapMarkerCluster(members: members, point: _clusterPoint(members)),
+    );
+  }
+  return output;
+}
+
+Offset _worldPixel(GeoPoint point, double zoom) {
+  final scale = 512 * math.pow(2, zoom).toDouble();
+  final x = (point.longitude + 180) / 360;
+  final latitudeRadians = point.latitude * math.pi / 180;
+  final y =
+      (1 -
+          (math.log(
+                math.tan(latitudeRadians) + (1 / math.cos(latitudeRadians)),
+              ) /
+              math.pi)) /
+      2;
+  return Offset(x * scale, y * scale);
+}
+
+GeoPoint _clusterPoint(List<MapMarkerData> members) {
+  var longitude = 0.0;
+  var latitude = 0.0;
+  for (final member in members) {
+    longitude += member.point.longitude;
+    latitude += member.point.latitude;
+  }
+  return GeoPoint(
+    longitude: longitude / members.length,
+    latitude: latitude / members.length,
+  );
+}
+
+String _clusterLabel(MapMarkerCluster cluster, {String? areaName}) {
+  final details = <String>[];
+  if (cluster.shelterCount > 0) details.add('避難所${cluster.shelterCount}');
+  if (cluster.medicalCount > 0) details.add('醫療${cluster.medicalCount}');
+  if (cluster.eventCount > 0) details.add('事件${cluster.eventCount}');
+  final prefix = areaName == null ? '資料聚合' : '資料聚合：$areaName';
+  return '$prefix，${cluster.itemCount}筆${details.isEmpty ? '' : '，${details.join('、')}'}';
+}
+
+List<MapMarkerData> hitTestMapMarkers({
+  required List<MapMarkerData> markers,
+  required Map<Key, Offset> positions,
+  required Offset point,
+}) => markers
+    .where((marker) {
+      final center = positions[marker.key];
+      if (center == null) return false;
+      final halfWidth = marker.width / 2;
+      final halfHeight = marker.height / 2;
+      return point.dx >= center.dx - halfWidth &&
+          point.dx <= center.dx + halfWidth &&
+          point.dy >= center.dy - halfHeight &&
+          point.dy <= center.dy + halfHeight;
+    })
+    .toList(growable: false);
 
 String featureName(StaticFeature feature) {
   final name = feature.details['name'];
@@ -270,12 +752,12 @@ String eventName(MeshEvent event) {
 }
 
 Color eventColor(MeshEvent event) {
-  if (event.isExpired) return Colors.grey.shade700;
+  if (event.isExpired) return const Color(0xFF64748B);
   return switch (event.severity) {
-    'CRITICAL' => const Color(0xFFC62828),
-    'HIGH' => const Color(0xFFEF6C00),
-    'MEDIUM' => const Color(0xFFF9A825),
-    _ => const Color(0xFF1565C0),
+    'CRITICAL' => const Color(0xFFD92D20),
+    'HIGH' => const Color(0xFFF97316),
+    'MEDIUM' => const Color(0xFFD97706),
+    _ => const Color(0xFF2563EB),
   };
 }
 
@@ -283,38 +765,75 @@ class _MapMarkerButton extends StatelessWidget {
   const _MapMarkerButton({
     required this.semanticLabel,
     required this.icon,
+    required this.color,
+    required this.shape,
     required this.onTap,
   });
 
   final String semanticLabel;
   final IconData icon;
+  final Color color;
+  final ShapeBorder shape;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) => Semantics(
     button: true,
+    container: true,
     label: semanticLabel,
-    child: Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(9),
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.onSurface,
-              width: 1.4,
+    child: SizedBox.expand(
+      child: Material(
+        color: color,
+        elevation: 4,
+        shadowColor: color.withValues(alpha: 0.55),
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          customBorder: shape,
+          onTap: onTap,
+          splashColor: Colors.white.withValues(alpha: 0.24),
+          highlightColor: Colors.white.withValues(alpha: 0.12),
+          child: Icon(icon, color: Colors.white, size: 15),
+        ),
+      ),
+    ),
+  );
+}
+
+class _MapMarkerDot extends StatelessWidget {
+  const _MapMarkerDot({
+    required this.semanticLabel,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String semanticLabel;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    container: true,
+    label: semanticLabel,
+    child: SizedBox.expand(
+      child: Center(
+        child: SizedBox(
+          width: 10,
+          height: 10,
+          child: Material(
+            color: color,
+            elevation: 2,
+            shadowColor: color.withValues(alpha: 0.5),
+            shape: const CircleBorder(
+              side: BorderSide(color: Colors.white, width: 1.5),
             ),
-            boxShadow: const <BoxShadow>[
-              BoxShadow(color: Colors.black26, blurRadius: 4),
-            ],
-          ),
-          child: Icon(
-            icon,
-            color: Theme.of(context).colorScheme.onSurface,
-            size: 20,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onTap,
+              splashColor: Colors.white.withValues(alpha: 0.3),
+            ),
           ),
         ),
       ),
@@ -322,5 +841,108 @@ class _MapMarkerButton extends StatelessWidget {
   );
 }
 
-String eventKey(MeshEvent event) =>
-    meshEventIdentity(event);
+class _MapClusterBubble extends StatelessWidget {
+  const _MapClusterBubble({
+    required this.itemCount,
+    required this.shelterCount,
+    required this.medicalCount,
+    required this.eventCount,
+    required this.hasCriticalEvent,
+    required this.semanticLabel,
+    required this.onTap,
+    required this.diameter,
+    required this.showCount,
+  });
+
+  final int itemCount;
+  final int shelterCount;
+  final int medicalCount;
+  final int eventCount;
+  final bool hasCriticalEvent;
+  final String semanticLabel;
+  final VoidCallback onTap;
+  final double diameter;
+  final bool showCount;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    container: true,
+    label: semanticLabel,
+    child: SizedBox.expand(
+      child: Material(
+        color: hasCriticalEvent ? const Color(0xFFB42318) : shelterMarkerColor,
+        elevation: 2,
+        shadowColor: Colors.black45,
+        shape: const CircleBorder(
+          side: BorderSide(color: Colors.white, width: 1.5),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          splashColor: Colors.white.withValues(alpha: 0.3),
+          child:
+              showCount
+                  ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Text(
+                        '$itemCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                        ),
+                      ),
+                      if (shelterCount > 0 ||
+                          medicalCount > 0 ||
+                          eventCount > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              if (shelterCount > 0)
+                                _categoryDot(shelterMarkerColor),
+                              if (medicalCount > 0)
+                                _categoryDot(medicalMarkerColor),
+                              if (eventCount > 0)
+                                _categoryDot(
+                                  hasCriticalEvent
+                                      ? const Color(0xFFFFD6D1)
+                                      : const Color(0xFF93C5FD),
+                                ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  )
+                  : Center(
+                    child: SizedBox(
+                      width: math.min(7, diameter * 0.4),
+                      height: math.min(7, diameter * 0.4),
+                      child: const DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+        ),
+      ),
+    ),
+  );
+
+  Widget _categoryDot(Color color) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 1),
+    child: DecoratedBox(
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      child: const SizedBox(width: 3, height: 3),
+    ),
+  );
+}
+
+String eventKey(MeshEvent event) => meshEventIdentity(event);

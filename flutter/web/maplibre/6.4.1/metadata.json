@@ -1,0 +1,26 @@
+{
+  "package": "maplibre-gl",
+  "version": "6.4.1",
+  "source": "npm package maplibre-gl@6.4.1",
+  "license": "BSD-3-Clause",
+  "script": "dist/maplibre-gl.mjs",
+  "style": "dist/maplibre-gl.css",
+  "runtime": "self-hosted",
+  "sha256": {
+    "LICENSE": "ee5fc05a0677eaf69601d2c7db0d9ecd6cc27c3abc1d0733bc9ed34707cf8ef2",
+    "dist/maplibre-gl-dev.mjs": "bf9f21d6b3986b2dcca9b8f47322113a3192bc5616c23df650c92c7a60c0abb6",
+    "dist/maplibre-gl-dev.mjs.map": "5144ed85428046ce834f3d30d6bcaa34e1a6cc0d349d37f9071a99806f56a34f",
+    "dist/maplibre-gl-shared-dev.mjs": "9e7dce5fcb9958a0b18a27fc3d8e46cadffbde6d570c70471a9ab17c49fd3285",
+    "dist/maplibre-gl-shared-dev.mjs.map": "8d6bb0107eb0cb4112ab222ef952a27ef195a1d94988fe21be9b2382d9300725",
+    "dist/maplibre-gl-shared.mjs": "fcf4d81450df235da0aea74897cc23926774b5228d38ae1de6a7d701c5905785",
+    "dist/maplibre-gl-shared.mjs.map": "2e7e5dd371071b6be17fc82092a16dbb12a26ce5c48172eb0efd35412b6860a5",
+    "dist/maplibre-gl-worker-dev.mjs": "ac3aa07d28810c3d2e0fd9bf0b30d3bb7fd17aad42857a400159ca24d161d7a9",
+    "dist/maplibre-gl-worker-dev.mjs.map": "322fe7dfc3e3224225a4cc3ded2f72bc23b4f5ec794b29048632d169b68c2906",
+    "dist/maplibre-gl-worker.mjs": "ce4957017fe705ac2f9ebef206cca966d08d8621756c39326a78cf09757e7d75",
+    "dist/maplibre-gl-worker.mjs.map": "d76b5602594c158cf9d52694a9adbd9cd34ffa42b0223ea2ae0ec57e4c2417d2",
+    "dist/maplibre-gl.css": "8e2dbbab312dc57656fbb76e9fa5308c75c9d7c7ba5808a7d55bcdb64cc813fa",
+    "dist/maplibre-gl.d.ts": "79639e457fa5b8a0f8bad8eb816385c99dc4a3d98ae9e743bf2a9af922bd908a",
+    "dist/maplibre-gl.mjs": "97e8b9a39ab8b823d6a0caf9c312237262bc9138a6162d9e29606f5f8d24127d",
+    "dist/maplibre-gl.mjs.map": "f394825a423ae0bea2fd652378e07d46745a9665ab3f2e07817447d4228e9dcf"
+  }
+}

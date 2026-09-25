@@ -4,8 +4,8 @@ import 'package:resilientgeo_flutter/data/map_zoom.dart';
 void main() {
   group('ZoomPercentage.fromZoom', () {
     test('maps provider boundaries to 0 and 100 percent', () {
-      expect(ZoomPercentage.fromZoom(zoom: 12, minZoom: 12, maxZoom: 20), 0);
-      expect(ZoomPercentage.fromZoom(zoom: 20, minZoom: 12, maxZoom: 20), 100);
+      expect(ZoomPercentage.fromZoom(zoom: 0, minZoom: 0, maxZoom: 15), 0);
+      expect(ZoomPercentage.fromZoom(zoom: 15, minZoom: 0, maxZoom: 15), 100);
     });
 
     test('rounds midpoint values to the nearest integer', () {
@@ -24,42 +24,97 @@ void main() {
       expect(ZoomPercentage.fromZoom(zoom: 99, minZoom: 12, maxZoom: 17), 100);
     });
 
+    test('treats the fitted Taiwan overview zoom as zero percent', () {
+      expect(
+        ZoomPercentage.fromZoom(
+          zoom: 7.2,
+          overviewZoom: 7.2,
+          minZoom: 6.5,
+          maxZoom: 17,
+        ),
+        0,
+      );
+    });
+
+    test('treats a small minimum zoom overshoot as zero percent', () {
+      expect(
+        ZoomPercentage.fromZoom(
+          zoom: 6.515,
+          overviewZoom: 6.5,
+          minZoom: 6.5,
+          maxZoom: 17,
+        ),
+        0,
+      );
+    });
+
+    test('keeps low percentages linear immediately above the overview', () {
+      const overviewZoom = 7.2;
+      for (final percentage in <int>[1, 5, 9, 10]) {
+        final zoom = ZoomPercentage.toZoom(
+          percentage: percentage,
+          overviewZoom: overviewZoom,
+          minZoom: 6.5,
+          maxZoom: 17,
+        );
+
+        expect(
+          ZoomPercentage.fromZoom(
+            zoom: zoom,
+            overviewZoom: overviewZoom,
+            minZoom: 6.5,
+            maxZoom: 17,
+          ),
+          percentage,
+        );
+      }
+    });
+
     test('returns zero safely when the range has no span', () {
       expect(ZoomPercentage.fromZoom(zoom: 17, minZoom: 17, maxZoom: 17), 0);
     });
   });
 
   group('ZoomPercentage.toZoom', () {
-    test('maps 0, 50, and 100 percent across Google zoom range', () {
+    test('maps 0, 50, and 100 percent across MapLibre zoom range', () {
+      expect(ZoomPercentage.toZoom(percentage: 0, minZoom: 0, maxZoom: 15), 0);
       expect(
-        ZoomPercentage.toZoom(percentage: 0, minZoom: 12, maxZoom: 20),
-        12,
+        ZoomPercentage.toZoom(percentage: 50, minZoom: 0, maxZoom: 15),
+        7.5,
       );
       expect(
-        ZoomPercentage.toZoom(percentage: 50, minZoom: 12, maxZoom: 20),
-        16,
-      );
-      expect(
-        ZoomPercentage.toZoom(percentage: 100, minZoom: 12, maxZoom: 20),
-        20,
+        ZoomPercentage.toZoom(percentage: 100, minZoom: 0, maxZoom: 15),
+        15,
       );
     });
 
     test('maps percentages across the offline tile range', () {
       expect(
-        ZoomPercentage.toZoom(percentage: 50, minZoom: 12, maxZoom: 17),
-        14.5,
+        ZoomPercentage.toZoom(percentage: 50, minZoom: 0, maxZoom: 15),
+        7.5,
+      );
+    });
+
+    test('maps zero percent to the fitted Taiwan overview zoom', () {
+      expect(
+        ZoomPercentage.toZoom(
+          percentage: 0,
+          overviewZoom: 7.2,
+          minZoom: 6.5,
+          maxZoom: 17,
+        ),
+        7.2,
       );
     });
 
     test('clamps percentages outside 0 through 100', () {
       expect(
-        ZoomPercentage.toZoom(percentage: -10, minZoom: 12, maxZoom: 20),
-        12,
+        ZoomPercentage.toZoom(percentage: -10, minZoom: 0, maxZoom: 15),
+        0,
       );
       expect(
-        ZoomPercentage.toZoom(percentage: 150, minZoom: 12, maxZoom: 17),
-        17,
+        ZoomPercentage.toZoom(percentage: 150, minZoom: 0, maxZoom: 15),
+        15,
       );
     });
 
@@ -69,5 +124,15 @@ void main() {
         17,
       );
     });
+  });
+
+  test('new zoom requests invalidate older camera requests', () {
+    final gate = MapZoomRequestGate();
+
+    final firstRequest = gate.request();
+    final latestRequest = gate.request();
+
+    expect(gate.isCurrent(firstRequest), isFalse);
+    expect(gate.isCurrent(latestRequest), isTrue);
   });
 }

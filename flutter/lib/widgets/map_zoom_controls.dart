@@ -72,7 +72,7 @@ class MapZoomControls extends StatelessWidget {
                   value: clamped.toDouble(),
                   min: 0,
                   max: 100,
-                  divisions: 20,
+                  divisions: 100,
                   label: '$clamped%',
                   onChanged: (value) => onZoomPercentageChanged(value.round()),
                 ),
@@ -107,7 +107,7 @@ class MapZoomControls extends StatelessWidget {
                       ),
                     if (onRecenter != null)
                       IconButton(
-                        tooltip: '回到內湖範圍',
+                        tooltip: '回到預設',
                         visualDensity: VisualDensity.compact,
                         onPressed: onRecenter,
                         icon: const Icon(Icons.center_focus_strong),

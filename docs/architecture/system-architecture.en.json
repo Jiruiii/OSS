@@ -1,0 +1,425 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Offline Mesh Disaster Response",
+    "output": "system-architecture.en.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "offline-map",
+        "label": "Offline map chain",
+        "focus": [
+          "tiles",
+          "pmtiles",
+          "maplibre",
+          "app"
+        ],
+        "note": "OpenStreetMap is built by Protomaps into PMTiles and rendered locally by MapLibre GL with no network."
+      },
+      {
+        "id": "mesh-path",
+        "label": "Mesh propagation",
+        "focus": [
+          "app",
+          "store",
+          "mesh",
+          "ble",
+          "peers"
+        ],
+        "note": "Events land on the device, then relay over BLE hop by hop; TTL and message IDs stop loops."
+      },
+      {
+        "id": "planned",
+        "label": "Planned features",
+        "focus": [
+          "citizen",
+          "app",
+          "report",
+          "store",
+          "evac"
+        ],
+        "note": "Citizen alerting and evacuation routing are not built yet; this only places them in the architecture."
+      }
+    ],
+    "locale": "en"
+  },
+  "components": [
+    {
+      "id": "tiles",
+      "type": "external",
+      "label": "OpenStreetMap",
+      "sublabel": "Protomaps basemap build",
+      "tag": "Prebuilt offline",
+      "pos": [
+        40,
+        60
+      ],
+      "size": [
+        175,
+        84
+      ]
+    },
+    {
+      "id": "citizen",
+      "type": "external",
+      "label": "On-Site Citizens",
+      "sublabel": "Disaster area users",
+      "pos": [
+        40,
+        410
+      ],
+      "size": [
+        175,
+        84
+      ]
+    },
+    {
+      "id": "gnss",
+      "type": "external",
+      "label": "GPS / GNSS",
+      "sublabel": "Device positioning",
+      "pos": [
+        40,
+        550
+      ],
+      "size": [
+        175,
+        84
+      ]
+    },
+    {
+      "id": "pmtiles",
+      "type": "database",
+      "label": "PMTiles Archive",
+      "sublabel": "Multi-zoom vector tiles",
+      "tag": "On-device",
+      "pos": [
+        315,
+        60
+      ],
+      "size": [
+        175,
+        84
+      ]
+    },
+    {
+      "id": "maplibre",
+      "type": "frontend",
+      "label": "MapLibre GL",
+      "sublabel": "Vector map renderer",
+      "pos": [
+        315,
+        232
+      ],
+      "size": [
+        175,
+        84
+      ]
+    },
+    {
+      "id": "app",
+      "type": "frontend",
+      "label": "Flutter App",
+      "sublabel": "Cross-platform · Android",
+      "tag": "Map · Events · Check-in",
+      "pos": [
+        315,
+        404
+      ],
+      "size": [
+        175,
+        130
+      ]
+    },
+    {
+      "id": "report",
+      "type": "frontend",
+      "label": "Citizen Alert Report",
+      "sublabel": "Field incident submission",
+      "tag": "Planned",
+      "pos": [
+        590,
+        232
+      ],
+      "size": [
+        175,
+        94
+      ]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "On-Device Data Store",
+      "sublabel": "Events · msg ID · TTL",
+      "tag": "Local storage",
+      "pos": [
+        590,
+        404
+      ],
+      "size": [
+        175,
+        94
+      ]
+    },
+    {
+      "id": "evac",
+      "type": "backend",
+      "label": "Evacuation Routing",
+      "sublabel": "Offline roads + avoidance",
+      "tag": "Planned",
+      "pos": [
+        590,
+        576
+      ],
+      "size": [
+        175,
+        94
+      ]
+    },
+    {
+      "id": "mesh",
+      "type": "messagebus",
+      "label": "Mesh Multi-Hop Relay",
+      "sublabel": "TTL · msg ID · dedupe",
+      "pos": [
+        865,
+        404
+      ],
+      "size": [
+        175,
+        94
+      ]
+    },
+    {
+      "id": "ble",
+      "type": "messagebus",
+      "label": "Bluetooth Low Energy",
+      "sublabel": "Discover · connect · ID",
+      "pos": [
+        865,
+        576
+      ],
+      "size": [
+        175,
+        94
+      ]
+    },
+    {
+      "id": "cloud",
+      "type": "cloud",
+      "label": "Cloud Data Service",
+      "sublabel": "Event sync · backup",
+      "tag": "When online",
+      "pos": [
+        1140,
+        60
+      ],
+      "size": [
+        175,
+        94
+      ]
+    },
+    {
+      "id": "peers",
+      "type": "external",
+      "label": "Nearby Nodes",
+      "sublabel": "Node B → C → D",
+      "pos": [
+        1140,
+        500
+      ],
+      "size": [
+        175,
+        94
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Device side (works offline)",
+      "wraps": [
+        "pmtiles",
+        "maplibre",
+        "app",
+        "report",
+        "store",
+        "evac",
+        "mesh",
+        "ble"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "tiles-to-pmtiles",
+      "from": "tiles",
+      "to": "pmtiles",
+      "label": "offline build",
+      "variant": "dashed"
+    },
+    {
+      "id": "pmtiles-to-maplibre",
+      "from": "pmtiles",
+      "to": "maplibre",
+      "label": "reads local tiles",
+      "labelAt": [
+        403,
+        188
+      ]
+    },
+    {
+      "id": "maplibre-to-app",
+      "from": "maplibre",
+      "to": "app",
+      "label": "roads · buildings · POI",
+      "labelAt": [
+        403,
+        360
+      ]
+    },
+    {
+      "id": "citizen-to-app",
+      "from": "citizen",
+      "to": "app",
+      "label": "map · check-in",
+      "variant": "emphasis"
+    },
+    {
+      "id": "gnss-to-app",
+      "from": "gnss",
+      "to": "app",
+      "label": "position"
+    },
+    {
+      "id": "app-to-report",
+      "from": "app",
+      "to": "report",
+      "label": "submit incident alert",
+      "variant": "dashed",
+      "labelAt": [
+        540,
+        355
+      ]
+    },
+    {
+      "id": "report-to-store",
+      "from": "report",
+      "to": "store",
+      "label": "write alert event",
+      "variant": "dashed",
+      "labelAt": [
+        678,
+        365
+      ]
+    },
+    {
+      "id": "app-to-store",
+      "from": "app",
+      "to": "store",
+      "label": "events · rally pts",
+      "labelAt": [
+        540,
+        505
+      ]
+    },
+    {
+      "id": "store-to-evac",
+      "from": "store",
+      "to": "evac",
+      "label": "events + roads + position",
+      "variant": "dashed",
+      "labelAt": [
+        678,
+        537
+      ]
+    },
+    {
+      "id": "evac-to-app",
+      "from": "evac",
+      "to": "app",
+      "label": "suggested route",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "bottom",
+      "via": [
+        [
+          402.5,
+          623
+        ]
+      ],
+      "labelAt": [
+        497,
+        623
+      ]
+    },
+    {
+      "id": "store-to-mesh",
+      "from": "store",
+      "to": "mesh",
+      "label": "pending relay",
+      "labelAt": [
+        815,
+        472
+      ]
+    },
+    {
+      "id": "mesh-to-ble",
+      "from": "mesh",
+      "to": "ble",
+      "label": "multi-hop packet",
+      "labelAt": [
+        953,
+        537
+      ]
+    },
+    {
+      "id": "ble-to-peers",
+      "from": "ble",
+      "to": "peers",
+      "label": "peer exchange",
+      "variant": "emphasis"
+    },
+    {
+      "id": "store-to-cloud",
+      "from": "store",
+      "to": "cloud",
+      "label": "sync when online",
+      "variant": "dashed",
+      "labelAt": [
+        815,
+        185
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Mobile client & offline geodata",
+      "items": [
+        "Flutter codebase on Android, iOS later",
+        "OSM + Protomaps → one PMTiles archive",
+        "MapLibre GL renders it fully offline"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "BLE mesh & positioning",
+      "items": [
+        "BLE discovery, connection, device ID",
+        "Multi-hop A → B → C → D, TTL + dedupe",
+        "GPS / GNSS drives distance and ranking"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Planned (not yet built)",
+      "items": [
+        "Citizen alert spreads over the mesh",
+        "Routing: offline roads + events + GPS",
+        "Both reuse the on-device dedupe path"
+      ]
+    }
+  ]
+}
