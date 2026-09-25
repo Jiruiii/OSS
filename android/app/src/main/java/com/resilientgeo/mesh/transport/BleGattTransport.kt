@@ -167,7 +167,7 @@ class BleGattTransport(
         extraBufferCapacity = 32,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
-    val receivedMessages: SharedFlow<Pair<String, ByteArray>> get() = _receivedMessages
+    override val receivedMessages: SharedFlow<Pair<String, ByteArray>> get() = _receivedMessages
 
     /** Every control message, delivered whole in a single GATT write — see [CONTROL_CHARACTERISTIC_UUID]. */
     private val _controlMessages = MutableSharedFlow<Pair<String, ByteArray>>(

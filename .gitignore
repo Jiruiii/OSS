@@ -65,3 +65,5 @@ __pycache__/
 未來際
 
 output
+# Local session transcript
+/transcript.md

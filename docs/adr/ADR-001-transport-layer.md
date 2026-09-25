@@ -156,9 +156,9 @@ Emergency Mode 的邊際成本約 **+54 mW（+14%）**，以 Pixel 7 的 16.8 Wh
 
 **已達成（BLE GATT）**：兩台測試機重複完成 discovery、連線、KB 級傳輸與位元組級斷點續傳。
 
-**裝置相容性——已轉正（2026-09-05）**：`system.md` §8 的停止條件「傳輸層只能在單一機型運作」已排除。原計畫用 Samsung SM-S731B 補測，實際依裝置持有狀況改用 **Sharp SH-M32（Android 15, API 35）**——品牌（SHARP vs Google）與 API 版本（35 vs 兩台 Pixel 的 37）都不同，滿足「至少兩個品牌、兩個 Android 版本」的排除標準。discovery/connect/transfer 與完整 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY 序列（含中斷續傳）在 Sharp 上一次到位，細節見 `team-assignments.md`。
+**裝置相容性——已轉正（2026-09-05）**：`system.md` §8 的停止條件「傳輸層只能在單一機型運作」已排除。原計畫用 Samsung SM-S731B 補測，實際依裝置持有狀況改用 **Sharp SH-M32（Android 15, API 35）**——品牌（SHARP vs Google）與 API 版本（35 vs 兩台 Pixel 的 37）都不同，滿足「至少兩個品牌、兩個 Android 版本」的排除標準。discovery/connect/transfer 與完整 HELLO→DIFF→REQUEST→TRANSFER→VERIFY/APPLY 序列（含中斷續傳）在 Sharp 上一次到位，細節見 `team-assignments.md`（已移除，最後版本 `git show b9bd906:team-assignments.md`）。
 
-**三機 Store-Carry-Forward——已達成（2026-09-05）**：Pixel 8a（A/Origin）→ Pixel 7（B/Relay）→ Sharp SH-M32（C/Far），A 完全 force-stop（`pidof` 確認程序不在跑）情況下，C 仍透過 B 完整收到並驗證全部 4 個簽章事件（含一個中斷又續傳的 chunk），兩段都直接讀 Room `.db-wal` 確認而非只信 log。細節與已知簡化（B 對 C 廣播的摘要是寫死的 fixture，非動態讀自己的 Room）見 `team-assignments.md`。
+**三機 Store-Carry-Forward——已達成（2026-09-05）**：Pixel 8a（A/Origin）→ Pixel 7（B/Relay）→ Sharp SH-M32（C/Far），A 完全 force-stop（`pidof` 確認程序不在跑）情況下，C 仍透過 B 完整收到並驗證全部 4 個簽章事件（含一個中斷又續傳的 chunk），兩段都直接讀 Room `.db-wal` 確認而非只信 log。細節與已知簡化（B 對 C 廣播的摘要是寫死的 fixture，非動態讀自己的 Room）見 `team-assignments.md`（已移除，最後版本 `git show b9bd906:team-assignments.md`）。
 
 **已補齊（見上方「回填」段落，2026-09-05）**：
 - Connection success rate：亮屏 20 次（17/20，85%）與鎖屏 20 次（0%）皆已跑完（僅兩台 Pixel 之間；Sharp 沒有另外跑滿 20 次的正式統計，只有本次三機 SCF 過程中的 ad-hoc 連線數據）

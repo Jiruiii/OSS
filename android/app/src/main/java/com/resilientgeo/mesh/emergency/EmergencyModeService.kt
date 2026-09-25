@@ -13,18 +13,19 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import com.resilientgeo.mesh.transport.BleDiscovery
+import com.resilientgeo.mesh.data.MeshRepository
+import com.resilientgeo.mesh.transport.BleGattTransport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Emergency Mode foreground service: keeps peer discovery running while the
- * screen is off and the phone is in someone's pocket.
+ * Emergency Mode foreground service: keeps peer discovery *and* automatic
+ * chunk sync running while the screen is off and the phone is in someone's
+ * pocket.
  *
  * This service exists because of a measurement, not a guess. ADR-001's
  * connection-success runs found **0/19 successful BLE connections with the
@@ -33,20 +34,20 @@ import java.util.concurrent.ConcurrentHashMap
  * forward simply cannot happen while someone walks between two groups of
  * people, which is the entire premise of the project.
  *
- * ### What it does and does not do
+ * ### What it does
  *
- * It runs the discovery half of the transport: BLE advertise so other nodes
- * can see this one, and a filtered scan so this one sees them, reporting
- * the live peer count in its notification. It does **not** yet open GATT
- * connections or run HELLO/DIFF/REQUEST on its own — automatic role
- * negotiation between two peers that meet unattended is genuinely unsolved
- * here (`PeerSyncMilestoneActivity` still needs a human to pick which
- * device is requester and which is server), and shipping a half-working
- * auto-sync would be worse than being precise about the boundary. Actual
- * chunk exchange is still operator-driven from that screen.
+ * It runs [BleGattTransport] (advertise + scan + GATT client/server) and
+ * hands it to an [AutoPeerSyncEngine], which runs HELLO -> DIFF -> REQUEST ->
+ * TRANSFER with every peer found, with no human choosing roles — see that
+ * class's doc comment for why no role negotiation is actually needed. This
+ * replaces the previous discovery-only version, which could see peers'
+ * advertisements but never opened a GATT connection or exchanged anything;
+ * that gap (`PeerSyncMilestoneActivity` needing a human to pick requester vs
+ * server) is what this class now closes for the unattended case.
  *
  * `MainActivity` starts and stops this service from the Emergency Mode
- * switch; this class only manages its own lifecycle and notification.
+ * switch; this class manages the service lifecycle and notification and
+ * otherwise defers to [AutoPeerSyncEngine] and [BleGattTransport].
  */
 class EmergencyModeService : Service() {
 
@@ -70,20 +71,20 @@ class EmergencyModeService : Service() {
     private var heartbeatJob: Job? = null
     private var startedAtMillis = 0L
 
-    /** peer address -> last time its advertisement was seen. */
-    private val peersLastSeen = ConcurrentHashMap<String, Long>()
-
-    private var discovery: BleDiscovery? = null
+    private var transport: BleGattTransport? = null
+    private var engine: AutoPeerSyncEngine? = null
     private var discoveryActive = false
+
+    private fun activePeerCount(): Int = engine?.visiblePeerCount(PEER_STALE_AFTER_MS) ?: 0
 
     override fun onCreate() {
         super.onCreate()
         startedAtMillis = System.currentTimeMillis()
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification(aliveSeconds = 0, peers = 0))
+        startForeground(NOTIFICATION_ID, buildNotification(aliveSeconds = 0, peers = 0, chunksSynced = 0))
         Log.i(TAG, "onCreate: foreground service started")
 
-        startDiscovery()
+        startAutoSync()
 
         heartbeatJob = scope.launch {
             var tick = 0
@@ -92,10 +93,16 @@ class EmergencyModeService : Service() {
                 tick++
                 val aliveSeconds = (System.currentTimeMillis() - startedAtMillis) / 1000
                 val peers = activePeerCount()
+                val stats = engine?.stats()
                 // Kept at INFO: this line is what the lock-screen survival
                 // runs in ADR-001 grep for to prove the process is alive.
-                Log.i(TAG, "HEARTBEAT tick=$tick alive_s=$aliveSeconds peers=$peers discovery=$discoveryActive")
-                updateNotification(aliveSeconds, peers)
+                Log.i(
+                    TAG,
+                    "HEARTBEAT tick=$tick alive_s=$aliveSeconds peers=$peers discovery=$discoveryActive " +
+                        "synced_peers=${stats?.peersSynced ?: 0} chunks_applied=${stats?.chunksApplied ?: 0} " +
+                        "active_sessions=${stats?.activeSessions ?: 0}",
+                )
+                updateNotification(aliveSeconds, peers, stats?.chunksApplied ?: 0)
             }
         }
     }
@@ -107,13 +114,13 @@ class EmergencyModeService : Service() {
     override fun onDestroy() {
         val aliveSeconds = (System.currentTimeMillis() - startedAtMillis) / 1000
         Log.i(TAG, "onDestroy: service stopping after alive_s=$aliveSeconds")
-        stopDiscovery()
+        stopAutoSync()
         heartbeatJob?.cancel()
         scope.cancel()
         super.onDestroy()
     }
 
-    private fun startDiscovery() {
+    private fun startAutoSync() {
         if (!hasBluetoothPermissions()) {
             // Not fatal: the service still runs and still holds the process
             // up, it just can't see anyone. The notification says so rather
@@ -127,43 +134,49 @@ class EmergencyModeService : Service() {
             return
         }
 
-        val ble = BleDiscovery(adapter)
-        discovery = ble
+        val nodeId = NodeIdentity(applicationContext).nodeId
+        val repository = MeshRepository(applicationContext)
+        val ble = BleGattTransport(applicationContext, adapter)
+
         runCatching {
-            ble.startAdvertising()
-            ble.startScanning { advertisement ->
-                peersLastSeen[advertisement.peerId] = advertisement.discoveredAtMillis
-            }
+            val syncEngine = AutoPeerSyncEngine(
+                transport = ble,
+                localNodeId = nodeId,
+                localSummaryProvider = { repository.allLocalPeerSummaries(nodeId) },
+                chunkProvider = { datasetId, namespace, chunkId -> repository.cachedChunkJson(datasetId, namespace, chunkId) },
+                chunkIngestor = { chunk -> repository.ingestChunk(chunk) },
+                scope = scope,
+                onLog = { line -> Log.i(TAG, "[auto-sync] $line") },
+            )
+            syncEngine.start()
+            transport = ble
+            engine = syncEngine
             discoveryActive = true
-            Log.i(TAG, "discovery started (advertise + filtered scan)")
+            Log.i(TAG, "auto-sync started (advertise + scan + automatic HELLO/DIFF/REQUEST/TRANSFER)")
         }.onFailure { error ->
             // A SecurityException here means permissions were revoked
             // between the check above and the call. Degrade to the
             // process-alive-only mode rather than crashing the service.
             discoveryActive = false
-            Log.e(TAG, "failed to start discovery: ${error.message}")
+            Log.e(TAG, "failed to start auto-sync: ${error.message}")
         }
     }
 
-    private fun stopDiscovery() {
-        val ble = discovery ?: return
-        runCatching {
-            ble.stopScanning()
-            ble.stopAdvertising()
-        }.onFailure { error -> Log.w(TAG, "error stopping discovery: ${error.message}") }
-        discovery = null
+    private fun stopAutoSync() {
+        engine?.stop()
+        engine = null
+        runCatching { transport?.teardown() }.onFailure { error -> Log.w(TAG, "error tearing down transport: ${error.message}") }
+        transport = null
         discoveryActive = false
-    }
-
-    private fun activePeerCount(): Int {
-        val cutoff = System.currentTimeMillis() - PEER_STALE_AFTER_MS
-        peersLastSeen.entries.removeIf { it.value < cutoff }
-        return peersLastSeen.size
     }
 
     private fun hasBluetoothPermissions(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
-        return listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_ADVERTISE)
+        // BLUETOOTH_CONNECT wasn't required by the discovery-only version
+        // this replaced (advertise + scan don't need it), but AutoPeerSyncEngine
+        // now actually calls BleGattTransport.connect() -> device.connectGatt(),
+        // which throws SecurityException on API 31+ without it.
+        return listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_ADVERTISE, Manifest.permission.BLUETOOTH_CONNECT)
             .all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
     }
 
@@ -178,16 +191,16 @@ class EmergencyModeService : Service() {
         }
     }
 
-    private fun buildNotification(aliveSeconds: Long, peers: Int): Notification =
+    private fun buildNotification(aliveSeconds: Long, peers: Int, chunksSynced: Int): Notification =
         NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(EmergencyStatusText.title())
-            .setContentText(EmergencyStatusText.contentText(aliveSeconds, peers, discoveryActive))
+            .setContentText(EmergencyStatusText.contentText(aliveSeconds, peers, discoveryActive, chunksSynced))
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setOngoing(true)
             .build()
 
-    private fun updateNotification(aliveSeconds: Long, peers: Int) {
+    private fun updateNotification(aliveSeconds: Long, peers: Int, chunksSynced: Int) {
         getSystemService(NotificationManager::class.java)
-            .notify(NOTIFICATION_ID, buildNotification(aliveSeconds, peers))
+            .notify(NOTIFICATION_ID, buildNotification(aliveSeconds, peers, chunksSynced))
     }
 }
