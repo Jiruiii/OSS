@@ -104,12 +104,18 @@ dependencies {
     androidTestImplementation(libs.androidx.room.testing)
 }
 
-val copySplashLogo = tasks.register<Copy>("copySplashLogo") {
-    from(project.file("../../flutter/assets/Logo.png"))
+val copySplashLightLogo = tasks.register<Copy>("copySplashLightLogo") {
+    from(project.file("../../flutter/assets/Geo_light_square_logo.png"))
     into(splashResDir.map { it.dir("drawable-nodpi") })
     rename { "resilientgeo_logo.png" }
 }
 
+val copySplashDarkLogo = tasks.register<Copy>("copySplashDarkLogo") {
+    from(project.file("../../flutter/assets/Geo_dark_square_logo.png"))
+    into(splashResDir.map { it.dir("drawable-night-nodpi") })
+    rename { "resilientgeo_logo.png" }
+}
+
 tasks.named("preBuild").configure {
-    dependsOn(copySplashLogo)
+    dependsOn(copySplashLightLogo, copySplashDarkLogo)
 }

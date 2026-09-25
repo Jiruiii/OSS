@@ -5,7 +5,7 @@
 
     <!-- Native starting window shown while the Flutter engine initializes. -->
     <style name="Theme.ResilientGeoMesh.OfflineGis" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/map_background</item>
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/resilientgeo_logo</item>
         <item name="postSplashScreenTheme">@style/Theme.ResilientGeoMesh</item>
     </style>

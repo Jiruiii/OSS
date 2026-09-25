@@ -1,0 +1,6 @@
+[     863ms] [WARNING] registerExtension() from dart:developer is only supported in build/run/test environments where the developer event method hooks have been set by package:dwds v11.1.0 or higher. @ http://[::1]:8789/dart_sdk.js:53440
+[    1858ms] [LOG] myLocationRenderMode not available in web @ http://[::1]:8789/dart_sdk.js:32230
+[  782528ms] [WARNING] registerExtension() from dart:developer is only supported in build/run/test environments where the developer event method hooks have been set by package:dwds v11.1.0 or higher. @ http://[::1]:8789/dart_sdk.js:53440
+[  783369ms] [LOG] myLocationRenderMode not available in web @ http://[::1]:8789/dart_sdk.js:32230
+[ 1165254ms] [WARNING] registerExtension() from dart:developer is only supported in build/run/test environments where the developer event method hooks have been set by package:dwds v11.1.0 or higher. @ http://[::1]:8789/dart_sdk.js:53440
+[ 1166189ms] [LOG] myLocationRenderMode not available in web @ http://[::1]:8789/dart_sdk.js:32230

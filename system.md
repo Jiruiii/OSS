@@ -1,6 +1,6 @@
 # ResilientGeo Mesh — 系統實作計畫
 
-> 進度更新（2026-09-21）：v0 資料契約、本機可信資料管線與 Flutter 台灣離線地圖主畫面已完成。Android 保留 Room、事件驗證／TTL、版本控管、BLE 與 Emergency Mode；Flutter 固定使用 MapLibre + Protomaps PMTiles、地圖互動與三頁 app shell。資料源仍是版本化快照，不是即時災情 API 資料。
+> 進度更新（2026-09-22）：v0 資料契約、本機可信資料管線與 Flutter 台灣離線地圖主畫面已完成。Android 保留 Room、事件驗證／TTL、版本控管、BLE 與 Emergency Mode；Flutter 固定使用 MapLibre + Protomaps PMTiles、本機台灣道路搜尋、地圖互動與三頁 app shell。資料源仍是版本化快照，不是即時災情 API 資料。
 
 ## 目前進度總覽
 
@@ -17,6 +17,22 @@
 | Simulator／實驗報告 | 進行中 | `simulator/` 決定性模擬 10／20／50／100 節點 × 三策略 × 地理過濾；`experiments/` 有可重現的四指標報告（Coverage／Freshness／Cellular Savings／Transfer Efficiency）。部分傳輸參數仍待實機校準；Energy Cost 已完成 Pixel 7 持續發現量測，但尚未涵蓋同步傳輸 |
 
 狀態證據：Node、Python 與 Flutter 的資料契約測試持續保留；五個台灣 PMTiles 已以 `pmtiles show`／`pmtiles verify` 驗證 bbox、zoom、來源日期與 hash，`flutter analyze` 已通過，Chrome web build 已通過。Flutter map module 已接上 Android Room／EventChannel 與 Android streaming asset bridge；host `assembleDebug` 與目標裝置的飛航模式重啟、marker 互動仍需在這一輪改造後重新驗收。
+
+### Chrome 與 Android 的離線地圖 runtime 邊界
+
+Chrome 開發入口與 release preview 都使用本機 MapLibre GL JS 6.4.1、同一組
+Taiwan PMTiles、style、glyph、sprite、道路搜尋索引與 Flutter UI。Chrome debug
+請執行：
+
+```bash
+cd flutter
+flutter run -d chrome --no-web-resources-cdn --web-port 8787
+```
+
+離線 preview 請執行 `flutter build web --release --no-web-resources-cdn`，再以本機
+static server 提供 `build/web`。Android 則維持 MapLibre Native，啟動時把 PMTiles
+串流複製到 app-private 目錄；兩個 renderer 允許 label collision、字距與抗鋸齒有
+細微差異，但不依賴 Google Maps、線上 raster tile、線上 geocoder 或外部字型 CDN。
 
 > 2026-09-05 修正：先前記錄的「16 項通過」是 pipeline 測試的舊數字，且當時 Windows checkout 出來的 `fixtures/neihu/*.json` 因 `core.autocrlf=true` 又沒有 `.gitattributes` 而帶 CRLF，跟決定性生成器輸出的 LF 逐位元組比對必然 MISMATCH——這是假失敗，不是生成器不決定性。根目錄 `.gitattributes`（`* text=auto eol=lf`）已修掉這個問題。
 
@@ -232,10 +248,12 @@ fixtures/             可重播的測試資料，不放正式私鑰
 
 ### Flutter 台灣離線地圖顯示契約
 
-- MapCanvas 固定使用 `MapLibreMap`。Android 啟動時由 `OfflineMapAssetBridge` 以串流方式把五個 PMTiles 複製到 app-private `files/maps/`，style、glyph、sprite 與 attribution 全部使用本機資產；Chrome 透過 `pmtiles.js` protocol 讀取 web assets。
+- MapCanvas 固定使用 `MapLibreMap`。Android 啟動時由 `OfflineMapAssetBridge` 以串流方式把五個 PMTiles 複製到 app-private `files/maps/`，style、glyph、sprite 與 attribution 全部使用本機資產；Chrome 透過 `pmtiles.js` protocol 讀取 web assets。Flutter marker 在相機移動時使用同步 Web Mercator 投影，停止移動後才以 MapLibre 原生座標校正，避免地標飄離原座標。
 - `taiwan.pmtiles` 提供台灣 z0–12 概覽；`taiwan-north.pmtiles`、`taiwan-central.pmtiles`、`taiwan-south.pmtiles`、`taiwan-east.pmtiles` 提供分區 z13–15 街道密度。bbox、來源日期、檔案版本與 SHA-256 集中在 `flutter/lib/data/offline_map_manifest.dart`。
-- 使用者看到的縮放是 `0%` 到 `100%`，映射 MapLibre z0–15；沒有定位時鏡頭回到台灣全域，有定位權限與座標時才移到使用者所在地。
-- 首頁提供本機搜尋（醫療院所、避難所、道路），搜尋不呼叫 Places API；通知與個人頁籤由共用 app controller 提供。
+- 使用者看到的縮放是 `0%` 到 `100%`，一般縮放映射 MapLibre z6.5–17；0% 會依實際 viewport 與底部控制列 padding fit 完整台灣 bbox，z17 是 z15 資料的 overzoom，不代表新增 z17 街道資料。鏡頭受台灣 bbox `[119.9, 21.8, 122.2, 25.5]` 限制；沒有定位時回到台灣預設視角，有定位權限與座標時才移到使用者所在地。
+- Flutter 載入離線資料期間顯示 `Geo_light_phone_logo.png` 或 `Geo_dark_phone_logo.png`；Android 原生 splash 使用對應的 square logo，透過 `drawable-night` 依系統深色模式切換。
+- `flutter/assets/map/search/taiwan-roads.json` 是由指定日期的 Geofabrik Taiwan OSM PBF 產生的版本化本機索引，保存 source URL、SHA-256、snapshot 與 `© OpenStreetMap contributors` attribution。首頁可用道路名稱或 latitude-first `lat, lon` 搜尋；執行期間不呼叫 Nominatim、Google Geocoding、Places API 或其他網路服務。
+- 首頁提供本機搜尋（醫療院所、避難所、道路與經緯度），搜尋結果會建立 typed camera request；道路／座標結果只移動鏡頭，不開設施詳情。通知與個人頁籤由共用 app controller 提供。
 
 - 地圖底圖範圍為台灣 bbox `[119.9, 21.8, 122.2, 25.5]`；內湖的避難所、醫療與 demo event 仍是目前 UI 的 fixture／資料契約，並不限制底圖只能顯示內湖。
 - 靜態快照為 `2026-09-04T17:58:15.942Z`，包含 26 個避難所與 4 個醫療院所。避難所的 `capacity` 是預計容量；目前收容人數沒有可靠資料，`available_count` 保持 JSON `null`，畫面顯示「無資料」，不補 0。

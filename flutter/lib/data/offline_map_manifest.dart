@@ -132,13 +132,13 @@ class OfflineMapPackageCatalog {
     fileName: 'taiwan.pmtiles',
     minZoom: 0,
     maxZoom: 12,
-    minLongitude: 119.9,
+    minLongitude: 118.0,
     minLatitude: 21.8,
     maxLongitude: 122.2,
-    maxLatitude: 25.5,
+    maxLatitude: 26.5,
     sourceDate: _sourceDate,
     sha256:
-        'fdfa61e072a5fbf5abea3575e5d5fbbb56cd4e288a2371488bae710171c52568',
+        '02fb9e86b8b4af8c9c11471510d27c65374b2f4a6f40f4900ad030603863bff5',
   );
 
   static const north = OfflineMapPackageManifest(
@@ -147,13 +147,13 @@ class OfflineMapPackageCatalog {
     fileName: 'taiwan-north.pmtiles',
     minZoom: 13,
     maxZoom: 15,
-    minLongitude: 119.9,
+    minLongitude: 118.0,
     minLatitude: 24.0,
     maxLongitude: 122.2,
-    maxLatitude: 25.5,
+    maxLatitude: 26.5,
     sourceDate: _sourceDate,
     sha256:
-        '0a93afe3c7861651ae10c11a9fe3196cd7f6d05d53feaffff43948d36d225022',
+        'd0a36272b6e8dd22f61fe6aa6e66589c1994c607ed8d3eac5d2d3784b372243f',
   );
 
   static const central = OfflineMapPackageManifest(
@@ -162,13 +162,13 @@ class OfflineMapPackageCatalog {
     fileName: 'taiwan-central.pmtiles',
     minZoom: 13,
     maxZoom: 15,
-    minLongitude: 119.9,
+    minLongitude: 118.0,
     minLatitude: 23.0,
     maxLongitude: 121.6,
     maxLatitude: 24.1,
     sourceDate: _sourceDate,
     sha256:
-        '16410b399f9fca99b7a04585a06a7cf47469f98c02fb4cbe30dc898c74c5bb0c',
+        'a4c17eb1d96c0a459fd58f0aa80f8b514a6b2fb3ee9aaead36a6b677abb691cf',
   );
 
   static const south = OfflineMapPackageManifest(
@@ -177,13 +177,13 @@ class OfflineMapPackageCatalog {
     fileName: 'taiwan-south.pmtiles',
     minZoom: 13,
     maxZoom: 15,
-    minLongitude: 119.9,
+    minLongitude: 118.0,
     minLatitude: 21.8,
     maxLongitude: 121.6,
-    maxLatitude: 23.1,
+    maxLatitude: 23.8,
     sourceDate: _sourceDate,
     sha256:
-        '8d5654bc974e77c59812d0ce933a6dd9a9a3bd46b79182436acf2ed47b8519fc',
+        '43e33265ea2b0fece0107683d02d441fd5925331faa3bcd9774d54643e509840',
   );
 
   static const east = OfflineMapPackageManifest(

@@ -23,9 +23,14 @@ The map uses only committed local assets. `OfflineMapAssetBridge` receives the
 five PMTiles paths from Flutter and copies them with a bounded buffer to
 `files/maps/`; MapLibre then reads the `file://` URLs with byte-range access.
 The overview archive covers Taiwan at z0–12, while the north, central, south
-and east archives cover z13–15 street detail. The UI shows zoom as 0–100% over
-MapLibre z0–15. The app-owned event, shelter and medical markers remain
+and east archives cover z13–15 street detail. The UI fits the Taiwan bbox at
+0% and exposes MapLibre z6.5–17; z17 is overzoom beyond the z15 package. The
+app-owned event, shelter and medical markers remain
 Flutter overlays and use the Lucide icon catalog.
+
+During Flutter startup, the full-screen phone logo is selected from
+`Geo_light_phone_logo.png` or `Geo_dark_phone_logo.png`. The native Android
+starting window uses the matching square logo through `drawable-night`.
 
 ```bash
 cd android
@@ -64,6 +69,22 @@ non-blocking warning that `path_provider_android` requests NDK
 the module's generated `.android/` files remain unedited. Device-level
 offline restart and marker interaction should still be checked on the target
 phone before release.
+
+### Chrome offline UI preview
+
+For frontend-only work, run the Flutter module from `../flutter`:
+
+```bash
+cd ../flutter
+git lfs pull
+flutter pub get
+flutter run -d chrome --no-web-resources-cdn --web-port 8787
+```
+
+For a static offline preview, use `flutter build web --release
+--no-web-resources-cdn` and serve `build/web` locally. Chrome uses the bundled
+MapLibre GL JS runtime; the Android host continues to use native MapLibre and
+app-private PMTiles.
 
 ### 在 Android Studio 查看 Flutter 畫面
 

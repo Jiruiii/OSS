@@ -11,13 +11,13 @@ OUTPUT_DIR="${OUTPUT_DIR:-$(cd "$(dirname "$0")/../../flutter/assets/map/pmtiles
 mkdir -p "$OUTPUT_DIR"
 
 "$PMTILES_BIN" extract "$SOURCE_URL" "$OUTPUT_DIR/taiwan.pmtiles" \
-  --bbox=119.9,21.8,122.2,25.5 --minzoom=0 --maxzoom=12
+  --bbox=118.0,21.8,122.2,26.5 --minzoom=0 --maxzoom=12
 "$PMTILES_BIN" extract "$SOURCE_URL" "$OUTPUT_DIR/taiwan-north.pmtiles" \
-  --bbox=119.9,24.0,122.2,25.5 --minzoom=13 --maxzoom=15
+  --bbox=118.0,24.0,122.2,26.5 --minzoom=13 --maxzoom=15
 "$PMTILES_BIN" extract "$SOURCE_URL" "$OUTPUT_DIR/taiwan-central.pmtiles" \
-  --bbox=119.9,23.0,121.6,24.1 --minzoom=13 --maxzoom=15
+  --bbox=118.0,23.0,121.6,24.1 --minzoom=13 --maxzoom=15
 "$PMTILES_BIN" extract "$SOURCE_URL" "$OUTPUT_DIR/taiwan-south.pmtiles" \
-  --bbox=119.9,21.8,121.6,23.1 --minzoom=13 --maxzoom=15
+  --bbox=118.0,21.8,121.6,23.8 --minzoom=13 --maxzoom=15
 "$PMTILES_BIN" extract "$SOURCE_URL" "$OUTPUT_DIR/taiwan-east.pmtiles" \
   --bbox=120.8,21.8,122.2,25.5 --minzoom=13 --maxzoom=15
 

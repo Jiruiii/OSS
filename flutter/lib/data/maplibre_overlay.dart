@@ -7,6 +7,10 @@ import 'map_models.dart';
 class MapLibreOverlayData {
   const MapLibreOverlayData._();
 
+  /// Area fills are temporarily hidden while the disaster-area interaction
+  /// is being redesigned. Point markers remain available for selection.
+  static const bool showEventAreaOverlay = false;
+
   static Map<String, dynamic> eventFeatureCollection(
     Iterable<MeshEvent> events,
   ) {

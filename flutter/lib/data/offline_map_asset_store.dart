@@ -16,10 +16,38 @@ class OfflineMapAssetStore {
   OfflineMapAssetStore({AssetBundle? bundle}) : _bundle = bundle ?? rootBundle;
 
   final AssetBundle _bundle;
+  static const String referenceLabelsAsset =
+      'assets/map/labels/taiwan-reference-labels.geojson';
+  static const String referenceLabelsAssetUri =
+      'asset://assets/map/labels/taiwan-reference-labels.geojson';
   static const MethodChannel _nativeChannel = MethodChannel(
     'com.resilientgeo.mesh/offline_map_assets',
   );
   Future<Map<String, String>>? _installedFiles;
+
+  /// Hydrates the single editable label asset into either map style.
+  ///
+  /// Keeping the GeoJSON outside the light/dark style files means a label
+  /// name or coordinate is changed once and remains consistent on every
+  /// renderer.
+  static String injectReferenceLabels(String styleJson, String labelsJson) {
+    final decodedStyle = jsonDecode(styleJson);
+    final decodedLabels = jsonDecode(labelsJson);
+    if (decodedStyle is! Map<String, dynamic> ||
+        decodedLabels is! Map<String, dynamic>) {
+      throw const FormatException('Map style or reference labels is not JSON');
+    }
+
+    final sources = decodedStyle['sources'];
+    if (sources is Map<String, dynamic>) {
+      final source = sources['taiwan-reference-labels'];
+      if (source is Map<String, dynamic> &&
+          source['data'] == referenceLabelsAssetUri) {
+        source['data'] = decodedLabels;
+      }
+    }
+    return jsonEncode(decodedStyle);
+  }
 
   static String rewriteStyleAssetUris(
     String styleJson, {
@@ -39,7 +67,11 @@ class OfflineMapAssetStore {
     final decoded = jsonDecode(styleJson);
     if (decoded is! Map<String, dynamic>) return styleJson;
 
-    final assetsBase = Uri.base.resolve('assets/');
+    // Flutter Web serves an asset whose pubspec key is
+    // `assets/map/...` at `/assets/assets/map/...` in both release builds and
+    // the dev asset server. Keep this canonical URL here so styles work with
+    // a static offline preview as well as `flutter run -d chrome`.
+    final assetsBase = Uri.base.resolve('assets/assets/');
 
     String resolveAssetPath(String relativePath) {
       final tokenIndex = relativePath.indexOf('{');
@@ -74,13 +106,10 @@ class OfflineMapAssetStore {
       for (final source in sources.values) {
         if (source is! Map) continue;
         final url = source['url'];
-        if (url is! String ||
-            !url.startsWith('pmtiles://asset://assets/')) {
+        if (url is! String || !url.startsWith('pmtiles://asset://assets/')) {
           continue;
         }
-        source['tiles'] = <String>[
-          '${rewriteWebUri(url)}/{z}/{x}/{y}',
-        ];
+        source['tiles'] = <String>['${rewriteWebUri(url)}/{z}/{x}/{y}'];
         source.remove('url');
       }
     }
@@ -93,11 +122,13 @@ class OfflineMapAssetStore {
     required bool installNativeAssets,
   }) async {
     final styleJson = await _bundle.loadString(styleAsset);
-    if (kIsWeb) return rewriteWebStyleAssetUris(styleJson);
-    if (!installNativeAssets) return styleJson;
+    final labelsJson = await _bundle.loadString(referenceLabelsAsset);
+    final hydratedStyle = injectReferenceLabels(styleJson, labelsJson);
+    if (kIsWeb) return rewriteWebStyleAssetUris(hydratedStyle);
+    if (!installNativeAssets) return hydratedStyle;
 
     final installed = await installPmtiles();
-    return rewriteStyleAssetUris(styleJson, assetFiles: installed);
+    return rewriteStyleAssetUris(hydratedStyle, assetFiles: installed);
   }
 
   Future<Map<String, String>> installPmtiles() {
@@ -107,14 +138,12 @@ class OfflineMapAssetStore {
   Future<Map<String, String>> _installPmtiles() async {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
-        final response = await _nativeChannel.invokeMethod<Object?>(
-          'copyPmtiles',
-          <String, dynamic>{
-            'assets': OfflineMapPackageCatalog.all
-                .map((package) => package.assetPath)
-                .toList(growable: false),
-          },
-        );
+        final response = await _nativeChannel
+            .invokeMethod<Object?>('copyPmtiles', <String, dynamic>{
+              'assets': OfflineMapPackageCatalog.all
+                  .map((package) => package.assetPath)
+                  .toList(growable: false),
+            });
         if (response is Map) {
           final installed = <String, String>{};
           for (final package in OfflineMapPackageCatalog.all) {
@@ -139,7 +168,10 @@ class OfflineMapAssetStore {
     final installed = <String, String>{};
     for (final package in OfflineMapPackageCatalog.all) {
       final data = await _bundle.load(package.assetPath);
-      final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+      final bytes = data.buffer.asUint8List(
+        data.offsetInBytes,
+        data.lengthInBytes,
+      );
       final fileName = package.fileName;
       final filePath = await copyMapAssetToPrivateDirectory(
         fileName: fileName,

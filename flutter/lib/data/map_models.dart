@@ -6,6 +6,15 @@ class GeoPoint {
 
   final double longitude;
   final double latitude;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GeoPoint &&
+      other.longitude == longitude &&
+      other.latitude == latitude;
+
+  @override
+  int get hashCode => Object.hash(longitude, latitude);
 }
 
 sealed class MapGeometry {

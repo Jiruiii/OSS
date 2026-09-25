@@ -13,12 +13,13 @@ void main() {
     expect(raw, contains('resilientgeo-neihu'));
   });
 
-  test('bundles fixture-only demo events for rootBundle loading', () async {
+  test('bundles the all-Taiwan offline road search asset', () async {
     final raw = await rootBundle.loadString(
-      'assets/data/neihu/demo-events.json',
+      'assets/map/search/taiwan-roads.json',
     );
 
-    expect(raw, contains('demo:flood:001'));
+    expect(raw, contains('"dataset_id":"taiwan-roads"'));
+    expect(raw, contains('"attribution":"© OpenStreetMap contributors"'));
   });
 
   testWidgets(
@@ -50,6 +51,18 @@ void main() {
     expect(find.bySemanticsLabel('圖層設定'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('layer settings does not expose the bundled fixture loader', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testApp());
+    await tester.pump();
+
+    await tester.tap(find.bySemanticsLabel('圖層設定'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('載入內建 fixture'), findsNothing);
+  });
 }
 
 Widget _testApp() => const MaterialApp(
@@ -60,7 +73,6 @@ Widget _testApp() => const MaterialApp(
       snapshotAt: '2026-09-05T00:00:00Z',
       features: <StaticFeature>[],
     ),
-    demoEvents: <MeshEvent>[],
     initialState: MapInitialState(
       events: <MeshEvent>[],
       emergencyModeEnabled: false,

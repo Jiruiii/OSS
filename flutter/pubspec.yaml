@@ -31,6 +31,7 @@ dependencies:
   path_provider: 2.1.5
   crypto: 3.0.7
   geolocator: 13.0.2
+  pointer_interceptor: 0.10.1+2
   shared_preferences: 2.5.3
 
 dev_dependencies:
@@ -48,17 +49,29 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/Geo_light_phone_logo.png
+    - assets/Geo_dark_phone_logo.png
+    - assets/fonts/
     - assets/data/neihu/static-features.json
-    - assets/data/neihu/demo-events.json
     - assets/map/styles/taiwan-light.json
     - assets/map/styles/taiwan-dark.json
+    - assets/map/labels/taiwan-reference-labels.geojson
+    - assets/map/search/taiwan-roads.json
     - assets/map/pmtiles/taiwan.pmtiles
     - assets/map/pmtiles/taiwan-north.pmtiles
     - assets/map/pmtiles/taiwan-central.pmtiles
     - assets/map/pmtiles/taiwan-south.pmtiles
     - assets/map/pmtiles/taiwan-east.pmtiles
     - assets/map/fonts/
-    - assets/map/sprites/
+    - assets/map/fonts/NotoSansRegular/
+    - assets/map/sprites/v4/light.json
+    - assets/map/sprites/v4/light.png
+    - assets/map/sprites/v4/light@2x.json
+    - assets/map/sprites/v4/light@2x.png
+    - assets/map/sprites/v4/dark.json
+    - assets/map/sprites/v4/dark.png
+    - assets/map/sprites/v4/dark@2x.json
+    - assets/map/sprites/v4/dark@2x.png
 
   # To add Flutter specific assets to your application, add an assets section,
   # like this:
@@ -92,6 +105,19 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
+  fonts:
+    - family: NotoSansTC
+      fonts:
+        - asset: assets/fonts/NotoSansTC-Regular.ttf
+        - asset: assets/fonts/NotoSansTC-Medium.ttf
+          weight: 500
+    # Flutter Web's Material fallback asks for Roboto during startup. Keep
+    # that family local so the engine never needs an external font CDN.
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/NotoSansTC-Regular.ttf
+        - asset: assets/fonts/NotoSansTC-Medium.ttf
+          weight: 500
 
   # This section identifies your Flutter project as a module meant for
   # embedding in a native host app.  These identifiers should _not_ ordinarily

@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/map_bridge.dart';
-import '../data/map_defaults.dart';
 import '../data/map_models.dart';
 
 /// App-level presentation coordinator.
@@ -22,19 +21,12 @@ class MapAppController extends ChangeNotifier {
   static const _readEventKeysPreference = 'map.read_event_keys';
 
   final MapBridge bridge;
-  final Stopwatch _startupDemoEventClock = Stopwatch();
   final StreamController<List<MeshEvent>> _eventUpdates =
       StreamController<List<MeshEvent>>.broadcast();
 
   StreamSubscription<List<MeshEvent>>? _eventSubscription;
-  final List<Timer> _startupDemoEventTimers = <Timer>[];
   final Set<String> _readEventKeys = <String>{};
-  // Demo events intentionally use fixed IDs so the replay is deterministic.
-  // Keep their read state in this process only; otherwise a previous demo run
-  // would make the next 10/30/50-second notification replay disappear.
-  final Set<String> _sessionReadDemoEventKeys = <String>{};
   StaticFeatureCollection? staticFeatures;
-  List<MeshEvent> demoEvents = const <MeshEvent>[];
   List<MeshEvent> persistedEvents = const <MeshEvent>[];
   MapInitialState initialState = const MapInitialState(
     events: <MeshEvent>[],
@@ -46,7 +38,6 @@ class MapAppController extends ChangeNotifier {
   bool isLoading = true;
   Object? loadError;
   bool _disposed = false;
-  bool _startupDemoEventsScheduled = false;
 
   Stream<List<MeshEvent>> get eventUpdates => _eventUpdates.stream;
 
@@ -54,9 +45,6 @@ class MapAppController extends ChangeNotifier {
 
   List<MeshEvent> get events {
     final byId = <String, MeshEvent>{};
-    for (final event in demoEvents) {
-      byId[meshEventIdentity(event)] = event;
-    }
     for (final event in persistedEvents) {
       byId[meshEventIdentity(event)] = event;
     }
@@ -64,18 +52,12 @@ class MapAppController extends ChangeNotifier {
   }
 
   List<MeshEvent> get unreadEvents => events
-      .where((event) {
-        final key = meshEventIdentity(event);
-        final readKeys =
-            _isDemoEvent(event) ? _sessionReadDemoEventKeys : _readEventKeys;
-        return !readKeys.contains(key);
-      })
+      .where((event) => !_readEventKeys.contains(meshEventIdentity(event)))
       .toList(growable: false);
 
   int get notificationCount => unreadEvents.length;
 
   Future<void> load() async {
-    _startStartupDemoEventClock();
     try {
       final rawStatic = await rootBundle.loadString(
         'assets/data/neihu/static-features.json',
@@ -84,16 +66,14 @@ class MapAppController extends ChangeNotifier {
         Map<String, dynamic>.from(jsonDecode(rawStatic) as Map),
       );
 
-      final rawDemo = await rootBundle.loadString(
-        'assets/data/neihu/demo-events.json',
-      );
-      demoEvents = eventsFromMessage(
-        (jsonDecode(rawDemo) as Map<String, dynamic>)['events'],
-      );
-
       try {
-        initialState = await bridge.getInitialState();
-        persistedEvents = initialState.events;
+        final loadedState = await bridge.getInitialState();
+        final verifiedEvents = _withoutDemoEvents(loadedState.events);
+        initialState = MapInitialState(
+          events: verifiedEvents,
+          emergencyModeEnabled: loadedState.emergencyModeEnabled,
+        );
+        persistedEvents = verifiedEvents;
         nativeBridgeAvailable = true;
       } on Object {
         // Preview builds without the Android host still show the bundled map.
@@ -105,7 +85,6 @@ class MapAppController extends ChangeNotifier {
 
       await _loadPreferences();
       if (nativeBridgeAvailable) _listenToNativeEvents();
-      _scheduleStartupDemoEvents();
     } on Object catch (error) {
       loadError = error;
     } finally {
@@ -128,102 +107,15 @@ class MapAppController extends ChangeNotifier {
   void _listenToNativeEvents() {
     _eventSubscription = bridge.events.listen((events) {
       if (_disposed) return;
-      persistedEvents = events;
-      _eventUpdates.add(List<MeshEvent>.unmodifiable(events));
+      final verifiedEvents = _withoutDemoEvents(events);
+      persistedEvents = verifiedEvents;
+      _eventUpdates.add(List<MeshEvent>.unmodifiable(verifiedEvents));
       _notifyIfAlive();
     }, onError: (_) {});
   }
 
-  void _startStartupDemoEventClock() {
-    if (_startupDemoEventsScheduled || _startupDemoEventClock.isRunning) return;
-    _startupDemoEventClock.start();
-  }
-
-  void _scheduleStartupDemoEvents() {
-    if (_startupDemoEventsScheduled) return;
-    _startupDemoEventsScheduled = true;
-    const stagedEvents = <_StagedDemoEvent>[
-      _StagedDemoEvent(
-        delay: Duration(seconds: 10),
-        eventId: MapDefaults.delayedDemoEventId,
-        eventType: 'LOCAL_FLOOD_ALERT',
-        severity: 'HIGH',
-        location: MapDefaults.delayedDemoEventLocation,
-        name: '成功路二段積水模擬警示',
-        affectedArea: '內湖區成功路二段附近',
-      ),
-      _StagedDemoEvent(
-        delay: Duration(seconds: 30),
-        eventId: MapDefaults.secondDelayedDemoEventId,
-        eventType: 'BUILDING_FIRE_ALERT',
-        severity: 'CRITICAL',
-        location: MapDefaults.secondDelayedDemoEventLocation,
-        name: '內湖路住宅火警模擬通報',
-        affectedArea: '內湖區內湖路一段附近',
-      ),
-      _StagedDemoEvent(
-        delay: Duration(seconds: 50),
-        eventId: MapDefaults.thirdDelayedDemoEventId,
-        eventType: 'ROAD_BLOCKAGE',
-        severity: 'MEDIUM',
-        location: MapDefaults.thirdDelayedDemoEventLocation,
-        name: '民權東路道路阻斷模擬通報',
-        affectedArea: '內湖區民權東路六段附近',
-      ),
-    ];
-    for (final stagedEvent in stagedEvents) {
-      if (demoEvents.any((event) => event.eventId == stagedEvent.eventId)) {
-        continue;
-      }
-      final elapsed = _startupDemoEventClock.elapsed;
-      final remaining =
-          elapsed >= stagedEvent.delay
-              ? Duration.zero
-              : stagedEvent.delay - elapsed;
-      _startupDemoEventTimers.add(
-        Timer(remaining, () => _insertStagedDemoEvent(stagedEvent)),
-      );
-    }
-  }
-
-  void _insertStagedDemoEvent(_StagedDemoEvent stagedEvent) {
-    if (_disposed ||
-        demoEvents.any((event) => event.eventId == stagedEvent.eventId)) {
-      return;
-    }
-    final issuedAt = DateTime.now().toUtc();
-    final simulatedEvent = MeshEvent(
-      namespace: 'demo.simulator',
-      eventId: stagedEvent.eventId,
-      eventVersion: 1,
-      eventType: stagedEvent.eventType,
-      severity: stagedEvent.severity,
-      source: 'ResilientGeo Demo Simulator（非官方）',
-      issuedAt: issuedAt.toIso8601String(),
-      expiresAt: issuedAt.add(const Duration(hours: 1)).toIso8601String(),
-      applyState: 'CURRENT',
-      geometry: PointGeometry(stagedEvent.location),
-      attributes: <String, dynamic>{
-        'name': stagedEvent.name,
-        'affected_area': stagedEvent.affectedArea,
-        'description': '模擬事件，非即時官方災情',
-        'is_demo': true,
-      },
-    );
-    demoEvents = List<MeshEvent>.unmodifiable(<MeshEvent>[
-      ...demoEvents,
-      simulatedEvent,
-    ]);
-    _notifyIfAlive();
-  }
-
   Future<void> markEventRead(MeshEvent event) async {
     final key = meshEventIdentity(event);
-    if (_isDemoEvent(event)) {
-      if (!_sessionReadDemoEventKeys.add(key)) return;
-      _notifyIfAlive();
-      return;
-    }
     if (!_readEventKeys.add(key)) return;
     _notifyIfAlive();
     final preferences = await SharedPreferences.getInstance();
@@ -248,10 +140,6 @@ class MapAppController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
-    _startupDemoEventClock.stop();
-    for (final timer in _startupDemoEventTimers) {
-      timer.cancel();
-    }
     _eventSubscription?.cancel();
     _eventUpdates.close();
     super.dispose();
@@ -261,6 +149,9 @@ class MapAppController extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 }
+
+List<MeshEvent> _withoutDemoEvents(Iterable<MeshEvent> events) =>
+    List<MeshEvent>.unmodifiable(events.where((event) => !_isDemoEvent(event)));
 
 bool _isDemoEvent(MeshEvent event) =>
     event.namespace?.startsWith('demo.') == true ||
@@ -272,23 +163,3 @@ ThemeMode _themeModeFromName(String? value) => switch (value) {
   'dark' => ThemeMode.dark,
   _ => ThemeMode.system,
 };
-
-class _StagedDemoEvent {
-  const _StagedDemoEvent({
-    required this.delay,
-    required this.eventId,
-    required this.eventType,
-    required this.severity,
-    required this.location,
-    required this.name,
-    required this.affectedArea,
-  });
-
-  final Duration delay;
-  final String eventId;
-  final String eventType;
-  final String severity;
-  final GeoPoint location;
-  final String name;
-  final String affectedArea;
-}

@@ -1,4 +1,5 @@
 import 'map_models.dart';
+import 'map_search_asset.dart';
 
 class MapSearchResult {
   const MapSearchResult({
@@ -6,36 +7,81 @@ class MapSearchResult {
     required this.title,
     required this.typeLabel,
     required this.coordinate,
+    this.region,
+    this.address,
+    this.resultId,
   });
 
-  final StaticFeature feature;
+  final StaticFeature? feature;
   final String title;
   final String typeLabel;
   final GeoPoint coordinate;
+  final String? region;
+  final String? address;
+  final String? resultId;
 
-  String? get id => feature.id;
+  String? get id => feature?.id ?? resultId;
+}
+
+class MapSearchQuery {
+  const MapSearchQuery({
+    required this.input,
+    required this.results,
+    this.coordinate,
+  });
+
+  final String input;
+  final List<MapSearchResult> results;
+  final GeoPoint? coordinate;
+
+  bool get isCoordinate => coordinate != null;
 }
 
 /// Synchronous index over bundled map features. It has no network dependency.
 class MapSearchIndex {
-  MapSearchIndex(List<StaticFeature> features)
-    : _features = List<StaticFeature>.unmodifiable(features);
+  MapSearchIndex(
+    List<StaticFeature> features, {
+    Iterable<TaiwanSearchEntry> roadEntries = const <TaiwanSearchEntry>[],
+  }) : _features = List<StaticFeature>.unmodifiable(features),
+       _roadEntries = List<TaiwanSearchEntry>.unmodifiable(roadEntries);
 
   static const int maxResults = 8;
 
   final List<StaticFeature> _features;
+  final List<TaiwanSearchEntry> _roadEntries;
 
-  List<MapSearchResult> query(String text) {
-    final query = text.trim().toLowerCase();
-    if (query.isEmpty) return const <MapSearchResult>[];
+  MapSearchQuery search(String text) {
+    final input = text.trim();
+    final normalized = _normalizeText(input);
+    if (normalized.isEmpty) {
+      return MapSearchQuery(input: input, results: const <MapSearchResult>[]);
+    }
+
+    if (_looksLikeCoordinateQuery(input)) {
+      final coordinate = parseTaiwanCoordinate(input);
+      if (coordinate == null) {
+        return MapSearchQuery(input: input, results: const <MapSearchResult>[]);
+      }
+      final result = MapSearchResult(
+        feature: null,
+        title: input,
+        typeLabel: '經緯度',
+        coordinate: coordinate,
+        resultId: 'coordinate:${coordinate.latitude},${coordinate.longitude}',
+      );
+      return MapSearchQuery(
+        input: input,
+        coordinate: coordinate,
+        results: <MapSearchResult>[result],
+      );
+    }
 
     final matches = <_RankedResult>[];
     for (var index = 0; index < _features.length; index += 1) {
       final feature = _features[index];
       final coordinate = _focusCoordinate(feature.geometry);
       if (coordinate == null) continue;
-
-      final score = _matchScore(feature, query);
+      final score = _featureMatchScore(feature, normalized);
       if (score == null) continue;
       matches.add(
         _RankedResult(
@@ -46,6 +92,28 @@ class MapSearchIndex {
             title: _titleFor(feature),
             typeLabel: _typeLabelFor(feature.kind),
             coordinate: coordinate,
+            region: _regionFor(feature),
+            address: _addressFor(feature),
+          ),
+        ),
+      );
+    }
+
+    for (var index = 0; index < _roadEntries.length; index += 1) {
+      final entry = _roadEntries[index];
+      final score = _entryMatchScore(entry, normalized);
+      if (score == null) continue;
+      matches.add(
+        _RankedResult(
+          score: score,
+          sourceIndex: _features.length + index,
+          result: MapSearchResult(
+            feature: null,
+            title: entry.name,
+            typeLabel: _typeLabelFor(entry.kind),
+            coordinate: entry.coordinate,
+            region: entry.region,
+            resultId: entry.id,
           ),
         ),
       );
@@ -53,40 +121,89 @@ class MapSearchIndex {
 
     matches.sort((left, right) {
       final scoreOrder = left.score.compareTo(right.score);
-      return scoreOrder != 0
-          ? scoreOrder
-          : left.sourceIndex.compareTo(right.sourceIndex);
+      if (scoreOrder != 0) return scoreOrder;
+      final sourceOrder = left.sourceIndex.compareTo(right.sourceIndex);
+      if (sourceOrder != 0) return sourceOrder;
+      return (left.result.id ?? '').compareTo(right.result.id ?? '');
     });
-    return matches
-        .take(maxResults)
-        .map((match) => match.result)
-        .toList(growable: false);
+    return MapSearchQuery(
+      input: input,
+      results: matches
+          .take(maxResults)
+          .map((match) => match.result)
+          .toList(growable: false),
+    );
   }
+
+  List<MapSearchResult> query(String text) => search(text).results;
 }
 
-int? _matchScore(StaticFeature feature, String query) {
+int? _featureMatchScore(StaticFeature feature, String query) {
   final details = feature.details;
   final name = _searchText(details['name']);
+  final aliases = _stringValues(details['aliases']);
+  final region = _regionFor(feature);
+  final address = _addressFor(feature);
+  return _matchScore(
+    name: name,
+    aliases: aliases,
+    region: _searchText(region),
+    address: _searchText(address),
+    details: _searchText(details),
+    kind: _searchText(feature.kind),
+    id: _searchText(feature.id),
+    query: query,
+  );
+}
+
+int? _entryMatchScore(TaiwanSearchEntry entry, String query) => _matchScore(
+  name: _normalizeText(entry.name),
+  aliases: entry.aliases.map(_normalizeText),
+  region: _normalizeText(entry.region),
+  address: '',
+  details: '',
+  kind: _normalizeText(entry.kind),
+  id: _normalizeText(entry.id),
+  query: query,
+);
+
+int? _matchScore({
+  required String name,
+  required Iterable<String> aliases,
+  required String region,
+  required String address,
+  required String details,
+  required String kind,
+  required String id,
+  required String query,
+}) {
   if (name == query) return 0;
   if (name.startsWith(query)) return 1;
   if (name.contains(query)) return 2;
+  if (aliases.any((value) => value == query || value.contains(query))) {
+    return 3;
+  }
+  if (region.contains(query)) return 4;
+  if (address.contains(query) || details.contains(query)) return 5;
+  if (kind.contains(query)) return 6;
+  if (id.contains(query)) return 7;
+  return null;
+}
 
-  final address = _searchText(details['address']);
-  if (address.contains(query)) return 3;
-  if (_searchText(feature.kind) == query) return 4;
-  if (_searchText(feature.id).contains(query)) return 5;
-
-  final detailsText = details.values.map(_searchText).join(' ');
-  return detailsText.contains(query) ? 6 : null;
+String _normalizeText(Object? value) {
+  if (value == null) return '';
+  return value.toString().toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
 String _searchText(Object? value) {
-  if (value == null) return '';
-  if (value is Iterable) return value.map(_searchText).join(' ').toLowerCase();
-  if (value is Map) {
-    return value.values.map(_searchText).join(' ').toLowerCase();
-  }
-  return value.toString().toLowerCase();
+  if (value is Iterable) return value.map(_searchText).join(' ');
+  if (value is Map) return value.values.map(_searchText).join(' ');
+  return _normalizeText(value);
+}
+
+List<String> _stringValues(Object? value) {
+  if (value is! Iterable) return const <String>[];
+  return value.map(_normalizeText).where((value) => value.isNotEmpty).toList();
 }
 
 String _titleFor(StaticFeature feature) {
@@ -101,6 +218,26 @@ String _typeLabelFor(String? kind) => switch (kind) {
   'road' => '道路',
   _ => kind ?? '其他',
 };
+
+String? _regionFor(StaticFeature feature) {
+  for (final key in <String>['region', 'county', 'city', 'district']) {
+    final value = feature.details[key];
+    if (value is String && value.trim().isNotEmpty) return value.trim();
+  }
+  return null;
+}
+
+String? _addressFor(StaticFeature feature) {
+  final value = feature.details['address'];
+  return value is String && value.trim().isNotEmpty ? value.trim() : null;
+}
+
+bool _looksLikeCoordinateQuery(String text) {
+  if (text.contains(',')) return true;
+  final parts = text.split(RegExp(r'\s+'));
+  return parts.length == 2 &&
+      parts.every((part) => double.tryParse(part) != null);
+}
 
 GeoPoint? _focusCoordinate(MapGeometry? geometry) {
   final points = switch (geometry) {

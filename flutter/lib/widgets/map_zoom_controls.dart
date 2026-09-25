@@ -72,7 +72,7 @@ class MapZoomControls extends StatelessWidget {
                   value: clamped.toDouble(),
                   min: 0,
                   max: 100,
-                  divisions: 20,
+                  divisions: 100,
                   label: '$clamped%',
                   onChanged: (value) => onZoomPercentageChanged(value.round()),
                 ),

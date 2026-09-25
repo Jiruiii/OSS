@@ -1,0 +1,17 @@
+[      91ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://127.0.0.1:8788/favicon.ico:0
+[    1850ms] [LOG] myLocationRenderMode not available in web @ http://127.0.0.1:8788/main.dart.js:58507
+[  966677ms] [LOG] myLocationRenderMode not available in web @ http://127.0.0.1:8788/main.dart.js:58507
+[ 1211261ms] [LOG] myLocationRenderMode not available in web @ http://127.0.0.1:8788/main.dart.js:58507
+[ 1269484ms] [ERROR] Error @ http://127.0.0.1:8788/maplibre/6.4.1/dist/maplibre-gl-shared.mjs:4
+[ 1269493ms] [ERROR] Error @ http://127.0.0.1:8788/maplibre/6.4.1/dist/maplibre-gl-shared.mjs:4
+[ 1269493ms] [ERROR] Error @ http://127.0.0.1:8788/maplibre/6.4.1/dist/maplibre-gl-shared.mjs:4
+[ 1269493ms] [ERROR] Error @ http://127.0.0.1:8788/maplibre/6.4.1/dist/maplibre-gl-shared.mjs:4
+[ 1269493ms] [ERROR] Error @ http://127.0.0.1:8788/maplibre/6.4.1/dist/maplibre-gl-shared.mjs:4
+[ 1269493ms] [ERROR] Error @ http://127.0.0.1:8788/maplibre/6.4.1/dist/maplibre-gl-shared.mjs:4
+[ 1269493ms] [ERROR] Error @ http://127.0.0.1:8788/maplibre/6.4.1/dist/maplibre-gl-shared.mjs:4
+[ 1269493ms] [ERROR] Error @ http://127.0.0.1:8788/maplibre/6.4.1/dist/maplibre-gl-shared.mjs:4
+[ 1269493ms] [ERROR] Error @ http://127.0.0.1:8788/maplibre/6.4.1/dist/maplibre-gl-shared.mjs:4
+[ 1269493ms] [ERROR] Error @ http://127.0.0.1:8788/maplibre/6.4.1/dist/maplibre-gl-shared.mjs:4
+[ 1269493ms] [ERROR] Error @ http://127.0.0.1:8788/maplibre/6.4.1/dist/maplibre-gl-shared.mjs:4
+[ 1269493ms] [ERROR] Error @ http://127.0.0.1:8788/maplibre/6.4.1/dist/maplibre-gl-shared.mjs:4
+[ 1315158ms] [LOG] myLocationRenderMode not available in web @ http://127.0.0.1:8788/main.dart.js:58507

@@ -1,0 +1,2 @@
+[     349ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8788/favicon.ico:0
+[    2615ms] [LOG] myLocationRenderMode not available in web @ http://localhost:8788/main.dart.js:58486

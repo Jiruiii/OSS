@@ -3,14 +3,18 @@ import 'package:flutter/material.dart';
 
 import 'app/map_app_controller.dart';
 import 'data/offline_map_web_protocol.dart';
+import 'data/maplibre_web_runtime.dart';
 import 'screens/map_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/profile_screen.dart';
+import 'theme/app_theme.dart';
 import 'widgets/app_bottom_navigation.dart';
+import 'widgets/startup_splash.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (kIsWeb) {
+    MapLibreWebRuntime.configure();
     await registerOfflineMapProtocol();
   }
   runApp(const ResilientGeoApp());
@@ -45,21 +49,12 @@ class _ResilientGeoAppState extends State<ResilientGeoApp> {
         (context, _) => MaterialApp(
           debugShowCheckedModeBanner: false,
           themeMode: _controller.themeMode,
-          theme: _theme(Brightness.light),
-          darkTheme: _theme(Brightness.dark),
+          theme: AppTheme.light(),
+          darkTheme: AppTheme.dark(),
           home: _MapAppHome(controller: _controller),
         ),
   );
 }
-
-ThemeData _theme(Brightness brightness) => ThemeData(
-  brightness: brightness,
-  colorScheme: ColorScheme.fromSeed(
-    seedColor: const Color(0xFF006C63),
-    brightness: brightness,
-  ),
-  useMaterial3: true,
-);
 
 class _MapAppHome extends StatefulWidget {
   const _MapAppHome({required this.controller});
@@ -77,7 +72,7 @@ class _MapAppHomeState extends State<_MapAppHome> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     if (controller.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const StartupSplash();
     }
     if (controller.staticFeatures == null) {
       return Scaffold(
@@ -100,7 +95,6 @@ class _MapAppHomeState extends State<_MapAppHome> {
           MapScreen(
             key: const ValueKey<String>('home-map'),
             staticFeatures: controller.staticFeatures,
-            demoEvents: controller.demoEvents,
             initialState: controller.initialState,
             bridge: controller.bridge,
             eventUpdates: controller.eventUpdates,

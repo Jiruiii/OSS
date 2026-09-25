@@ -52,6 +52,22 @@ void main() {
     expect(find.text('縮放 100%'), findsOneWidget);
   });
 
+  testWidgets('percentage slider supports one percent steps', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MapZoomControls(
+            zoomPercentage: 5,
+            onZoomPercentageChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+
+    final slider = tester.widget<Slider>(find.byType(Slider));
+    expect(slider.divisions, 100);
+  });
+
   testWidgets('plus and minus controls change the displayed percentage', (
     tester,
   ) async {

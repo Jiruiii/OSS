@@ -3,12 +3,17 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../data/map_bridge.dart';
 import '../data/location_controller.dart';
+import '../data/map_administrative.dart';
 import '../data/map_models.dart';
+import '../data/maplibre_map_config.dart';
 import '../data/map_runtime_state.dart';
 import '../data/map_search.dart';
+import '../data/map_search_asset.dart';
+import '../data/offline_map_asset_store.dart';
 import '../widgets/feature_details_sheet.dart';
 import '../widgets/layer_filter_panel.dart';
 import '../widgets/map_canvas.dart';
@@ -18,7 +23,6 @@ class MapScreen extends StatefulWidget {
   const MapScreen({
     super.key,
     this.staticFeatures,
-    this.demoEvents,
     this.initialState,
     this.bridge,
     this.eventUpdates,
@@ -29,7 +33,6 @@ class MapScreen extends StatefulWidget {
 
   /// Optional deterministic inputs keep widget tests independent of channels.
   final StaticFeatureCollection? staticFeatures;
-  final List<MeshEvent>? demoEvents;
   final MapInitialState? initialState;
   final MapBridge? bridge;
   final Stream<List<MeshEvent>>? eventUpdates;
@@ -50,7 +53,8 @@ class _MapScreenState extends State<MapScreen> {
   StreamSubscription<List<MeshEvent>>? _eventSubscription;
   StreamSubscription<GeoPoint>? _locationSubscription;
   StaticFeatureCollection? _staticFeatures;
-  List<MeshEvent> _demoEvents = const <MeshEvent>[];
+  MapAdministrativeIndex? _administrativeIndex;
+  TaiwanSearchAsset? _searchAsset;
   List<MeshEvent> _persistedEvents = const <MeshEvent>[];
   bool _showShelters = true;
   bool _showMedical = true;
@@ -60,7 +64,7 @@ class _MapScreenState extends State<MapScreen> {
   MeshEvent? _selectedEvent;
   MapRuntimeState _runtimeState = const MapRuntimeState(
     themeMode: ThemeMode.system,
-    zoomPercentage: 0,
+    zoomPercentage: MapLibreMapConfig.initialOverviewPercentage,
     currentLocation: null,
     animationEnabled: true,
   );
@@ -93,12 +97,8 @@ class _MapScreenState extends State<MapScreen> {
     final preferencesChanged =
         oldWidget.themeMode != widget.themeMode ||
         oldWidget.animationEnabled != widget.animationEnabled;
-    final demoEventsChanged = oldWidget.demoEvents != widget.demoEvents;
-    if (!preferencesChanged && !demoEventsChanged) return;
+    if (!preferencesChanged) return;
     setState(() {
-      if (demoEventsChanged && widget.demoEvents != null) {
-        _demoEvents = widget.demoEvents!;
-      }
       _runtimeState = _runtimeState.copyWith(
         themeMode: preferencesChanged ? widget.themeMode : null,
         animationEnabled: preferencesChanged ? widget.animationEnabled : null,
@@ -118,27 +118,25 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _load() async {
+    unawaited(_loadSearchAssetInBackground());
     final featureFuture =
         widget.staticFeatures == null
             ? _loadStaticFeatures()
             : Future<StaticFeatureCollection>.value(widget.staticFeatures);
-    final demoFuture =
-        widget.demoEvents == null
-            ? _loadDemoEvents()
-            : Future<List<MeshEvent>>.value(widget.demoEvents);
     final stateFuture =
         widget.initialState == null
             ? _loadInitialStateSafely()
             : Future<MapInitialState>.value(widget.initialState);
-    final values = await Future.wait<Object>(<Future<Object>>[
-      featureFuture,
-      demoFuture,
-    ]);
+    final administrativeFuture = _loadAdministrativeIndexSafely();
+    final staticFeatures = await featureFuture;
     if (!mounted) return;
-    setState(() {
-      _staticFeatures = values[0] as StaticFeatureCollection;
-      _demoEvents = values[1] as List<MeshEvent>;
-    });
+    setState(() => _staticFeatures = staticFeatures);
+    unawaited(
+      administrativeFuture.then((administrativeIndex) {
+        if (!mounted) return;
+        setState(() => _administrativeIndex = administrativeIndex);
+      }),
+    );
     unawaited(
       stateFuture.then((initialState) {
         if (!mounted) return;
@@ -160,12 +158,41 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Future<List<MeshEvent>> _loadDemoEvents() async {
+  Future<TaiwanSearchAsset> _loadSearchAsset() async {
     final raw = await rootBundle.loadString(
-      'assets/data/neihu/demo-events.json',
+      'assets/map/search/taiwan-roads.json',
     );
-    final json = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-    return eventsFromMessage(json['events']);
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) {
+      throw const FormatException('Taiwan search asset root must be an object');
+    }
+    return TaiwanSearchAsset.fromJson(Map<String, dynamic>.from(decoded));
+  }
+
+  Future<MapAdministrativeIndex?> _loadAdministrativeIndexSafely() async {
+    try {
+      final raw = await rootBundle.loadString(
+        OfflineMapAssetStore.referenceLabelsAsset,
+      );
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      return MapAdministrativeIndex.fromJson(
+        Map<String, dynamic>.from(decoded),
+      );
+    } on Object {
+      return null;
+    }
+  }
+
+  Future<void> _loadSearchAssetInBackground() async {
+    try {
+      final asset = await _loadSearchAsset();
+      if (!mounted) return;
+      setState(() => _searchAsset = asset);
+    } on Object {
+      // Static facilities and the map remain usable if the optional search
+      // index asset is unavailable; no online fallback is introduced.
+    }
   }
 
   Future<MapInitialState> _loadInitialStateSafely() async {
@@ -190,9 +217,6 @@ class _MapScreenState extends State<MapScreen> {
 
   List<MeshEvent> get _visibleEvents {
     final byId = <String, MeshEvent>{};
-    for (final event in _demoEvents) {
-      byId[meshEventIdentity(event)] = event;
-    }
     for (final event in _persistedEvents) {
       byId[meshEventIdentity(event)] = event;
     }
@@ -200,6 +224,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _showStaticSelection(List<StaticFeature> features) {
+    if (features.isEmpty) return;
     if (features.length == 1) {
       setState(() {
         _selectedFeature = features.single;
@@ -277,20 +302,9 @@ class _MapScreenState extends State<MapScreen> {
                   await _setEmergencyMode(value);
                   if (context.mounted) modalSetState(() {});
                 },
-                onLoadFixture: _loadFixture,
               ),
         ),
   );
-
-  Future<void> _loadFixture() async {
-    try {
-      final summary = await _bridge.loadBundledFixture();
-      if (!mounted) return;
-      _showMessage('已處理 ${summary.processed} 筆內建 fixture');
-    } catch (_) {
-      _showMessage('載入 fixture 需由 Android 主機提供');
-    }
-  }
 
   Future<void> _setEmergencyMode(bool enabled) async {
     try {
@@ -325,9 +339,14 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _focusCurrentLocation() async {
     final location = await _locationController.requestCurrentLocation();
     if (!mounted) return;
+    if (location == null) {
+      _showMessage('無法取得目前位置，請開啟瀏覽器或裝置定位權限');
+      return;
+    }
     setState(() {
       _runtimeState = _runtimeState.copyWith(currentLocation: location);
       _focusPoint = location;
+      _searchSelection = null;
       _focusRequestId += 1;
     });
   }
@@ -340,6 +359,7 @@ class _MapScreenState extends State<MapScreen> {
     }
     final searchResults = MapSearchIndex(
       staticFeatures.features,
+      roadEntries: _searchAsset?.entries ?? const <TaiwanSearchEntry>[],
     ).query(_searchText);
     return Scaffold(
       body: Stack(
@@ -347,6 +367,7 @@ class _MapScreenState extends State<MapScreen> {
           MapCanvas(
             runtimeState: _runtimeState,
             staticFeatures: staticFeatures.features,
+            administrativeIndex: _administrativeIndex,
             visibleEvents: _visibleEvents,
             showShelters: _showShelters,
             showMedical: _showMedical,
@@ -367,12 +388,14 @@ class _MapScreenState extends State<MapScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  _SearchOverlay(
-                    text: _searchText,
-                    controller: _searchController,
-                    results: searchResults,
-                    onChanged: (value) => setState(() => _searchText = value),
-                    onSelected: _selectSearchResult,
+                  PointerInterceptor(
+                    child: _SearchOverlay(
+                      text: _searchText,
+                      controller: _searchController,
+                      results: searchResults,
+                      onChanged: (value) => setState(() => _searchText = value),
+                      onSelected: _selectSearchResult,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   _StatusOverlay(
@@ -497,17 +520,19 @@ class _SearchOverlay extends StatelessWidget {
                       separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final result = results[index];
-                        final address = result.feature.details['address'];
+                        final address =
+                            result.address ??
+                            result.feature?.details['address'];
+                        final location = result.region;
+                        final subtitle = <String>[
+                          result.typeLabel,
+                          if (location != null && location.isNotEmpty) location,
+                          if (address is String && address.isNotEmpty) address,
+                        ].join('・');
                         return ListTile(
                           dense: true,
                           title: Text(result.title),
-                          subtitle: Text(
-                            address is String && address.isNotEmpty
-                                ? '${result.typeLabel}・$address'
-                                : result.typeLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          subtitle: Text(subtitle),
                           onTap: () => onSelected(result),
                         );
                       },

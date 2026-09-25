@@ -47,6 +47,30 @@ void main() {
   });
 
   group('LocationController', () {
+    test(
+      'web reads browser location even when Permissions API says denied',
+      () async {
+        const current = GeoPoint(longitude: 121.545053, latitude: 25.011549);
+        final gateway = _FakeLocationGateway(
+          checkedPermission: LocationPermission.denied,
+          currentLocation: current,
+        );
+        final controller = LocationController(
+          gateway: gateway,
+          webPlatform: true,
+        );
+        addTearDown(controller.dispose);
+
+        final result = await controller.requestCurrentLocation();
+
+        expect(result, same(current));
+        expect(gateway.serviceChecks, 0);
+        expect(gateway.permissionChecks, 0);
+        expect(gateway.permissionRequests, 0);
+        expect(gateway.currentLocationRequests, 1);
+      },
+    );
+
     test('does not inspect or request permission during construction', () {
       final gateway = _FakeLocationGateway();
 

@@ -10,6 +10,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="ResilientGeo">
   <title>ResilientGeo 台灣離線地圖</title>
+  <style>
+    /* Keep attribution in the bundled map metadata without covering the map
+       with the generated MapLibre web control. */
+    .maplibregl-ctrl-attrib {
+      display: none !important;
+    }
+  </style>
 </head>
 <body>
   <!-- PMTiles is served locally so Chrome can exercise the same packaged data. -->
