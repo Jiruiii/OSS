@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:resilientgeo_flutter/data/map_administrative.dart';
 import 'package:resilientgeo_flutter/data/map_models.dart';
 import 'package:resilientgeo_flutter/data/map_search.dart';
 import 'package:resilientgeo_flutter/data/map_search_asset.dart';
@@ -207,4 +208,132 @@ void main() {
     );
     expect(results.every((item) => item.feature == null), isTrue);
   });
+
+  test('searches administrative areas before map drag refinement', () {
+    const area = MapAdministrativeArea(
+      key: 'subdivision:內湖區:臺北市',
+      level: MapAdministrativeLevel.subdivision,
+      name: '內湖區',
+      displayName: '臺北市內湖區',
+      parent: '臺北市',
+      point: GeoPoint(longitude: 121.59, latitude: 25.08),
+    );
+
+    final results = MapSearchIndex(
+      const [],
+      administrativeAreas: const <MapAdministrativeArea>[area],
+    ).query('內湖區');
+
+    expect(results, hasLength(1));
+    expect(results.single.title, '臺北市內湖區');
+    expect(results.single.typeLabel, '行政區');
+    expect(results.single.coordinate, area.point);
+  });
+
+  test('returns a road contained in a longer address query', () {
+    final results = MapSearchIndex(
+      const [],
+      roadEntries: <TaiwanSearchEntry>[
+        TaiwanSearchEntry.fromJson(<String, dynamic>{
+          'id': 'way:success-road',
+          'name': '成功路',
+          'aliases': <String>[],
+          'kind': 'road',
+          'region': null,
+          'coordinate': <double>[121.59, 25.08],
+        }),
+      ],
+    ).query('臺北市內湖區成功路一段');
+
+    expect(results.single.title, '成功路');
+  });
+
+  test('adds nearby administrative context to an unlabelled road', () {
+    const county = MapAdministrativeArea(
+      key: 'county:新北市:',
+      level: MapAdministrativeLevel.county,
+      name: '新北市',
+      displayName: '新北市',
+      parent: null,
+      point: GeoPoint(longitude: 121.55, latitude: 25.05),
+    );
+    const subdivision = MapAdministrativeArea(
+      key: 'subdivision:三重區:新北市',
+      level: MapAdministrativeLevel.subdivision,
+      name: '三重區',
+      displayName: '三重區',
+      parent: '新北市',
+      point: GeoPoint(longitude: 121.487157, latitude: 25.063101),
+    );
+
+    final results = MapSearchIndex(
+      const [],
+      roadEntries: <TaiwanSearchEntry>[
+        TaiwanSearchEntry.fromJson(<String, dynamic>{
+          'id': 'way:wanquan-sanchong',
+          'name': '萬全街',
+          'aliases': <String>[],
+          'kind': 'road',
+          'region': null,
+          'coordinate': <double>[121.487157, 25.063101],
+        }),
+      ],
+      administrativeAreas: const <MapAdministrativeArea>[county, subdivision],
+    ).query('新北市三重區萬全街');
+
+    final road = results.singleWhere((result) => result.searchKind == 'road');
+    expect(road.region, '新北市三重區');
+  });
+
+  test(
+    'does not return unrelated roads from an administrative context match',
+    () {
+      const county = MapAdministrativeArea(
+        key: 'county:新北市:',
+        level: MapAdministrativeLevel.county,
+        name: '新北市',
+        displayName: '新北市',
+        parent: null,
+        point: GeoPoint(longitude: 121.55, latitude: 25.05),
+      );
+      const subdivision = MapAdministrativeArea(
+        key: 'subdivision:三重區:新北市',
+        level: MapAdministrativeLevel.subdivision,
+        name: '三重區',
+        displayName: '三重區',
+        parent: '新北市',
+        point: GeoPoint(longitude: 121.487157, latitude: 25.063101),
+      );
+
+      final results = MapSearchIndex(
+        const [],
+        roadEntries: <TaiwanSearchEntry>[
+          TaiwanSearchEntry.fromJson(<String, dynamic>{
+            'id': 'way:unrelated',
+            'name': '機慢車專用道',
+            'aliases': <String>[],
+            'kind': 'road',
+            'region': null,
+            'coordinate': <double>[121.4872, 25.0631],
+          }),
+          TaiwanSearchEntry.fromJson(<String, dynamic>{
+            'id': 'way:wanquan',
+            'name': '萬全街',
+            'aliases': <String>[],
+            'kind': 'road',
+            'region': null,
+            'coordinate': <double>[121.487157, 25.063101],
+          }),
+        ],
+        administrativeAreas: const <MapAdministrativeArea>[county, subdivision],
+      ).query('新北市三重區萬全街');
+
+      expect(
+        results
+            .where((result) => result.searchKind == 'road')
+            .map((result) => result.title),
+        everyElement('萬全街'),
+      );
+    },
+  );
 }

@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>ResilientGeo 前端流程預覽</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #17212b;
+        --muted: #65727e;
+        --paper: #f6f8f7;
+        --surface: #ffffff;
+        --line: #dce4e2;
+        --blue: #2563eb;
+        --blue-dark: #1748b5;
+        --orange: #e8792f;
+        --red: #c2413a;
+        --green: #237a55;
+        --shadow: 0 18px 50px rgba(23, 33, 43, 0.14);
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        color: var(--ink);
+        background: var(--paper);
+        font: 15px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif;
+      }
+
+      button, input, select, textarea { font: inherit; }
+
+      button {
+        border: 0;
+        cursor: pointer;
+      }
+
+      button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+        outline: 3px solid rgba(37, 99, 235, 0.28);
+        outline-offset: 2px;
+      }
+
+      .shell {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 28px 0 44px;
+      }
+
+      header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 22px;
+      }
+
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(24px, 4vw, 36px); letter-spacing: -0.03em; }
+      h2 { font-size: 19px; }
+      h3 { font-size: 16px; }
+      .eyebrow { color: var(--blue); font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+      .subtitle { margin-top: 5px; color: var(--muted); }
+
+      .badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--muted);
+        background: var(--surface);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+      .badge.mock::before { background: var(--orange); }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.75fr);
+        min-height: 690px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .map-wrap { position: relative; min-height: 690px; overflow: hidden; background: #dfe9e5; }
+      .map {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 60% 36%, rgba(151, 195, 165, 0.5), transparent 22%),
+          linear-gradient(145deg, rgba(255,255,255,0.45), transparent 40%),
+          #dce9e2;
+      }
+      .map::before {
+        content: "";
+        position: absolute;
+        inset: -15%;
+        opacity: 0.54;
+        background-image:
+          linear-gradient(28deg, transparent 47%, #c1d3ca 48%, #c1d3ca 49%, transparent 50%),
+          linear-gradient(118deg, transparent 47%, #bed0c8 48%, #bed0c8 49%, transparent 50%),
+          linear-gradient(4deg, transparent 47%, #cbdad4 48%, #cbdad4 49%, transparent 50%);
+        background-size: 210px 150px, 260px 210px, 330px 180px;
+        transform: rotate(-8deg);
+      }
+      .district {
+        position: absolute;
+        border: 2px solid rgba(90, 137, 116, 0.22);
+        border-radius: 48% 52% 42% 58%;
+        background: rgba(201, 226, 207, 0.38);
+      }
+      .district.one { width: 48%; height: 38%; left: 8%; top: 12%; transform: rotate(-18deg); }
+      .district.two { width: 45%; height: 32%; right: 3%; bottom: 14%; transform: rotate(22deg); }
+      .road {
+        position: absolute;
+        height: 7px;
+        border-radius: 9px;
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 0 0 2px rgba(151, 168, 160, 0.18);
+        transform-origin: left center;
+      }
+      .road.main { height: 12px; background: #f8f3df; box-shadow: 0 0 0 2px rgba(191, 173, 127, 0.28); }
+      .road.a { width: 72%; left: 4%; top: 32%; transform: rotate(17deg); }
+      .road.b { width: 69%; left: 32%; top: 60%; transform: rotate(-28deg); }
+      .road.c { width: 54%; left: 24%; top: 16%; transform: rotate(72deg); }
+      .road.d { width: 43%; left: 53%; top: 18%; transform: rotate(145deg); }
+      .road.e { width: 48%; left: 4%; top: 76%; transform: rotate(-9deg); }
+      .map.picking { cursor: crosshair; }
+      .map-label { position: absolute; color: rgba(45, 82, 64, 0.65); font-size: 13px; font-weight: 700; }
+      .map-label.neihu { left: 17%; top: 44%; }
+      .map-label.dahu { right: 14%; top: 24%; }
+      .map-label.river { left: 49%; bottom: 5%; color: rgba(50, 115, 153, 0.65); transform: rotate(-16deg); }
+
+      .map-toolbar {
+        position: absolute;
+        z-index: 5;
+        top: 18px;
+        left: 18px;
+        right: 18px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .map-status, .map-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .map-status { padding: 9px 12px; border: 1px solid rgba(255,255,255,0.8); border-radius: 12px; background: rgba(255,255,255,0.86); box-shadow: 0 8px 22px rgba(23,33,43,0.1); font-size: 12px; }
+      .action, .primary, .secondary, .danger {
+        min-height: 42px;
+        padding: 10px 14px;
+        border-radius: 11px;
+        font-weight: 750;
+        transition: transform 120ms ease, background 120ms ease;
+      }
+      .action:hover, .primary:hover, .secondary:hover, .danger:hover { transform: translateY(-1px); }
+      .action { color: var(--ink); background: rgba(255,255,255,0.94); box-shadow: 0 8px 22px rgba(23,33,43,0.12); }
+      .action.alert { color: #7f281f; }
+      .primary { color: #fff; background: var(--blue); }
+      .primary:hover { background: var(--blue-dark); }
+      .secondary { color: var(--ink); background: #edf2f1; }
+      .danger { color: #8d2e28; background: #f9e9e7; }
+      button[disabled] { cursor: not-allowed; opacity: 0.48; transform: none; }
+
+      .marker {
+        position: absolute;
+        z-index: 3;
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border: 4px solid #fff;
+        border-radius: 50% 50% 50% 0;
+        box-shadow: 0 7px 16px rgba(23,33,43,0.22);
+        transform: rotate(-45deg);
+      }
+      .marker span { transform: rotate(45deg); font-size: 19px; }
+      .marker.shelter { left: 33%; top: 49%; color: #fff; background: var(--green); }
+      .marker.shelter.two { left: 73%; top: 29%; background: #4b8f69; }
+      .marker.current { left: 50%; top: 69%; width: 24px; height: 24px; border: 5px solid rgba(255,255,255,0.95); border-radius: 50%; background: var(--blue); box-shadow: 0 0 0 8px rgba(37,99,235,0.18); transform: none; }
+      .marker.alert { display: none; left: 58%; top: 44%; color: #fff; background: var(--orange); }
+      .marker.alert.visible { display: grid; }
+      .marker.alert span { font-size: 18px; }
+
+      .route {
+        display: none;
+        position: absolute;
+        z-index: 2;
+        inset: 0;
+        pointer-events: none;
+      }
+      .route.visible { display: block; }
+      .route polyline { fill: none; stroke: rgba(37,99,235,0.2); stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; }
+      .route .core { fill: none; stroke: var(--blue); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1 0; }
+
+      .legend {
+        position: absolute;
+        z-index: 5;
+        bottom: 18px;
+        left: 18px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid rgba(255,255,255,0.9);
+        border-radius: 12px;
+        background: rgba(255,255,255,0.86);
+        color: var(--muted);
+        font-size: 12px;
+        box-shadow: 0 8px 22px rgba(23,33,43,0.1);
+      }
+      .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+      .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); }
+      .dot.blue { background: var(--blue); }
+      .dot.orange { background: var(--orange); }
+
+      .side {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        padding: 26px;
+        background: #fff;
+      }
+      .side-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+      .side-header p { margin-top: 4px; color: var(--muted); font-size: 13px; }
+      .mini-status { padding: 5px 8px; border-radius: 8px; color: var(--green); background: #e7f4ed; font-size: 12px; font-weight: 750; white-space: nowrap; }
+
+      .panel { padding: 22px 0; border-bottom: 1px solid var(--line); }
+      .panel:last-child { border-bottom: 0; }
+      .detail-grid { display: grid; grid-template-columns: 92px 1fr; gap: 7px 12px; margin-top: 14px; font-size: 14px; }
+      .detail-grid dt { color: var(--muted); }
+      .detail-grid dd { margin: 0; font-weight: 650; }
+      .panel-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+      .route-card { display: none; }
+      .route-card.visible { display: block; }
+      .route-card.loading .route-body { color: var(--muted); }
+      .route-metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 14px; }
+      .metric { padding: 10px; border-radius: 10px; background: #f1f5ff; }
+      .metric strong { display: block; color: var(--blue-dark); font-size: 17px; }
+      .metric span { color: var(--muted); font-size: 12px; }
+      .warning { margin-top: 12px; padding: 10px 12px; border-radius: 10px; color: #7d4b11; background: #fff4d7; font-size: 13px; }
+      .stale { margin-top: 12px; padding: 10px 12px; border-radius: 10px; color: #8a3029; background: #fae9e7; font-size: 13px; font-weight: 700; }
+      .unavailable { margin-top: 12px; padding: 10px 12px; border-radius: 10px; color: #7c4d16; background: #fff3d5; font-size: 13px; }
+      .route-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+      .small { min-height: 36px; padding: 7px 10px; border-radius: 9px; font-size: 13px; }
+      .hint { color: var(--muted); font-size: 13px; }
+
+      .modal-backdrop {
+        position: fixed;
+        z-index: 20;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 18px;
+        background: rgba(23,33,43,0.46);
+      }
+      .modal-backdrop[hidden] { display: none; }
+      .modal {
+        width: min(560px, 100%);
+        max-height: min(760px, calc(100vh - 36px));
+        overflow: auto;
+        padding: 24px;
+        border-radius: 20px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+      .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+      .close { width: 34px; height: 34px; border-radius: 50%; color: var(--muted); background: #edf2f1; font-size: 20px; }
+      .form-section { margin-top: 20px; }
+      .form-section > label, .form-section > .label { display: block; margin-bottom: 8px; font-weight: 750; }
+      .categories { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .category { padding: 10px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: #fff; text-align: left; }
+      .category.selected { border-color: var(--blue); color: var(--blue-dark); background: #eef4ff; box-shadow: inset 0 0 0 1px var(--blue); }
+      textarea, select { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; color: var(--ink); background: #fff; }
+      textarea { min-height: 90px; resize: vertical; }
+      .field-meta { display: flex; justify-content: space-between; margin-top: 5px; color: var(--muted); font-size: 12px; }
+      .location-box { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border: 1px dashed #b9c7c2; border-radius: 11px; background: #f7faf8; }
+      .location-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+      .location-state { color: var(--muted); font-size: 13px; }
+      .location-state.ready { color: var(--green); font-weight: 750; }
+      .form-error { min-height: 20px; margin-top: 8px; color: var(--red); font-size: 13px; }
+      .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+      .confirm { display: grid; gap: 12px; margin-top: 20px; padding: 14px; border-radius: 12px; background: #f5f8f7; }
+      .confirm-row { display: flex; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+      .confirm-row:last-child { border-bottom: 0; padding-bottom: 0; }
+      .confirm-row span:first-child { color: var(--muted); }
+
+      .toast {
+        position: fixed;
+        z-index: 30;
+        right: 20px;
+        bottom: 20px;
+        max-width: min(420px, calc(100% - 40px));
+        padding: 12px 15px;
+        border-radius: 12px;
+        color: #fff;
+        background: #1f2933;
+        box-shadow: var(--shadow);
+      }
+      .toast[hidden] { display: none; }
+
+      @media (max-width: 860px) {
+        .workspace { grid-template-columns: 1fr; }
+        .map-wrap { min-height: 520px; }
+        .side { min-height: 0; }
+      }
+
+      @media (max-width: 560px) {
+        .shell { width: min(100% - 20px, 1180px); padding-top: 18px; }
+        header { display: block; }
+        .badges { justify-content: flex-start; margin-top: 12px; }
+        .map-toolbar { display: block; }
+        .map-actions { margin-top: 9px; }
+        .action { min-height: 38px; padding: 8px 10px; font-size: 13px; }
+        .side { padding: 20px; }
+        .categories { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header>
+        <div>
+          <div class="eyebrow">ResilientGeo / Frontend Spike</div>
+          <h1>民眾告警與離線逃生路線</h1>
+          <p class="subtitle">這是 UI 流程 mock；地圖、GPS、簽章與 A* 路線均為模擬資料。</p>
+        </div>
+        <div class="badges" aria-label="mock 狀態">
+          <span class="badge">離線地圖預覽</span>
+          <span class="badge mock">HTML mock</span>
+        </div>
+      </header>
+
+      <section class="workspace" aria-label="ResilientGeo 功能預覽">
+        <section class="map-wrap" aria-label="模擬地圖">
+          <div class="map" id="map">
+            <div class="district one"></div>
+            <div class="district two"></div>
+            <div class="road main a"></div>
+            <div class="road main b"></div>
+            <div class="road c"></div>
+            <div class="road d"></div>
+            <div class="road e"></div>
+            <span class="map-label neihu">內湖區</span>
+            <span class="map-label dahu">大湖公園</span>
+            <span class="map-label river">基隆河</span>
+
+            <svg class="route" id="route-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="模擬逃生路線">
+              <polyline points="51,70 48,63 43,59 40,53 36,50 34,49"></polyline>
+              <polyline class="core" points="51,70 48,63 43,59 40,53 36,50 34,49"></polyline>
+            </svg>
+
+            <button class="marker shelter" type="button" data-shelter="潭美國小" aria-label="選擇避難所：潭美國小"><span>⌂</span></button>
+            <button class="marker shelter two" type="button" data-shelter="大湖國小" aria-label="選擇避難所：大湖國小"><span>⌂</span></button>
+            <div class="marker current" aria-label="目前位置" role="img"></div>
+            <button class="marker alert" id="alert-marker" type="button" aria-label="民眾告警：道路有落石"><span>!</span></button>
+          </div>
+
+          <div class="map-toolbar">
+            <div class="map-status"><strong>資料快照</strong>&nbsp; 2026-09-24T01:00Z · <span id="location-status">目前位置：已取得</span></div>
+            <div class="map-actions">
+              <button class="action alert" id="open-report" type="button">＋ 回報告警</button>
+              <button class="action" id="recommend-shelter" type="button">⌖ 推薦最近避難所</button>
+            </div>
+          </div>
+
+          <div class="legend" aria-label="地圖圖例">
+            <span class="legend-item"><i class="dot"></i>避難所</span>
+            <span class="legend-item"><i class="dot blue"></i>目前位置</span>
+            <span class="legend-item"><i class="dot orange"></i>未驗證告警</span>
+          </div>
+        </section>
+
+        <aside class="side" aria-label="詳情與路線摘要">
+          <div class="side-header">
+            <div>
+              <div class="eyebrow">Selected shelter</div>
+              <h2 id="shelter-title">潭美國小</h2>
+              <p id="shelter-subtitle">避難所詳情</p>
+            </div>
+            <span class="mini-status">開放</span>
+          </div>
+
+          <section class="panel" id="shelter-panel">
+            <h3>避難所資訊</h3>
+            <dl class="detail-grid">
+              <dt>地址</dt><dd id="shelter-address">內湖區新明路 22 號</dd>
+              <dt>預計容量</dt><dd>81 人</dd>
+              <dt>目前人數</dt><dd>無資料</dd>
+              <dt>適用災害</dt><dd>水災、震災</dd>
+              <dt>資料來源</dt><dd>taipei-shelter</dd>
+            </dl>
+            <div class="panel-actions">
+              <button class="primary" id="plan-route" type="button">⌁ 規劃逃生路線</button>
+              <button class="secondary" id="close-route" type="button" hidden>關閉路線</button>
+            </div>
+          </section>
+
+          <section class="panel route-card" id="route-card" aria-live="polite">
+            <h3>逃生路線摘要</h3>
+            <p class="route-body hint" id="route-body">正在讀取離線路網…</p>
+            <div class="route-metrics" id="route-metrics" hidden>
+              <div class="metric"><strong>1.20 km</strong><span>實際路網距離</span></div>
+              <div class="metric"><strong>15 分鐘</strong><span>預估步行時間</span></div>
+            </div>
+            <div class="warning" id="route-warning" hidden>⚠ 附近有未驗證告警，請現場確認；目前不自動封路。</div>
+            <div class="stale" id="route-stale" hidden>事件資料已更新，請重新計算路線。</div>
+            <div class="unavailable" id="route-unavailable" hidden>Android 離線路網尚未載入，這個 mock 不會用直線距離代替路線。</div>
+            <div class="route-tools">
+              <button class="primary small" id="recalculate-route" type="button" hidden>重新計算</button>
+              <button class="secondary small" id="simulate-event" type="button">模擬事件更新</button>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h3>目前 mock 狀態</h3>
+            <p class="hint">點地圖上的綠色避難所、使用「回報告警」，或按「模擬事件更新」查看不同流程。</p>
+            <div class="panel-actions">
+              <button class="secondary small" id="toggle-capability" type="button">模擬 Android 不可用</button>
+            </div>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <div class="modal-backdrop" id="report-modal" hidden>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="report-title">
+        <div class="modal-header">
+          <div>
+            <div class="eyebrow">Crowd report</div>
+            <h2 id="report-title">回報告警</h2>
+            <p class="hint">送出後會先標示為「未驗證／待同步」。</p>
+          </div>
+          <button class="close" id="close-report" type="button" aria-label="關閉回報告警">×</button>
+        </div>
+
+        <div id="report-form-view">
+          <div class="form-section">
+            <span class="label">告警類型</span>
+            <div class="categories" role="group" aria-label="告警類型">
+              <button class="category selected" type="button" data-category="道路阻斷">道路阻斷</button>
+              <button class="category" type="button" data-category="淹水">淹水</button>
+              <button class="category" type="button" data-category="火災／煙霧">火災／煙霧</button>
+              <button class="category" type="button" data-category="受困／受傷">受困／受傷</button>
+              <button class="category" type="button" data-category="其他">其他</button>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <label for="report-description">簡短描述</label>
+            <textarea id="report-description" maxlength="160" placeholder="例如：路口有落石，請注意通行安全"></textarea>
+            <div class="field-meta"><span>最多 160 字</span><span id="description-count">0 / 160</span></div>
+          </div>
+
+          <div class="form-section">
+            <span class="label">告警位置</span>
+            <div class="location-box">
+              <span class="location-state" id="report-location">尚未設定位置</span>
+              <div class="location-actions">
+                <button class="secondary small" id="use-current-location" type="button">使用目前位置</button>
+                <button class="secondary small" id="pick-map-location" type="button">地圖上選擇</button>
+              </div>
+            </div>
+            <p class="hint" style="margin-top: 8px;">選擇後會回到表單，繼續確認告警內容。</p>
+          </div>
+
+          <p class="form-error" id="report-error" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button class="secondary" id="cancel-report" type="button">取消</button>
+            <button class="primary" id="review-report" type="button">確認內容</button>
+          </div>
+        </div>
+
+        <div id="report-confirm-view" hidden>
+          <div class="confirm" aria-label="告警確認內容">
+            <div class="confirm-row"><span>類型</span><strong id="confirm-category"></strong></div>
+            <div class="confirm-row"><span>描述</span><strong id="confirm-description"></strong></div>
+            <div class="confirm-row"><span>位置</span><strong id="confirm-location"></strong></div>
+            <div class="confirm-row"><span>送出狀態</span><strong>未驗證／待同步</strong></div>
+          </div>
+          <div class="modal-actions">
+            <button class="secondary" id="edit-report" type="button">返回修改</button>
+            <button class="primary" id="submit-report" type="button">確認送出</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script>
+      (() => {
+        const state = {
+          category: "道路阻斷",
+          description: "",
+          location: null,
+          routeVisible: false,
+          routeStale: false,
+          reportSubmitted: false,
+          unavailable: false,
+          pickingLocation: false,
+        };
+
+        const $ = (id) => document.getElementById(id);
+        const reportModal = $("report-modal");
+        const reportFormView = $("report-form-view");
+        const reportConfirmView = $("report-confirm-view");
+        const description = $("report-description");
+
+        function showToast(message) {
+          const toast = $("toast");
+          toast.textContent = message;
+          toast.hidden = false;
+          window.clearTimeout(showToast.timer);
+          showToast.timer = window.setTimeout(() => { toast.hidden = true; }, 3200);
+        }
+
+        function openReport() {
+          reportModal.hidden = false;
+          reportFormView.hidden = false;
+          reportConfirmView.hidden = true;
+          $("report-error").textContent = "";
+          window.setTimeout(() => description.focus(), 0);
+        }
+
+        function closeReport() {
+          reportModal.hidden = true;
+        }
+
+        function updateDescriptionCount() {
+          state.description = description.value;
+          $("description-count").textContent = `${description.value.length} / 160`;
+        }
+
+        function updateLocation(label, ready) {
+          state.location = ready ? label : null;
+          const target = $("report-location");
+          target.textContent = ready ? `已設定：${label}` : "尚未設定位置";
+          target.classList.toggle("ready", ready);
+        }
+
+        function beginMapLocationPick() {
+          state.pickingLocation = true;
+          closeReport();
+          $("map").classList.add("picking");
+          showToast("請點選地圖上的位置；點選避難所標記不會改變位置。");
+        }
+
+        function finishMapLocationPick() {
+          state.pickingLocation = false;
+          $("map").classList.remove("picking");
+          updateLocation("地圖點選（25.0800, 121.5950）", true);
+          openReport();
+          showToast("已設定地圖點選位置。");
+        }
+
+        function validateReport() {
+          if (!state.description.trim()) return "請提供簡短描述。";
+          if (!state.location) return "請先設定告警位置。";
+          return "";
+        }
+
+        function reviewReport() {
+          const error = validateReport();
+          $("report-error").textContent = error;
+          if (error) return;
+          $("confirm-category").textContent = state.category;
+          $("confirm-description").textContent = state.description;
+          $("confirm-location").textContent = state.location;
+          reportFormView.hidden = true;
+          reportConfirmView.hidden = false;
+        }
+
+        function submitReport() {
+          state.reportSubmitted = true;
+          $("alert-marker").classList.add("visible");
+          closeReport();
+          showToast("告警已建立：未驗證／待同步");
+          $("route-warning").hidden = false;
+        }
+
+        function selectShelter(name) {
+          $("shelter-title").textContent = name;
+          if (name === "大湖國小") {
+            $("shelter-address").textContent = "北投區大湖山莊路 10 號";
+          } else {
+            $("shelter-address").textContent = "內湖區新明路 22 號";
+          }
+          showToast(`已選擇避難所：${name}`);
+        }
+
+        function setRouteLoading() {
+          state.routeVisible = true;
+          state.routeStale = false;
+          $("route-card").classList.add("visible", "loading");
+          $("route-line").classList.remove("visible");
+          $("route-body").textContent = "正在讀取離線路網…";
+          $("route-metrics").hidden = true;
+          $("route-stale").hidden = true;
+          $("route-unavailable").hidden = state.unavailable === false;
+          $("route-warning").hidden = !state.reportSubmitted;
+          $("recalculate-route").hidden = true;
+          $("close-route").hidden = false;
+        }
+
+        function finishRoute() {
+          $("route-card").classList.remove("loading");
+          if (state.unavailable) {
+            $("route-body").textContent = "目前無法計算路線";
+            $("route-metrics").hidden = true;
+            $("route-line").classList.remove("visible");
+            $("route-unavailable").hidden = false;
+            $("recalculate-route").hidden = false;
+            return;
+          }
+          $("route-body").textContent = "資料版本：taiwan-walk-v1 · 事件快照：2026-09-24T01:00Z";
+          $("route-metrics").hidden = false;
+          $("route-line").classList.add("visible");
+          $("route-unavailable").hidden = true;
+        }
+
+        function planRoute() {
+          setRouteLoading();
+          window.setTimeout(finishRoute, 420);
+        }
+
+        function closeRoute() {
+          state.routeVisible = false;
+          state.routeStale = false;
+          $("route-card").classList.remove("visible", "loading");
+          $("route-line").classList.remove("visible");
+          $("route-stale").hidden = true;
+          $("close-route").hidden = true;
+        }
+
+        function simulateEventUpdate() {
+          if (!state.routeVisible) {
+            showToast("請先規劃一條逃生路線，再模擬事件更新。");
+            return;
+          }
+          state.routeStale = true;
+          $("route-stale").hidden = false;
+          $("recalculate-route").hidden = false;
+          showToast("事件資料已更新，路線需要重新計算。");
+        }
+
+        function toggleCapability() {
+          state.unavailable = !state.unavailable;
+          $("toggle-capability").textContent = state.unavailable ? "恢復 Android mock" : "模擬 Android 不可用";
+          showToast(state.unavailable ? "已模擬 Android 離線路網不可用。" : "已恢復 Android mock 路線服務。");
+          if (state.routeVisible) planRoute();
+        }
+
+        document.querySelectorAll("[data-category]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.category = button.dataset.category;
+            document.querySelectorAll("[data-category]").forEach((item) => item.classList.toggle("selected", item === button));
+          });
+        });
+
+        document.querySelectorAll("[data-shelter]").forEach((button) => {
+          button.addEventListener("click", () => selectShelter(button.dataset.shelter));
+        });
+
+        $("map").addEventListener("click", (event) => {
+          if (!state.pickingLocation || event.target.closest(".marker")) return;
+          finishMapLocationPick();
+        });
+
+        description.addEventListener("input", updateDescriptionCount);
+        $("open-report").addEventListener("click", openReport);
+        $("close-report").addEventListener("click", closeReport);
+        $("cancel-report").addEventListener("click", closeReport);
+        $("review-report").addEventListener("click", reviewReport);
+        $("edit-report").addEventListener("click", () => {
+          reportFormView.hidden = false;
+          reportConfirmView.hidden = true;
+        });
+        $("submit-report").addEventListener("click", submitReport);
+        $("use-current-location").addEventListener("click", () => {
+          updateLocation("目前位置（25.0835, 121.5903）", true);
+          showToast("已使用目前位置。");
+        });
+        $("pick-map-location").addEventListener("click", beginMapLocationPick);
+        $("plan-route").addEventListener("click", planRoute);
+        $("close-route").addEventListener("click", closeRoute);
+        $("recalculate-route").addEventListener("click", planRoute);
+        $("simulate-event").addEventListener("click", simulateEventUpdate);
+        $("toggle-capability").addEventListener("click", toggleCapability);
+        $("recommend-shelter").addEventListener("click", () => {
+          selectShelter("潭美國小");
+          showToast("已依目前位置推薦最近的可用避難所。");
+        });
+        $("alert-marker").addEventListener("click", () => showToast("民眾告警：道路有落石 · 未驗證／待同步"));
+
+        reportModal.addEventListener("click", (event) => {
+          if (event.target === reportModal) closeReport();
+        });
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && !reportModal.hidden) closeReport();
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -45,6 +45,12 @@ class MapAdministrativeIndex {
   final List<MapAdministrativeArea> subdivisions;
   final List<MapAdministrativeArea> villages;
 
+  List<MapAdministrativeArea> get searchableAreas => <MapAdministrativeArea>[
+    ...counties,
+    ...subdivisions,
+    ...villages,
+  ];
+
   factory MapAdministrativeIndex.fromJson(Map<String, dynamic> json) {
     final rawFeatures = json['features'];
     if (rawFeatures is! List) return const MapAdministrativeIndex.empty();
@@ -165,6 +171,30 @@ class MapAdministrativeIndex {
       return subdivision ?? nearest(point, level);
     }
     return nearest(point, MapAdministrativeLevel.village);
+  }
+
+  /// Returns a local display context for a coordinate.
+  ///
+  /// These are representative label points, not reverse-geocoded addresses.
+  /// The value is therefore only used to disambiguate local search results.
+  String? contextLabelFor(GeoPoint point) {
+    final county = nearest(point, MapAdministrativeLevel.county);
+    final subdivision = nearest(
+      point,
+      MapAdministrativeLevel.subdivision,
+      parent: county?.name,
+    );
+    if (subdivision != null) {
+      final subdivisionName = subdivision.displayName;
+      final parent = subdivision.parent ?? county?.displayName;
+      if (parent != null &&
+          parent.isNotEmpty &&
+          !subdivisionName.startsWith(parent)) {
+        return '$parent$subdivisionName';
+      }
+      return subdivisionName;
+    }
+    return county?.displayName;
   }
 }
 
