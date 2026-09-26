@@ -49,6 +49,18 @@
             android:name=".transport.PeerSyncMilestoneActivity"
             android:exported="true"
             tools:replace="android:exported" />
+
+        <!-- Debug-only crowd report export / official chunk import for the
+             attestation demo (see CrowdDebugReceiver). Exported so adb's
+             `am broadcast` can reach it; absent from release builds. -->
+        <receiver
+            android:name=".debug.CrowdDebugReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.resilientgeo.mesh.debug.EXPORT_CROWD_REPORTS" />
+                <action android:name="com.resilientgeo.mesh.debug.IMPORT_CHUNKS" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

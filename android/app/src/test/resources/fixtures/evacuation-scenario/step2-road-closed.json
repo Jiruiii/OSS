@@ -1,0 +1,79 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "evacuation-demo-road:chunk:1:xihu:road:000",
+  "manifest_id": "evacuation-demo-road:manifest:1",
+  "dataset_id": "evacuation-demo-road",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 0,
+  "priority": "HIGH",
+  "area_id": "neihu.xihu",
+  "theme": "road",
+  "bbox": [
+    121.56553,
+    25.082435,
+    121.565574,
+    25.082615
+  ],
+  "created_at": "2026-09-26T08:00:00Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.tdx",
+      "event_id": "road:w1462339230-xihu-demo",
+      "event_type": "ROAD_STATUS",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            121.5655301,
+            25.0824345
+          ],
+          [
+            121.5655446,
+            25.0824976
+          ],
+          [
+            121.5655737,
+            25.082615
+          ]
+        ]
+      },
+      "severity": "HIGH",
+      "source": "TDX",
+      "source_version": "evacuation-demo-1",
+      "event_version": 1,
+      "issued_at": "2026-09-26T08:00:00Z",
+      "expires_at": "2099-01-01T00:00:00Z",
+      "attributes": {
+        "status": "CLOSED",
+        "road_name": "西湖示範封閉路段",
+        "reason": "demo",
+        "synthetic_notice": "合成模擬資料，不代表真實災況",
+        "area_id": "neihu.xihu",
+        "theme": "road"
+      },
+      "signing_key_id": "evacuation-scenario-demo-2026",
+      "provenance": {
+        "original_source": "evacuation-scenario-demo",
+        "received_at": "2026-09-26T08:00:00Z",
+        "transport_source": {
+          "kind": "local_fixture",
+          "node_id": "evacuation-scenario"
+        }
+      },
+      "payload_hash": "sha256:379d419e28cb6cb669091e59f51b85a3028b18eb33e97cd86a3c575489a9339d",
+      "signature_algorithm": "Ed25519",
+      "signature": "xvp0lS4AfKGXTfiPZafXEvGmRxMZ94JpSWjKPObAXJzTfg2xasn6YTiVBu2tdBCpAW6xan6hV9fWgWbaV2GtBQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "evacuation-scenario-demo-2026",
+  "byte_length": 1316,
+  "chunk_hash": "sha256:c45049cad34fc5aef94518fa688e226b407afe915cd0f991d1e17454b3a17cf2",
+  "manifest_hash": "sha256:99f3c0d5f153fad3c3fb00f3431e7c72061e18eb8c0c98eeb8bc12fc5176aa77",
+  "signature": "RNjMUTJoqLuIw2VDOQj6wEQIC+BvO1mxjwwqw4w4EpkykWModtdYMH4+D/qlTQxV5US8Ci0EW9IiNAKebUeMCA=="
+}

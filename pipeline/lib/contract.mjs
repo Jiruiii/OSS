@@ -11,6 +11,7 @@ import {
 } from './canonical.mjs';
 import { signCanonical } from './crypto.mjs';
 import { bboxOfEvents } from './geo.mjs';
+import { isDeviceKeyId, resolveDeviceKey } from './device-key.mjs';
 
 const EVENT_REQUIRED = [
   'schema_version',
@@ -111,6 +112,11 @@ export function validateEventShape(event) {
   }
   if (!validBase64(event.signature)) errors.push('signature must be base64');
   if (event.signature_algorithm !== 'Ed25519') errors.push('signature_algorithm must be Ed25519');
+  if ('signer_public_key' in event && !validBase64(event.signer_public_key)) {
+    errors.push('signer_public_key must be base64');
+  } else if (isDeviceKeyId(event.signing_key_id) && !('signer_public_key' in event)) {
+    errors.push('signer_public_key is required for device-signed events');
+  }
   if (!isObject(event.provenance)) {
     errors.push('provenance must be an object');
   } else {
@@ -149,7 +155,16 @@ function trustedKey(event, trustedKeyIds) {
 export function verifyEvent(event, publicKey, options = {}) {
   const errors = validateEventShape(event);
   if (errors.length > 0) return { valid: false, stage: 'schema', errors, current: false };
-  if (!trustedKey(event, options.trustedKeyIds)) {
+  // Two trust paths. A `device:` key is self-certifying (its id is the
+  // fingerprint of the embedded public key) and is accepted only for crowd.*;
+  // it can never reach the official path below, so relaxing crowd trust cannot
+  // loosen official.*. Every other key must be on the caller's trusted list.
+  let verificationKey = publicKey;
+  if (isDeviceKeyId(event.signing_key_id)) {
+    const device = resolveDeviceKey(event);
+    if (!device.key) return { valid: false, stage: 'trust', errors: [device.error], current: false };
+    verificationKey = device.key;
+  } else if (!trustedKey(event, options.trustedKeyIds)) {
     return { valid: false, stage: 'trust', errors: ['signing_key_id is not trusted'], current: false };
   }
   const expectedHash = sha256Canonical(eventPayload(event));
@@ -162,7 +177,7 @@ export function verifyEvent(event, publicKey, options = {}) {
       current: false,
     };
   }
-  if (!publicKey || !verifyCanonical(eventSignatureInput(event), event.signature, publicKey)) {
+  if (!verificationKey || !verifyCanonical(eventSignatureInput(event), event.signature, verificationKey)) {
     return { valid: false, stage: 'signature', errors: ['signature_invalid'], current: false };
   }
   const now = options.now ? new Date(options.now) : new Date();
@@ -204,7 +219,7 @@ export function verifyManifest(manifest, publicKey, options = {}) {
   return { valid: true, expired, current: !expired, errors: [] };
 }
 
-function validateChunkShape(chunk) {
+export function validateChunkShape(chunk) {
   const errors = [];
   if (!isObject(chunk)) return ['chunk must be an object'];
   for (const field of ['schema_version', 'chunk_id', 'manifest_id', 'manifest_hash', 'dataset_id', 'namespace', 'created_at', 'area_id', 'theme', 'bbox', 'content_type', 'content_encoding', 'chunk_hash', 'events', 'signature', 'signature_algorithm', 'signing_key_id']) {

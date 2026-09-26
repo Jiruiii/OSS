@@ -1,6 +1,6 @@
-# Demo 腳本（模擬器）
+# Demo 腳本
 
-目的：不需要實機，也能展示「只交換彼此缺少的分片」與三種策略的差異。約 5 分鐘。
+第 1–4 節用模擬器，不需要實機，展示「只交換彼此缺少的分片」與三種策略的差異，約 5 分鐘。第 5–6 節是民眾回報與逃生路線，需要實機（debug build）。
 
 ## 0. 前置
 
@@ -55,3 +55,45 @@ sed -n '1,40p' experiments/results/report.md
 （3.8–4.4 KB/s），不再是憑感覺的數字；`contact_probability`（社交接觸機率）與
 `transfer_failure_prob`（傳輸失敗率）目前沒有對應的實機數據可以直接套，仍是工程估計值。
 改 `sim-config.json` 一個檔就能重跑整份報告。詳見 `experiments/limitations.md`。
+
+---
+
+## 5. 民眾回報與政府查證（實機，debug build）
+
+前置：兩到三台手機裝 debug APK，都開 Emergency Mode；筆電有 Node.js。官方金鑰要先進 App 的信任清單：
+
+```
+node pipeline/cli.mjs keygen --out-dir .stage2-keys --key-id gov-attest-demo-2026
+node -e "const c=require('node:crypto');console.log(c.createPublicKey(require('node:fs').readFileSync('.stage2-keys/public-key.pem')).export({format:'der',type:'spki'}).toString('base64'))"
+# 把輸出以 "gov-attest-demo-2026": "<base64>" 加進 android/app/src/main/assets/trust/trusted-keys.json，重新 build 並安裝
+```
+
+1. A 在地圖按「回報告警」，選類別、位置，確認送出。地圖出現紫色標記，詳情寫「未經查證，僅供參考」。
+2. B、C 靠近 A；幾分鐘內它們的地圖也出現同一筆紫色回報（`signing_key_id` 是 A 的）。
+3. 從任何一台匯出回報並交給筆電（上行 demo 版）：
+
+```
+adb shell am broadcast -a com.resilientgeo.mesh.debug.EXPORT_CROWD_REPORTS -n com.resilientgeo.mesh/.debug.CrowdDebugReceiver
+adb pull /sdcard/Android/data/com.resilientgeo.mesh/files/crowd-export/ .stage2-bundle/crowd-export
+node pipeline/cli.mjs attest --report .stage2-bundle/crowd-export/<檔名>.json --event-id <回報 event_id> --verdict CONFIRMED --private-key .stage2-keys/private-key.pem --key-id gov-attest-demo-2026 --out .stage2-bundle/attestation.json
+node pipeline/cli.mjs build --input .stage2-bundle/attestation.json --out-dir .stage2-bundle/attest --private-key .stage2-keys/private-key.pem --key-id gov-attest-demo-2026
+```
+
+4. 把分片放回任何一台手機（下行 demo 版），再由 mesh 傳給其他手機：
+
+```
+adb push .stage2-bundle/attest/chunks/. /sdcard/Android/data/com.resilientgeo.mesh/files/chunk-import/
+adb shell am broadcast -a com.resilientgeo.mesh.debug.IMPORT_CHUNKS -n com.resilientgeo.mesh/.debug.CrowdDebugReceiver
+```
+
+5. A、B、C 的回報改為青綠色，詳情寫「已查證（官方確認）」。用 `--verdict REFUTED --previous .stage2-bundle/attestation.json` 再跑一次，回報會從地圖消失，通知頁顯示「查證為假」。
+
+## 6. 離線逃生路線（實機）
+
+情境檔：`data/fixtures/neihu/evacuation-scenario.json`（合成事件，建立在真實 OSM 幾何上；由 `pipeline/tools/generate-evacuation-scenario.mjs` 產生）。前置：Android 需要已驗證的避難所圖層，否則地圖上沒有避難所可選——依 `pipeline/README.md`「Task 5」用 `build-layer` 產生 `shelter` layer，放到 `android/app/src/main/assets/static/taiwan/shelter/`。
+
+1. 飛航模式，把位置設在 121.566, 25.081（西湖），按「推薦最近避難所」：推薦 **西湖國小**，約 370 m。
+2. 送來封路事件（mesh 或 debug 匯入 `android/app/src/main/assets/fixtures/evacuation-scenario/step2-road-closed.json`）：畫面提示「路線資訊已變更」，重新計算後仍是西湖國小，但改走另一條路（約 480 m），結果列出被避開的封路。
+3. 送來 `step3-shelter-full.json`（西湖國小額滿）：重新推薦後改為 **西湖國中**（約 670 m）。
+
+同一組步驟在 JVM 裡由 `EvacuationScenarioTest` 自動重播。

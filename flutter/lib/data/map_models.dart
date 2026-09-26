@@ -126,6 +126,10 @@ class StaticFeature {
   );
 }
 
+/// Display state of a crowd report after government review (see
+/// attestation_index.dart). Android's apply state is not changed by it.
+enum CrowdVerification { unverified, confirmed, refuted }
+
 class MeshEvent {
   const MeshEvent({
     required this.namespace,
@@ -139,6 +143,9 @@ class MeshEvent {
     required this.applyState,
     required this.geometry,
     required this.attributes,
+    this.payloadHash,
+    this.signingKeyId,
+    this.verification,
   });
 
   final String? namespace;
@@ -152,6 +159,11 @@ class MeshEvent {
   final String? applyState;
   final MapGeometry? geometry;
   final Map<String, dynamic>? attributes;
+  final String? payloadHash;
+  final String? signingKeyId;
+
+  /// Set only on crowd events, by AttestationIndex, for presentation.
+  final CrowdVerification? verification;
 
   factory MeshEvent.fromJson(Map<String, dynamic> json) => MeshEvent(
     namespace: _asString(json['namespace']),
@@ -165,6 +177,25 @@ class MeshEvent {
     applyState: _asString(json['apply_state']),
     geometry: MapGeometry.fromJson(json['geometry']),
     attributes: _asStringMap(json['attributes']),
+    payloadHash: _asString(json['payload_hash']),
+    signingKeyId: _asString(json['signing_key_id']),
+  );
+
+  MeshEvent copyWithVerification(CrowdVerification value) => MeshEvent(
+    namespace: namespace,
+    eventId: eventId,
+    eventVersion: eventVersion,
+    eventType: eventType,
+    severity: severity,
+    source: source,
+    issuedAt: issuedAt,
+    expiresAt: expiresAt,
+    applyState: applyState,
+    geometry: geometry,
+    attributes: attributes,
+    payloadHash: payloadHash,
+    signingKeyId: signingKeyId,
+    verification: value,
   );
 
   /// Android's persisted apply_state is authoritative; expires_at is display data.
@@ -185,6 +216,18 @@ class MeshEvent {
     if (expires == null || !expires.isAfter(reference)) return false;
     return issued == null || !issued.isAfter(reference);
   }
+
+  /// Whether the map should draw this event now: current official data, plus
+  /// live UNVERIFIED crowd reports, which are shown (marked as unverified)
+  /// rather than hidden. Expired events are never drawn.
+  bool isShownAt([DateTime? now]) {
+    if (applyState != 'UNVERIFIED') return isCurrentAt(now);
+    final expires = _parseEventTime(expiresAt);
+    return expires != null && expires.isAfter((now ?? DateTime.now()).toUtc());
+  }
+
+  bool get isUnverified =>
+      applyState == 'UNVERIFIED' && verification != CrowdVerification.confirmed;
 }
 
 DateTime? _parseEventTime(String? value) {

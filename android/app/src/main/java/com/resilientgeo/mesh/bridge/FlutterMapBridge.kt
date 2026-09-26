@@ -1,7 +1,11 @@
 package com.resilientgeo.mesh.bridge
 
 import android.content.Context
+import com.resilientgeo.mesh.data.CrowdReportResult
 import com.resilientgeo.mesh.data.MeshRepository
+import com.resilientgeo.mesh.routing.EvacuationRouteService
+import com.resilientgeo.mesh.routing.RouteResult
+import com.resilientgeo.mesh.routing.RouteStatus
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -15,10 +19,21 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.Instant
 
 /**
  * Android-owned bridge for the Flutter map. It reads verified events from the
  * repository and never gives Flutter a Room write path.
+ *
+ * `submitCrowdReport` is a write *request*, not a write path: Flutter supplies
+ * only form fields. Assembling the event, signing it with the device key,
+ * verifying it and storing it all happen in [MeshRepository.createCrowdReport]
+ * through the same EventIngestor a report from a peer goes through, so Flutter
+ * can neither choose a namespace, a key, an apply state nor skip verification.
+ *
+ * `calculateEvacuationRoute` is read-only and fully offline: the bundled walk
+ * graph plus verified Room events ([EvacuationRouteService]).
  */
 class FlutterMapBridge(
     context: Context,
@@ -29,6 +44,10 @@ class FlutterMapBridge(
         SharedPreferencesEmergencyModeState(context),
     ),
     private val onEmergencyModeChanged: (Boolean) -> Unit = {},
+    private val routeService: EvacuationRouteService = EvacuationRouteService(
+        graphLoader = EvacuationRouteService.assetGraphLoader(context),
+        eventJsonProvider = { repository.allEventsSnapshot().map { it.eventJson } },
+    ),
 ) : MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -46,6 +65,8 @@ class FlutterMapBridge(
             METHOD_GET_INITIAL_STATE -> getInitialState(result)
             METHOD_LOAD_BUNDLED_FIXTURE -> loadBundledFixture(result)
             METHOD_SET_EMERGENCY_MODE -> setEmergencyMode(call, result)
+            METHOD_SUBMIT_CROWD_REPORT -> submitCrowdReport(call, result)
+            METHOD_CALCULATE_EVACUATION_ROUTE -> calculateEvacuationRoute(call, result)
             else -> result.notImplemented()
         }
     }
@@ -124,12 +145,54 @@ class FlutterMapBridge(
         }
     }
 
+    private fun submitCrowdReport(call: MethodCall, result: MethodChannel.Result) {
+        val input = MapBridgeProtocol.crowdReportInput(call.arguments)
+        if (input == null) {
+            result.error(INVALID_INPUT, "submitCrowdReport arguments do not match the contract", null)
+            return
+        }
+        scope.launch {
+            when (val created = repository.createCrowdReport(input)) {
+                is CrowdReportResult.Created ->
+                    result.success(MapBridgeProtocol.crowdReportCreated(created.eventId, created.applyState.name))
+                is CrowdReportResult.Invalid ->
+                    result.error(INVALID_INPUT, created.errors.joinToString("; "), null)
+                is CrowdReportResult.SigningUnavailable ->
+                    result.error(SIGNING_UNAVAILABLE, created.message, null)
+                is CrowdReportResult.StorageUnavailable ->
+                    result.error(STORAGE_UNAVAILABLE, created.message, null)
+            }
+        }
+    }
+
+    private fun calculateEvacuationRoute(call: MethodCall, result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                val request = MapBridgeProtocol.routeRequest(call.arguments)
+                val route = if (request == null) {
+                    RouteResult.failure(RouteStatus.INVALID_INPUT, Instant.now().toString())
+                } else {
+                    withContext(Dispatchers.Default) { routeService.calculate(request) }
+                }
+                result.success(MapBridgeProtocol.routeResult(route))
+            } catch (error: Throwable) {
+                result.error(ROUTE_ENGINE_ERROR, error.message, null)
+            }
+        }
+    }
+
     private companion object {
         const val METHOD_CHANNEL_NAME = "com.resilientgeo.mesh/map"
         const val EVENT_CHANNEL_NAME = "com.resilientgeo.mesh/events"
         const val METHOD_GET_INITIAL_STATE = "getInitialState"
         const val METHOD_LOAD_BUNDLED_FIXTURE = "loadBundledFixture"
         const val METHOD_SET_EMERGENCY_MODE = "setEmergencyMode"
+        const val METHOD_SUBMIT_CROWD_REPORT = "submitCrowdReport"
+        const val METHOD_CALCULATE_EVACUATION_ROUTE = "calculateEvacuationRoute"
+        const val INVALID_INPUT = "invalid_input"
+        const val SIGNING_UNAVAILABLE = "signing_unavailable"
+        const val STORAGE_UNAVAILABLE = "storage_unavailable"
+        const val ROUTE_ENGINE_ERROR = "route_engine_error"
         const val INVALID_ARGUMENTS = "invalid_arguments"
         const val METHOD_ERROR = "map_bridge_error"
         const val EVENT_OBSERVATION_ERROR = "event_observation_error"

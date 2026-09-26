@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../data/crowd_report_models.dart';
 import '../data/map_administrative.dart';
 import '../data/map_models.dart';
 import '../data/map_zoom.dart';
@@ -146,7 +147,7 @@ class MapLayers {
       ),
       if (showEvents)
         ...events
-            .where((event) => event.isCurrentAt(eventNow))
+            .where((event) => event.isShownAt(eventNow))
             .where(isMapVisibleEvent)
             .where((event) => meshEventFocusPoint(event) != null)
             .map(
@@ -744,6 +745,9 @@ String featureName(StaticFeature feature) {
 
 String eventName(MeshEvent event) {
   final attributes = event.attributes;
+  if (event.eventType == 'CROWD_REPORT') {
+    return '民眾回報：${crowdCategoryLabel(attributes?['category'])}';
+  }
   for (final key in <String>[
     'name',
     'title',
@@ -757,8 +761,17 @@ String eventName(MeshEvent event) {
   return event.eventType ?? event.eventId ?? '未命名事件';
 }
 
+/// Crowd reports get their own colours so they can never be mistaken for
+/// official data: purple while unverified, teal once officially confirmed.
+const unverifiedEventColor = Color(0xFF7C3AED);
+const confirmedCrowdEventColor = Color(0xFF0F766E);
+
 Color eventColor(MeshEvent event) {
   if (event.isExpired) return const Color(0xFF64748B);
+  if (event.verification == CrowdVerification.confirmed) {
+    return confirmedCrowdEventColor;
+  }
+  if (event.isUnverified) return unverifiedEventColor;
   return switch (event.severity) {
     'CRITICAL' => const Color(0xFFD92D20),
     'HIGH' => const Color(0xFFF97316),

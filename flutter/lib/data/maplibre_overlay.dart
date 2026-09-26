@@ -90,6 +90,8 @@ List<double> _routeCoordinate(GeoPoint point) => <double>[
 
 String eventColorHex(MeshEvent event) {
   if (event.isExpired) return '#616161';
+  if (event.verification == CrowdVerification.confirmed) return '#0F766E';
+  if (event.isUnverified) return '#7C3AED';
   return switch (event.severity) {
     'CRITICAL' => '#C62828',
     'HIGH' => '#EF6C00',

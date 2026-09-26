@@ -26,6 +26,15 @@ extension CrowdReportCategoryWire on CrowdReportCategory {
   };
 }
 
+/// Label for a category as it arrives on a stored event; unknown values are
+/// shown as-is rather than guessed.
+String crowdCategoryLabel(Object? wireValue) {
+  for (final category in CrowdReportCategory.values) {
+    if (category.wireValue == wireValue) return category.label;
+  }
+  return wireValue is String && wireValue.isNotEmpty ? wireValue : '未分類';
+}
+
 enum CrowdReportLocationSource { currentLocation, mapPick }
 
 extension CrowdReportLocationSourceWire on CrowdReportLocationSource {

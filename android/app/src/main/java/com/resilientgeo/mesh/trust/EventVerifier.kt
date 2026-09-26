@@ -43,10 +43,20 @@ object EventVerifier {
             return VerificationResult.Invalid(VerificationResult.Stage.SCHEMA, shapeErrors)
         }
 
+        // Two trust paths, matching verifyEvent() in contract.mjs line for line.
+        // A `device:` key is self-certifying and accepted only for crowd.*
+        // (DeviceKeys.resolve); it never falls through to the bundled trust
+        // store, so adding crowd reports cannot loosen official.* trust.
         val signingKeyId = event.getString("signing_key_id")
-        val publicKey = trustStore.publicKeyFor(signingKeyId)
-        if (publicKey == null) {
-            return VerificationResult.Invalid(VerificationResult.Stage.TRUST, listOf("signing_key_id is not trusted"))
+        val publicKey = if (DeviceKeys.isDeviceKeyId(signingKeyId)) {
+            when (val device = DeviceKeys.resolve(event)) {
+                is DeviceKeys.Resolution.Resolved -> device.publicKey
+                is DeviceKeys.Resolution.Rejected ->
+                    return VerificationResult.Invalid(VerificationResult.Stage.TRUST, listOf(device.error))
+            }
+        } else {
+            trustStore.publicKeyFor(signingKeyId)
+                ?: return VerificationResult.Invalid(VerificationResult.Stage.TRUST, listOf("signing_key_id is not trusted"))
         }
 
         val expectedHash = Canonical.sha256Canonical(eventPayload(event))

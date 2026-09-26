@@ -103,6 +103,7 @@ class _MapAppHomeState extends State<_MapAppHome> {
           ),
           NotificationsScreen(
             events: controller.unreadEvents,
+            attestationSource: controller.events,
             onEventRead: controller.markEventRead,
           ),
           ProfileScreen(

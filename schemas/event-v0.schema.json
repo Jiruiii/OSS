@@ -25,6 +25,27 @@
     "signing_key_id",
     "provenance"
   ],
+  "allOf": [
+    {
+      "$comment": "Device keys are self-certifying and confined to crowd.*; official.* stays on bundled trusted keys only.",
+      "if": {
+        "required": ["signing_key_id"],
+        "properties": {
+          "signing_key_id": {
+            "pattern": "^device:"
+          }
+        }
+      },
+      "then": {
+        "required": ["signer_public_key"],
+        "properties": {
+          "namespace": {
+            "pattern": "^crowd\\."
+          }
+        }
+      }
+    }
+  ],
   "properties": {
     "schema_version": {
       "const": "event-v0"
@@ -124,6 +145,12 @@
       "maxLength": 128,
       "pattern": "^[a-z0-9][a-z0-9._:-]{0,127}$"
     },
+    "signer_public_key": {
+      "type": "string",
+      "description": "Base64 SPKI DER Ed25519 public key of a device-signed event. Required when signing_key_id starts with device:, where signing_key_id must equal device: plus the first 32 hex characters of sha256(SPKI DER).",
+      "minLength": 4,
+      "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+    },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
@@ -155,7 +182,8 @@
                 "upstream",
                 "server",
                 "peer",
-                "local_fixture"
+                "local_fixture",
+                "local_report"
               ]
             },
             "node_id": {

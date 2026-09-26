@@ -2,7 +2,20 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> 狀態：2026-09-24 規劃，**尚未實作**。任務總覽見 `docs/mvp-remaining-tasks.md` G 段。
+> 狀態：2026-09-24 規劃；**2026-09-26 實作完成（實機演練除外）**。任務總覽見 `docs/mvp-remaining-tasks.md` G 段。
+
+## 實作記錄與偏離（2026-09-26）
+
+- **計算位置改為 Android（Kotlin，`android/.../routing/`）**，不是 Flutter 純 Dart。之後合併的 Flutter UI 計畫（`2026-09-24-flutter-crowd-alert-evacuation-ui.md`）規定 Flutter 不得計算路線，只呈現 Android `calculateEvacuationRoute` 的結果，UI 與測試都已照這個契約完成。Android 也本來就持有已驗證事件，所以「只用 Android 驗證過的事件」自然成立。
+- **一次請求一個避難所**（契約如此）。Flutter 依直線距離挑最多 5 個候選，逐一呼叫，再依 Android 回傳的距離排序，因此「前 3 名」由 Flutter 完成；Android 用單目標 Dijkstra（真實路網約 3–18 ms，JVM）。
+- **狀態對應到契約的四種值**：`originOffGraph`、`noReachableShelter` 回 `no_route` 並附原因警告；`originInHazard` 回 `ok` 並附 `ORIGIN_IN_HAZARD` 警告。
+- **路網來源**：`pipeline/tools/generate-walk-graph.mjs` 把 `flutter/assets/data/neihu/static-features.json` 的可步行道路轉成 `android/app/src/main/assets/routing/walk-roads.json`；Flutter 目前不再打包這份 Neihu 檔案。可步行類別多了 `primary`／`primary_link`（內湖資料中沒有，但人行道可走）。
+- **最近節點優先落在主路網**：快照有約 60 個零碎小段，否則 麗山國小 之類的避難所會被判為無法抵達。
+- **危險區用事件類型白名單**（`FLOOD_WARNING`、`LANDSLIDE_RISK`、`DEBRIS_FLOW_WARNING`），不是「任何 CRITICAL 多邊形」：打包的全台 NCDR 熱傷害與供水警戒、以及 SHELTER_STATUS／MEDICAL 事件都是 CRITICAL／HIGH 多邊形。
+- **Task 3 災害類型過濾與 `hazardKind` 推斷未做**：請求只帶避難所 id 與座標，Android 沒有已驗證的避難所圖層可查 `disaster_types`。避難所狀態以位置比對（100 m 內或多邊形包含），不以名稱比對，因為請求不帶名稱。
+- **Task 5** 的重算與變更提示由 Flutter 既有的事件指紋機制負責（「路線資訊已變更，請重新計算」）；Android 端覆蓋層依事件快照快取。
+- **Task 7 情境**：起點 121.566, 25.081（西湖），封 OSM way 1462339230 → 仍去西湖國小但繞路；西湖國小額滿 → 改去西湖國中。`EvacuationScenarioTest` 以真實簽章 chunk 重播。
+- **未做**：實機演練（Task 6 Step 3、Task 7 Step 3）。Android 也還沒有打包已驗證的避難所圖層，實機演練前要先放入。
 
 **Goal:** 用手機上已經有的資料計算步行逃生路線，完全離線：
 - 道路圖來自打包的 OSM 快照。
@@ -79,15 +92,15 @@ App 從使用者的位置出發，找出最近、開設中、而且適用於當�
 - 每條邊記錄 `osmWayId`、`roadClass` 和長度（公尺）。
 - 另外建一個節點空間格網索引，供「最近節點」查詢。
 
-- [ ] **Step 1: 寫 `geo_math` 測試。** 用已知的內湖兩點 haversine 距離驗證計算，容許誤差 0.5%；點在多邊形內要涵蓋邊界與洞；線段與多邊形相交要涵蓋「兩端點都在外但穿過」的情況。
-- [ ] **Step 2: 寫 `road_graph` 測試。**
+- [x] **Step 1: 寫 `geo_math` 測試。** 用已知的內湖兩點 haversine 距離驗證計算，容許誤差 0.5%；點在多邊形內要涵蓋邊界與洞；線段與多邊形相交要涵蓋「兩端點都在外但穿過」的情況。 **（2026-09-26：改在 Kotlin：GeoMathTest）**
+- [x] **Step 2: 寫 `road_graph` 測試。** **（2026-09-26：改在 Kotlin：RoadGraphTest；最大連通分量 98.7%）**
   - 小網格的節點數和邊數正確。
   - 被排除的 `road_class` 不會進圖。
   - 共用頂點會合併成同一個節點。
   - `nearestNode` 找到正確的節點，距離超過 300 m 時回傳 null。
   - 用真實的 `static-features.json` 建圖，最大連通分量要占節點總數的 90% 以上；如果不到，要先查清楚原因，再決定要不要調整門檻。
-- [ ] **Step 3: 實作。** 座標 key 取到小數點後 7 位；建圖在 `compute()` isolate 內執行。
-- [ ] **Step 4: 量測建圖耗時與記憶體**，寫在測試輸出或文件中。目標是中階手機（Pixel 7a 等級）不超過 1 秒。
+- [x] **Step 3: 實作。** 座標 key 取到小數點後 7 位；建圖在 `compute()` isolate 內執行。 **（2026-09-26：Android 端在 Dispatchers.Default 背景建圖，不是 Dart isolate）**
+- [x] **Step 4: 量測建圖耗時與記憶體**，寫在測試輸出或文件中。目標是中階手機（Pixel 7a 等級）不超過 1 秒。 **（2026-09-26：只量了 JVM 建圖約 40 ms；記憶體與實機耗時未量）**
 
 ### Task 2: 災情覆蓋層（事件轉成邊的封鎖或加權）
 
@@ -109,12 +122,12 @@ App 從使用者的位置出發，找出最近、開設中、而且適用於當�
 | 任何 `crowd.*` | UNVERIFIED | penalty ×2，reason 標明「未驗證回報」，**不封鎖** |
 | 任何事件 | EXPIRED | 不參與計算，列入 `warnings` |
 
-- [ ] **Step 1: 寫失敗測試。** 上表每列一個測試，再加上：
+- [x] **Step 1: 寫失敗測試。** 上表每列一個測試，再加上：
   - `ROAD_STATUS` 的 event id 無法對上任何路時，列入 `warnings`，不當成錯誤。
   - 同一條邊同時被多個事件影響時，`blocked` 優先，penalty 取最大值，不做乘積，避免數值暴增。
   - `road_status` 的 way id 解析要支援 `w<id>-<slug>` 和 `road:w<id>-<slug>` 兩種格式。
-- [ ] **Step 2: 實作。** 多邊形相交先用 bbox 預過濾。
-- [ ] **Step 3: 效能。** 用真實圖與 demo 事件，覆蓋層計算要在 50 ms 內。
+- [x] **Step 2: 實作。** 多邊形相交先用 bbox 預過濾。
+- [ ] **Step 3: 效能。** 用真實圖與 demo 事件，覆蓋層計算要在 50 ms 內。 **（2026-09-26：未單獨量測覆蓋層耗時；整條路線（含覆蓋層）在 JVM 約 3–18 ms）**
 
 ### Task 3: 避難所目的地
 
@@ -125,13 +138,13 @@ App 從使用者的位置出發，找出最近、開設中、而且適用於當�
 
 **Produces:** `ShelterTargets.resolve(staticShelters, events, hazardKind, now)` 輸出候選避難所清單，每筆包含位置、名稱、狀態、剩餘容量，以及狀態來自哪筆事件。
 
-- [ ] **Step 1: 寫失敗測試。**
+- [ ] **Step 1: 寫失敗測試。** **（2026-09-26：部分完成：狀態、額滿、危險區內已做並有測試；以位置比對取代名稱比對；災害類型過濾未做）**
   - `SHELTER_STATUS` 依名稱對上靜態避難所。名稱對不上時，改用「事件多邊形中心點 100 m 內」比對。
   - 狀態 STANDBY 或 CLOSED 的排除。
   - `available == 0` 的排除；`available` 為 null（沒有狀態事件）的保留，但標記「狀態未知」，排序時放在有確認開設的後面。
   - `disaster_types` 不包含目前災害類型的排除。沒有指定災害類型時不過濾。
   - 避難所本身位在 CRITICAL 危險區內的排除。
-- [ ] **Step 2: 實作 `hazardKind` 自動推斷。** 有 CURRENT 的 `FLOOD_WARNING` 時用「水災」，有 `LANDSLIDE_RISK` 時用「土石流」，否則為 null。這份對照表要寫在同一個檔案裡，方便檢視。
+- [ ] **Step 2: 實作 `hazardKind` 自動推斷。** 有 CURRENT 的 `FLOOD_WARNING` 時用「水災」，有 `LANDSLIDE_RISK` 時用「土石流」，否則為 null。這份對照表要寫在同一個檔案裡，方便檢視。 **（2026-09-26：未做：路線請求不帶避難所的 disaster_types）**
 
 ### Task 4: 路線計算
 
@@ -145,18 +158,18 @@ App 從使用者的位置出發，找出最近、開設中、而且適用於當�
 - 前 N 條路線：折線、距離（公尺）、預估步行時間、目的地、經過的加權路段與原因。
 - `status`：`ok`／`originOffGraph`／`originInHazard`／`noReachableShelter`。
 
-- [ ] **Step 1: 寫失敗測試（小網格）。**
+- [x] **Step 1: 寫失敗測試（小網格）。**
   - 沒有事件時走最短路。
   - 最短路被 CLOSED 封鎖時改走次短路，並且在結果中列出避開了哪條路。
   - PARTIAL 加權足以讓次短路勝出的情況。
   - 所有路都被封鎖時回傳 `noReachableShelter`，不回傳空路線假裝成功。
   - 起點在 CRITICAL 區內時：允許走出危險區的第一段（否則永遠無解），但結果標記 `originInHazard`。
   - 距離相同時的決定性：跑 100 次結果都相同。
-- [ ] **Step 2: 實作多目標 Dijkstra。**
+- [x] **Step 2: 實作多目標 Dijkstra。** **（2026-09-26：依契約改為單目標 Dijkstra，一次一個避難所，排序由 Flutter 做）**
   - 邊權重為 `length × penalty`，`blocked` 的邊直接跳過。
   - 顯示給使用者的距離用實際長度，不含 penalty。
   - 步行速度 1.0 m/s，並註明是災時保守值。
-- [ ] **Step 3: 用真實資料測試。** 取內湖 5 個生活圈各一個起點，對 demo 事件跑一次：要都有結果、耗時 < 200 ms，並把結果存成 golden 檔，避免之後的修改無聲地改變路線。
+- [x] **Step 3: 用真實資料測試。** 取內湖 5 個生活圈各一個起點，對 demo 事件跑一次：要都有結果、耗時 < 200 ms，並把結果存成 golden 檔，避免之後的修改無聲地改變路線。 **（2026-09-26：golden 檔：android/app/src/test/resources/fixtures/routing/neihu-golden.json）**
 
 ### Task 5: 狀態管理與事件更新時重算
 
@@ -168,12 +181,12 @@ App 從使用者的位置出發，找出最近、開設中、而且適用於當�
 
 **Produces:** 使用者開啟路線後，controller 會訂閱事件流和位置更新。事件改變時重算覆蓋層與路線；如果結果變了（例如目的地或路段變了），就發出「路線因新資訊而變更」的通知，並附上原因。
 
-- [ ] **Step 1: 寫失敗測試。**
+- [ ] **Step 1: 寫失敗測試。** **（2026-09-26：部分完成：事件變更提示由 Flutter 既有的事件指紋機制負責；30 m 位置門檻與停止訂閱的測試未做）**
   - 新進一筆 CLOSED 事件，封住目前路線，應觸發重算並發出變更通知與原因。
   - 事件更新不影響目前路線時，不發通知。
   - 位置移動不到 30 m 時不重算。
   - 關閉路線功能後停止訂閱。
-- [ ] **Step 2: 實作。** 重算在 isolate 內執行；新的重算開始時，丟棄還在進行的舊結果。
+- [ ] **Step 2: 實作。** 重算在 isolate 內執行；新的重算開始時，丟棄還在進行的舊結果。 **（2026-09-26：未做：重算在 Android 背景執行緒；丟棄舊結果由 Flutter 的 request token 處理）**
 
 ### Task 6: UI
 
@@ -186,12 +199,12 @@ App 從使用者的位置出發，找出最近、開設中、而且適用於當�
 
 **Produces:** 按下「逃生路線」後，地圖畫出最佳路線，面板列出 3 個選項，點選任一個就切換路線；兩種 renderer（Google／OSM 離線）的顯示一致。
 
-- [ ] **Step 1: 寫 widget 測試。**
+- [x] **Step 1: 寫 widget 測試。** **（2026-09-26：由 UI 計畫完成）**
   - 每種 `status` 都有對應文字；`noReachableShelter` 要建議「聯絡 119 或前往較高樓層」，不能只顯示空白。
   - 免責聲明與資料時間永遠顯示。
   - 路線經過未驗證回報的路段時，顯示「經過未驗證回報路段」。
-- [ ] **Step 2: 實作。** 路線顏色要和事件分色（CURRENT／EXPIRED／UNVERIFIED）明顯區分，深色模式也要測。
-- [ ] **Step 3: 實機手動驗證。** 開飛航模式後在 OSM 離線底圖上規劃路線；開網路後在 Google 底圖上看到同一條路線。
+- [x] **Step 2: 實作。** 路線顏色要和事件分色（CURRENT／EXPIRED／UNVERIFIED）明顯區分，深色模式也要測。 **（2026-09-26：由 UI 計畫完成）**
+- [ ] **Step 3: 實機手動驗證。** 開飛航模式後在 OSM 離線底圖上規劃路線；開網路後在 Google 底圖上看到同一條路線。 **（2026-09-26：未做：需要實機）**
 
 ### Task 7: Demo 情境資料
 
@@ -208,21 +221,21 @@ App 從使用者的位置出發，找出最近、開設中、而且適用於當�
 
 這段 demo 同時展示「mesh 送來的資料改變了實際決策」，和專案的核心敘事連在一起。
 
-- [ ] **Step 1: 選路。** 從真實 OSM 資料挑選有替代路線的路段，並在 demo 腳本中記錄 way id。
-- [ ] **Step 2: 產生並簽章事件。** 每筆事件都要標明「合成模擬資料，不代表真實災況」。
-- [ ] **Step 3: 兩機實機演練一次**，錄下改道的過程。
+- [x] **Step 1: 選路。** 從真實 OSM 資料挑選有替代路線的路段，並在 demo 腳本中記錄 way id。
+- [x] **Step 2: 產生並簽章事件。** 每筆事件都要標明「合成模擬資料，不代表真實災況」。
+- [ ] **Step 3: 兩機實機演練一次**，錄下改道的過程。 **（2026-09-26：未做：需要實機）**
 
 ### Task 8: 文件與收尾
 
-- [ ] README：「核心功能」新增離線逃生路線；「限制」補上以下幾點：
+- [x] README：「核心功能」新增離線逃生路線；「限制」補上以下幾點：
   - 只有步行路線。
   - 沒有高程資料。
   - OSM 快照可能缺少小路。
   - 避難所狀態靠名稱對應。
   - 路線只是依本機資料推算，不是官方疏散指示。
-- [ ] `docs/mvp-remaining-tasks.md` G 段：勾選完成項目。
-- [ ] `experiments/limitations.md`：把上述限制寫進去；另外註明群眾回報只加權不封鎖的理由。
-- [ ] 全套測試：`flutter test`，以及既有的 `npm test`、`./gradlew testDebugUnitTest`，確認沒有被影響。
+- [x] `docs/mvp-remaining-tasks.md` G 段：勾選完成項目。
+- [x] `experiments/limitations.md`：把上述限制寫進去；另外註明群眾回報只加權不封鎖的理由。
+- [x] 全套測試：`flutter test`，以及既有的 `npm test`、`./gradlew testDebugUnitTest`，確認沒有被影響。 **（2026-09-26：Flutter 唯一失敗是既有的 PMTiles SHA 檢查）**
 
 ## 和「民眾回報 + 政府驗證」計畫的關係
 

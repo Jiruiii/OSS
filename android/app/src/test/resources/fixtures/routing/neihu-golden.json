@@ -1,0 +1,96 @@
+{
+  "no_events": {
+    "neihu": {
+      "warnings": ["SHELTER_STATUS_UNKNOWN"],
+      "distance_m": 2712.8,
+      "blocked_event_ids": [],
+      "status": "ok",
+      "points": 94
+    },
+    "dahu": {
+      "warnings": ["SHELTER_STATUS_UNKNOWN"],
+      "distance_m": 3625.3,
+      "blocked_event_ids": [],
+      "status": "ok",
+      "points": 128
+    },
+    "donghu": {
+      "warnings": ["SHELTER_STATUS_UNKNOWN"],
+      "distance_m": 3014,
+      "blocked_event_ids": [],
+      "status": "ok",
+      "points": 78
+    },
+    "xihu": {
+      "warnings": ["SHELTER_STATUS_UNKNOWN"],
+      "distance_m": 3597.8,
+      "blocked_event_ids": [],
+      "status": "ok",
+      "points": 138
+    },
+    "wende": {
+      "warnings": ["SHELTER_STATUS_UNKNOWN"],
+      "distance_m": 2486.9,
+      "blocked_event_ids": [],
+      "status": "ok",
+      "points": 81
+    }
+  },
+  "demo_events": {
+    "neihu": {
+      "warnings": [
+        "ORIGIN_IN_HAZARD",
+        "SHELTER_STATUS_UNKNOWN",
+        "ROAD_STATUS_UNMATCHED"
+      ],
+      "distance_m": 2712.8,
+      "blocked_event_ids": [],
+      "status": "ok",
+      "points": 94
+    },
+    "dahu": {
+      "warnings": [
+        "ORIGIN_IN_HAZARD",
+        "SHELTER_STATUS_UNKNOWN",
+        "UNVERIFIED_CROWD_REPORT",
+        "ROAD_STATUS_UNMATCHED"
+      ],
+      "distance_m": 10040.8,
+      "blocked_event_ids": [],
+      "status": "ok",
+      "points": 482
+    },
+    "donghu": {
+      "warnings": [
+        "NO_PASSABLE_PATH",
+        "ROAD_STATUS_UNMATCHED"
+      ],
+      "distance_m": null,
+      "blocked_event_ids": ["flood:neihu-0901-001"],
+      "status": "no_route",
+      "points": 0
+    },
+    "xihu": {
+      "warnings": [
+        "ORIGIN_IN_HAZARD",
+        "SHELTER_STATUS_UNKNOWN",
+        "ROAD_STATUS_UNMATCHED"
+      ],
+      "distance_m": 17542,
+      "blocked_event_ids": [],
+      "status": "ok",
+      "points": 1011
+    },
+    "wende": {
+      "warnings": [
+        "ORIGIN_IN_HAZARD",
+        "SHELTER_STATUS_UNKNOWN",
+        "ROAD_STATUS_UNMATCHED"
+      ],
+      "distance_m": 2486.9,
+      "blocked_event_ids": [],
+      "status": "ok",
+      "points": 81
+    }
+  }
+}

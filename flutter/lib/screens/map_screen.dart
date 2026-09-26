@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../data/map_bridge.dart';
+import '../data/attestation_index.dart';
 import '../data/bridge_failure.dart';
+import '../data/corroboration.dart';
 import '../data/crowd_report_models.dart';
 import '../data/display_time.dart';
 import '../data/evacuation_models.dart';
@@ -284,11 +286,16 @@ class _MapScreenState extends State<MapScreen> {
     for (final event in _persistedEvents) {
       byId[meshEventIdentity(event)] = event;
     }
-    return byId.values
-        .where((event) => event.isCurrentAt())
+    final now = DateTime.now().toUtc();
+    return AttestationIndex.fromEvents(byId.values, now: now)
+        .mapDisplayEvents(byId.values)
+        .where((event) => event.isShownAt(now))
         .where(isMapVisibleEvent)
         .toList(growable: false);
   }
+
+  String? _corroborationOf(MeshEvent event) =>
+      corroborationLabel(corroborationCount(event, _persistedEvents));
 
   void _showStaticSelection(List<StaticFeature> features) {
     if (features.isEmpty) return;
@@ -992,6 +999,7 @@ class _MapScreenState extends State<MapScreen> {
               alignment: Alignment.bottomCenter,
               child: FeatureDetailsSheet.event(
                 event: _selectedEvent!,
+                corroboration: _corroborationOf(_selectedEvent!),
                 onClose: _closeDetails,
               ),
             ),

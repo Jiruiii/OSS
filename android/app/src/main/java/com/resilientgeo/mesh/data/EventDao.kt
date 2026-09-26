@@ -24,6 +24,13 @@ interface EventDao {
     @Query("SELECT * FROM events ORDER BY namespace, eventId")
     fun allSync(): List<EventEntity>
 
+    @Query("SELECT * FROM events WHERE namespace = :namespace ORDER BY eventId")
+    fun forNamespaceSync(namespace: String): List<EventEntity>
+
+    /** Only for bounded crowd-report storage (MeshRepository.pruneCrowdInventory). */
+    @Query("DELETE FROM events WHERE namespace = :namespace AND eventId = :eventId")
+    fun deleteSync(namespace: String, eventId: String)
+
     /** Drives the event-list / map UI so it updates live as ingestion writes new rows. */
     @Query("SELECT * FROM events ORDER BY namespace, eventId")
     fun observeAll(): Flow<List<EventEntity>>
