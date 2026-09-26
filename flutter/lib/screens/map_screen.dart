@@ -493,6 +493,7 @@ class _MapScreenState extends State<MapScreen> {
     };
 
     EvacuationRouteResult? bestRoute;
+    EvacuationRouteResult? failedRoute;
     StaticFeature? bestFeature;
     for (var index = 0; index < candidates.length; index += 1) {
       if (!mounted || requestToken != _routeRequestToken) return;
@@ -524,7 +525,23 @@ class _MapScreenState extends State<MapScreen> {
         return;
       }
 
-      if (result.status == EvacuationRouteStatus.noRoute) continue;
+      if (result.status == EvacuationRouteStatus.noRoute) {
+        failedRoute ??= result;
+        // All candidates share this origin. Trying more shelters cannot
+        // make an origin outside the bundled road network routable.
+        if (result.warnings.any(
+          (warning) => warning.code == 'ORIGIN_OFF_GRAPH',
+        )) {
+          setState(() {
+            _routeLoading = false;
+            _routeLoadingMessage = null;
+            _routeResult = result;
+            _routeErrorMessage = null;
+          });
+          return;
+        }
+        continue;
+      }
       if (result.status != EvacuationRouteStatus.ok) {
         setState(() {
           _routeLoading = false;
@@ -553,7 +570,7 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _routeLoading = false;
       _routeLoadingMessage = null;
-      _routeResult = bestRoute ?? _noRouteResult;
+      _routeResult = bestRoute ?? failedRoute ?? _noRouteResult;
       _routeDestination = bestFeature;
       _routeErrorMessage = null;
     });

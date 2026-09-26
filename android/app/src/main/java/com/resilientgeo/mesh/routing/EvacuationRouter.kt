@@ -110,7 +110,7 @@ object EvacuationRouter {
             return noRoute(RouteWarning("SHELTER_IN_HAZARD", hazard.eventId, "此避難所位於危險區域內，已排除"))
         }
         val originNode = graph.nearestNode(origin)
-            ?: return noRoute(RouteWarning("ORIGIN_OFF_GRAPH", null, "起點距離離線路網超過 300 公尺，無法規劃路線"))
+            ?: return noRoute(RouteWarning("ORIGIN_OFF_GRAPH", null, "起點距離離線路網超過 300 公尺（目前只涵蓋內湖區），無法規劃路線"))
         val targetNode = graph.nearestNode(destination, DESTINATION_SNAP_LIMIT_METERS)
             ?: return noRoute(RouteWarning("DESTINATION_OFF_GRAPH", null, "避難所不在離線路網範圍內（目前只涵蓋內湖區），無法規劃路線"))
 

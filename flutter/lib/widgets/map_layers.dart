@@ -93,6 +93,9 @@ class MapMarkerCluster {
 class MapLayers {
   const MapLayers._();
 
+  static final _administrativeNames =
+      Expando<Map<MapAdministrativeIndex, String?>>();
+
   static const double _compactMarkerZoom = 12;
   static const double _compactMarkerSize = 18;
   static const double _fullMarkerSize = 28;
@@ -407,11 +410,17 @@ class MapLayers {
     MapAdministrativeIndex? index,
   ) {
     if (index == null) return null;
+    final names =
+        _administrativeNames[feature] ??= <MapAdministrativeIndex, String?>{};
+    if (names.containsKey(index)) return names[index];
     final textValues = feature.details.values.whereType<String>();
     final matches = index.subdivisions
         .where((area) => textValues.any((value) => value.contains(area.name)))
         .toList(growable: false);
-    if (matches.isEmpty) return null;
+    if (matches.isEmpty) {
+      names[index] = null;
+      return null;
+    }
     final point = switch (feature.geometry) {
       PointGeometry(:final point) => point,
       _ => null,
@@ -424,7 +433,7 @@ class MapLayers {
         left.point,
       ).compareTo(_distanceSquared(point, right.point));
     });
-    return matches.first.name;
+    return names[index] = matches.first.name;
   }
 
   static double _distanceSquared(GeoPoint left, GeoPoint right) {

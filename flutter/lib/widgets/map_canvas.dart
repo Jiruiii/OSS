@@ -96,6 +96,11 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   late final AnimationController _pulseController;
   MapLibreMapController? _mapController;
   String? _styleJson;
+  String? _requestedStyleAsset;
+  int _styleLoadGeneration = 0;
+  Widget? _platformMap;
+  String? _platformMapStyle;
+  LatLngBounds? _platformMapBounds;
   Object? _styleError;
   bool _styleLoaded = false;
   bool _eventSourceReady = false;
@@ -105,6 +110,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   bool _markerProjectionInFlight = false;
   Size? _mapViewportSize;
   CameraPosition? _cameraPosition;
+  CameraPosition? _lastSettledMarkerCamera;
   final MapCameraProjectionFrameGate<CameraPosition>
   _cameraProjectionFrameGate = MapCameraProjectionFrameGate<CameraPosition>();
   bool _cameraIsMoving = false;
@@ -214,12 +220,17 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       themeMode: widget.runtimeState.themeMode,
       systemBrightness: Theme.of(context).brightness,
     );
+    // Keyboard/viewport changes also notify inherited-widget dependents.
+    // They must not reinstall the same native map style.
+    if (_requestedStyleAsset == styleAsset) return;
+    _requestedStyleAsset = styleAsset;
+    final generation = ++_styleLoadGeneration;
     try {
       final style = await _assetStore.loadStyle(
         styleAsset: styleAsset,
         installNativeAssets: _usesPlatformMap && !kIsWeb,
       );
-      if (!mounted) return;
+      if (!mounted || generation != _styleLoadGeneration) return;
       setState(() {
         _styleJson = style;
         _styleError = null;
@@ -231,7 +242,8 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
         _routeLayerReady = false;
       });
     } on Object catch (error) {
-      if (!mounted) return;
+      if (!mounted || generation != _styleLoadGeneration) return;
+      _requestedStyleAsset = null;
       setState(() => _styleError = error);
     }
   }
@@ -409,10 +421,17 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   void _onMapSettled() {
     _cameraBoundsCorrectionPending = false;
     _cameraIsMoving = false;
-    _markerLayoutCache.invalidate();
-    _queueMarkerRefresh();
     final position = _cameraPosition;
     if (position == null) return;
+    final previous = _lastSettledMarkerCamera;
+    if (previous?.target != position.target ||
+        previous?.zoom != position.zoom) {
+      _lastSettledMarkerCamera = position;
+      _markerLayoutCache.invalidate();
+      _queueMarkerRefresh();
+    } else if (!_markerLayoutReady) {
+      _queueMarkerRefresh();
+    }
     widget.onReportCameraIdle?.call(
       GeoPoint(
         longitude: position.target.longitude,
@@ -847,9 +866,8 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
         index++
       ) {
         final point = points[index];
-        next[markers[index].key] = Offset(
-          point.x.toDouble(),
-          point.y.toDouble(),
+        next[markers[index].key] = _nativeScreenPosition(
+          Offset(point.x.toDouble(), point.y.toDouble()),
         );
       }
       setState(() {
@@ -1009,7 +1027,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     final markerHits = hitTestMapMarkers(
       markers: markers,
       positions: _markerPositions,
-      point: Offset(point.x, point.y),
+      point: _nativeScreenPosition(Offset(point.x, point.y)),
     );
     if (markerHits.isNotEmpty) {
       markerHits.last.onTap();
@@ -1073,9 +1091,8 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       if (request != null && !_markerProjectionGate.isCurrent(request)) {
         return false;
       }
-      _radarScreenPosition.value = Offset(
-        screen.x.toDouble(),
-        screen.y.toDouble(),
+      _radarScreenPosition.value = _nativeScreenPosition(
+        Offset(screen.x.toDouble(), screen.y.toDouble()),
       );
       return true;
     } on Object {
@@ -1188,9 +1205,27 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     );
   }
 
+  Offset _nativeScreenPosition(Offset position) =>
+      MapCameraProjection.fromNativeScreenPosition(
+        position,
+        physicalPixels:
+            !kIsWeb && defaultTargetPlatform == TargetPlatform.android,
+        devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+      );
+
   Widget _buildPositionedMarker(MapMarkerData marker) {
     final screen = _markerPositions[marker.key];
     if (screen == null) return const SizedBox.shrink();
+    final viewport = _mapViewportSize;
+    if (viewport != null &&
+        !Rect.fromLTWH(
+          screen.dx - marker.width / 2,
+          screen.dy - marker.height / 2,
+          marker.width,
+          marker.height,
+        ).overlaps(Offset.zero & viewport)) {
+      return const SizedBox.shrink();
+    }
     return Positioned(
       key: marker.key,
       left: screen.dx - (marker.width / 2),
@@ -1233,7 +1268,21 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       target: _latLng(initial.target),
       zoom: initial.zoom,
     );
-    return MapLibreMap(
+    final bounds = MapLibreMapConfig.cameraTargetBoundsForZoom(
+      _cameraBoundsZoomOverride ?? _cameraPosition?.zoom ?? initial.zoom,
+      viewportSize: _mapViewportSize,
+    );
+    // Marker movement only changes the Flutter overlay. Reusing this widget
+    // avoids serializing the large style and diffing native options each frame.
+    if (_platformMap != null &&
+        _platformMapStyle == _styleJson &&
+        _platformMapBounds?.southwest == bounds.southwest &&
+        _platformMapBounds?.northeast == bounds.northeast) {
+      return _platformMap!;
+    }
+    _platformMapStyle = _styleJson;
+    _platformMapBounds = bounds;
+    return _platformMap = MapLibreMap(
       key: const ValueKey<String>('maplibre-platform-view'),
       styleString: _styleJson!,
       initialCameraPosition: CameraPosition(
@@ -1244,12 +1293,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       // interaction bound after zooming in. The Dart-side guard supplies the
       // tighter low-zoom centre envelope without allowing the map to drift
       // into a blank ocean area during a drag.
-      cameraTargetBounds: CameraTargetBounds(
-        MapLibreMapConfig.cameraTargetBoundsForZoom(
-          _cameraBoundsZoomOverride ?? _cameraPosition?.zoom ?? initial.zoom,
-          viewportSize: _mapViewportSize,
-        ),
-      ),
+      cameraTargetBounds: CameraTargetBounds(bounds),
       minMaxZoomPreference: const MinMaxZoomPreference(
         MapLibreMapConfig.minZoom,
         MapLibreMapConfig.maxZoom,
