@@ -98,8 +98,8 @@ class AppPerformance {
               frames
                   .where(
                     (f) =>
-                        f.buildDuration.inMilliseconds > 16 ||
-                        f.rasterDuration.inMilliseconds > 16,
+                        f.buildDuration.inMicroseconds > 16000 ||
+                        f.rasterDuration.inMicroseconds > 16000,
                   )
                   .length,
         }),

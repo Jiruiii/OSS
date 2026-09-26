@@ -1,5 +1,9 @@
 # ResilientGeo Mesh — Android
 
+> 2026-09-27：離線步行路網擴大到雙北，保留原始內湖資料。PMTiles 完整安裝後按內容版本重用。
+> 使用 `./gradlew :app:assembleProfile -Ptarget-platform=android-arm64` 建立 AOT 效能測試版本；
+> 路網來源、Pixel 8a 實測與可重跑命令見 [雙北離線路線與效能驗證](../docs/taipei-offline-routing.md)。
+
 > 2026-09-21 更新：Android 現在是原生資料與服務的 host，`MainActivity` 直接嵌入 Flutter 台灣 MapLibre 地圖。五個 Protomaps PMTiles 會隨 App 打包，啟動時串流複製到 app-private `files/maps/`；下方較早的 native-only baseline 驗證紀錄仍保留作為歷史證據。
 
 Single Android project, jointly owned:

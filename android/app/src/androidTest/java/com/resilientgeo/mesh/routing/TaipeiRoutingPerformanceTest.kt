@@ -43,7 +43,7 @@ class TaipeiRoutingPerformanceTest {
             }
         }
         timings.sort()
-        val p95 = timings[((timings.size-1)*.95).toInt()]
+        val p95 = timings[kotlin.math.ceil(timings.size * .95).toInt() - 1]
         Log.i("RoutingBenchmark","RESULT graph_load_ms=$graphMs warm_route_p95_ms=$p95 max_ms=${timings.last()}")
         assertTrue("graph load exceeded 5 s: $graphMs",graphMs < 5000)
         assertTrue("warm regional route p95 exceeded 500 ms: $p95",p95 < 500)

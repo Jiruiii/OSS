@@ -23,12 +23,31 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--swipes', action='store_true')
     parser.add_argument('--long-routes', action='store_true')
+    parser.add_argument('--restart', action='store_true', help='Measure from a fresh app process')
+    parser.add_argument('--over-keyguard', action='store_true', help='Opt in to debuggable test display while locked')
     args = parser.parse_args()
     def adb(*command):
         return subprocess.check_output([args.adb,'-s',args.serial,*command],text=True,encoding='utf-8',errors='replace')
-    pid = adb('shell','pidof','com.resilientgeo.mesh').strip()
-    logs = adb('logcat','-d','--pid',pid,'-s','flutter:I')
-    services = re.findall(r'The Dart VM service is listening on http://127\.0\.0\.1:(\d+)/([^\s]+)',logs)
+    startup = None
+    if args.restart:
+        adb('shell','am','force-stop','com.resilientgeo.mesh')
+        startup = time.monotonic()
+        command = ['shell','am','start','-n','com.resilientgeo.mesh/.MainActivity']
+        if args.over_keyguard:
+            command.extend(['--ez','performance_over_keyguard','true'])
+        adb(*command)
+    for _ in range(60):
+        try:
+            pid = adb('shell','pidof','com.resilientgeo.mesh').strip()
+            logs = adb('logcat','-d','--pid',pid,'-s','flutter:I')
+            services = re.findall(r'The Dart VM service is listening on http://127\.0\.0\.1:(\d+)/([^\s]+)',logs)
+            if services:
+                break
+        except subprocess.CalledProcessError:
+            pass
+        time.sleep(.25)
+    else:
+        services = []
     if not services:
         raise RuntimeError('No VM service for the running app; install/start a profile build first')
     device_port, token = services[-1]
@@ -53,6 +72,8 @@ def main():
             time.sleep(.5)
         else:
             raise RuntimeError('Search worker did not become ready')
+        if startup is not None:
+            observations['search_ready_after_start_ms'] = (time.monotonic()-startup)*1000
         observations['search'] = []
         for query in ['成功路','板橋','中正路','新北市板橋區文化路一段','路']:
             for _ in range(3):
