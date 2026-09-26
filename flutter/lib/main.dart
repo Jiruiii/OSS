@@ -95,6 +95,10 @@ class _MapAppHomeState extends State<_MapAppHome> {
           MapScreen(
             key: const ValueKey<String>('home-map'),
             staticFeatures: controller.staticFeatures,
+            staticFeaturesPending: controller.staticFeaturesPending,
+            staticFeaturesFailed:
+                controller.nativeBridgeAvailable &&
+                controller.staticFeatureLoadError != null,
             initialState: controller.initialState,
             bridge: controller.bridge,
             eventUpdates: controller.eventUpdates,

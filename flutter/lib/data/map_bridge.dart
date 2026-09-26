@@ -22,6 +22,19 @@ class MapBridge {
     return MapInitialState.fromJson(response);
   }
 
+  /// Verified nationwide static layers. Android verifies them in the
+  /// background, so the first call after install can take several seconds;
+  /// it never returns unverified data.
+  Future<List<StaticFeature>> getStaticFeatures() async {
+    final response = await _invokeRequiredMap('getStaticFeatures');
+    if (response['static_features'] is! List) {
+      throw const FormatException(
+        'getStaticFeatures response is missing static_features',
+      );
+    }
+    return staticFeaturesFromMessage(response['static_features']);
+  }
+
   Future<FixtureLoadSummary> loadBundledFixture() async {
     final response = await _invokeRequiredMap('loadBundledFixture');
     return FixtureLoadSummary.fromJson(response);

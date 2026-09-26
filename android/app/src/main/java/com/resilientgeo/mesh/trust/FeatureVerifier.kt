@@ -18,6 +18,9 @@ data class FeatureVerificationResult(
  */
 object FeatureVerifier {
 
+    private val SHA256_RE = Regex("^sha256:[0-9a-fA-F]{64}$")
+    private val BASE64_RE = Regex("^[A-Za-z0-9+/]+={0,2}$")
+
     private val PAYLOAD_FIELDS = listOf(
         "namespace", "dataset_id", "layer_id", "feature_id", "feature_type",
         "geometry", "properties", "source", "source_version", "issued_at", "expires_at",
@@ -71,9 +74,9 @@ object FeatureVerifier {
         if (feature.optString("signature_algorithm") != "Ed25519") errors += "signature_algorithm must be Ed25519"
         if (feature.opt("provenance") !is JSONObject) errors += "provenance must be an object"
         val hash = feature.optString("payload_hash", "")
-        if (!Regex("^sha256:[0-9a-fA-F]{64}$").matches(hash)) errors += "payload_hash is invalid"
+        if (!SHA256_RE.matches(hash)) errors += "payload_hash is invalid"
         val signature = feature.optString("signature", "")
-        if (signature.length < 4 || !Regex("^[A-Za-z0-9+/]+={0,2}$").matches(signature)) errors += "signature is invalid"
+        if (signature.length < 4 || !BASE64_RE.matches(signature)) errors += "signature is invalid"
         return errors
     }
 }
