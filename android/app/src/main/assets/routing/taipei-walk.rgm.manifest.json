@@ -1,0 +1,43 @@
+{
+  "schema_version": "rgm-walk-v1",
+  "graph_version": "taipei-new-taipei-2026-09-25-05d5ae22-s1m",
+  "coverage": "Taipei City and New Taipei City, with border buffer",
+  "bounds": [
+    121.26268808500002,
+    24.653192106000045,
+    122.02750273400001,
+    25.32030289800004
+  ],
+  "snapshot_at": "2026-09-25",
+  "source_url": "https://download.geofabrik.de/asia/taiwan-260925.osm.pbf",
+  "source_sha256": "05d5ae22b805feeae2720701391515e615c295e57fa21b23d16e02351c3ab6ff",
+  "boundary_sha256": "ea4d7e055a40eabb6108c036a5237567d12acfd980db8518dc2ee2a76d7fcb4b",
+  "attribution": "© OpenStreetMap contributors (ODbL)",
+  "nodes": 1085665,
+  "edges": 1183752,
+  "ways": 186664,
+  "components": 1686,
+  "largest_component_nodes": 1072617,
+  "bytes": 28891043,
+  "sha256": "6293fcb3137ee20b549c5c51f6c1d25ea5792f82c88e2ba522e760e825ede974",
+  "road_classes": [
+    "footway",
+    "path",
+    "pedestrian",
+    "steps",
+    "residential",
+    "living_street",
+    "service",
+    "unclassified",
+    "tertiary",
+    "secondary",
+    "primary",
+    "track",
+    "cycleway",
+    "tertiary_link",
+    "secondary_link",
+    "primary_link"
+  ],
+  "simplification_tolerance_m": 1,
+  "max_snap_segment_m": 60
+}

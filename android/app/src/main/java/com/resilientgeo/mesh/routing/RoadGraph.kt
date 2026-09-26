@@ -1,6 +1,10 @@
 package com.resilientgeo.mesh.routing
 
 import org.json.JSONObject
+import java.io.BufferedInputStream
+import java.io.DataInputStream
+import java.io.InputStream
+import java.util.zip.GZIPInputStream
 import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.floor
@@ -32,7 +36,12 @@ class RoadGraph private constructor(
     private val grid: Map<Long, IntArray>,
     private val component: IntArray,
     private val mainComponent: Int,
+    val coverageName: String = "內湖區",
+    private val directions: ByteArray? = null,
+    private val edgeGrid: Map<Long, IntArray>? = null,
 ) {
+    private val bounds = if (nodeLon.isEmpty()) null else BBox(
+        nodeLon.minOrNull()!!,nodeLat.minOrNull()!!,nodeLon.maxOrNull()!!,nodeLat.maxOrNull()!!)
     val nodeCount: Int get() = nodeLon.size
     val edgeCount: Int get() = edgeFrom.size
 
@@ -42,6 +51,30 @@ class RoadGraph private constructor(
     fun edgeLengthMeters(edge: Int): Double = edgeLength[edge]
     fun edgeWayId(edge: Int): Long = edgeWay[edge]
     fun edgeRoadClass(edge: Int): String = edgeClass[edge]
+
+    fun canWalkFrom(edge: Int, node: Int): Boolean {
+        val flags = directions?.get(edge)?.toInt() ?: 3
+        return flags and (if (edgeFrom[edge] == node) 1 else 2) != 0
+    }
+
+    /** Indexed candidate edges, including segments crossing a cell boundary. */
+    fun edgesNear(box: BBox): IntArray {
+        val indexed = edgeGrid ?: return (0 until edgeCount).filter { edgeBBox(it).intersects(box) }.toIntArray()
+        val left = floor(box.minLon / EDGE_CELL_DEGREES).toInt()
+        val right = floor(box.maxLon / EDGE_CELL_DEGREES).toInt()
+        val bottom = floor(box.minLat / EDGE_CELL_DEGREES).toInt()
+        val top = floor(box.maxLat / EDGE_CELL_DEGREES).toInt()
+        if ((right.toLong() - left + 1) * (top.toLong() - bottom + 1) > indexed.size * 2L) {
+            return (0 until edgeCount).filter { edgeBBox(it).intersects(box) }.toIntArray()
+        }
+        val candidates = HashSet<Int>()
+        for (x in left..right) for (y in bottom..top) {
+            indexed[cellKey(x, y)]?.forEach { edge ->
+                if (edgeBBox(edge).intersects(box)) candidates.add(edge)
+            }
+        }
+        return candidates.toIntArray().apply { sort() }
+    }
 
     fun otherEnd(edge: Int, node: Int): Int = if (edgeFrom[edge] == node) edgeTo[edge] else edgeFrom[edge]
 
@@ -77,6 +110,8 @@ class RoadGraph private constructor(
      */
     fun nearestNode(point: LonLat, maxMeters: Double = SNAP_LIMIT_METERS): Int? {
         if (!point.isValid) return null
+        val extent = bounds?.expandedByMeters(maxMeters) ?: return null
+        if (point.lon !in extent.minLon..extent.maxLon || point.lat !in extent.minLat..extent.maxLat) return null
         val cellMetersLon = CELL_DEGREES * GeoMath.METERS_PER_DEGREE_LAT * cos(Math.toRadians(point.lat))
         val cellMetersLat = CELL_DEGREES * GeoMath.METERS_PER_DEGREE_LAT
         val reachLon = ceil(maxMeters / cellMetersLon).toInt()
@@ -118,6 +153,84 @@ class RoadGraph private constructor(
         /** Beyond this the origin/shelter is treated as off the offline network. */
         const val SNAP_LIMIT_METERS = 300.0
         private const val CELL_DEGREES = 0.001
+        private const val EDGE_CELL_DEGREES = 0.01
+
+        /** Load build-time arrays directly, avoiding JSON objects and phone-side graph construction. */
+        fun fromPrebuilt(input: InputStream): RoadGraph =
+            DataInputStream(BufferedInputStream(GZIPInputStream(input), 64 * 1024)).use { data ->
+                val magic = ByteArray(8).also(data::readFully)
+                require(magic.contentEquals("RGMWALK1".toByteArray(Charsets.US_ASCII))) { "invalid walk graph" }
+                fun text(): String {
+                    val count = data.readInt()
+                    require(count in 1..4096)
+                    return ByteArray(count).also(data::readFully).toString(Charsets.UTF_8)
+                }
+                val version = text()
+                val coverage = text()
+                val nodes = data.readInt()
+                val edges = data.readInt()
+                require(nodes in 1..5_000_000 && edges in 1..10_000_000)
+                val lons = DoubleArray(nodes)
+                val lats = DoubleArray(nodes)
+                for (n in 0 until nodes) {
+                    lons[n] = data.readInt() / 1e7
+                    lats[n] = data.readInt() / 1e7
+                    require(LonLat(lons[n], lats[n]).isValid)
+                }
+                val from = IntArray(edges)
+                val to = IntArray(edges)
+                val lengths = DoubleArray(edges)
+                val ways = LongArray(edges)
+                val classes = arrayOfNulls<String>(edges)
+                val direction = ByteArray(edges)
+                val catalog = WALKABLE_CLASSES.toList()
+                for (e in 0 until edges) {
+                    from[e] = data.readInt()
+                    to[e] = data.readInt()
+                    lengths[e] = data.readFloat().toDouble()
+                    ways[e] = data.readLong()
+                    classes[e] = catalog[data.readUnsignedByte()]
+                    direction[e] = data.readByte()
+                    require(from[e] in 0 until nodes && to[e] in 0 until nodes && lengths[e].isFinite() && lengths[e] > 0)
+                    require(direction[e].toInt() in 1..3)
+                    if (e > 0) require(ways[e] >= ways[e-1]) { "unsorted walk ways" }
+                }
+                val start = IntArray(nodes + 1) { data.readInt() }
+                require(start[0] == 0 && start[nodes] == edges * 2)
+                for (n in 0 until nodes) require(start[n] <= start[n + 1])
+                val adjacency = IntArray(edges * 2) { data.readInt().also { require(it in 0 until edges) } }
+                val components = IntArray(nodes) { data.readInt() }
+                val main = data.readInt()
+                fun grid(limit: Int): Map<Long, IntArray> {
+                    val count = data.readInt()
+                    require(count in 0..5_000_000)
+                    val result = HashMap<Long, IntArray>(count)
+                    repeat(count) {
+                        val x = data.readInt()
+                        val y = data.readInt()
+                        val size = data.readInt()
+                        require(size in 1..limit)
+                        result[cellKey(x, y)] = IntArray(size) { data.readInt().also { require(it in 0 until limit) } }
+                    }
+                    return result
+                }
+                val nodeGrid = grid(nodes)
+                val roadGrid = grid(edges)
+                require(data.read() == -1) { "trailing walk graph data" }
+                // The generator sorts edges by OSM way. Build each range
+                // once instead of boxing/hashing a Long for every road segment.
+                val byWay = HashMap<Long, IntArray>()
+                var first = 0
+                while (first < edges) {
+                    var end = first + 1
+                    while (end < edges && ways[end] == ways[first]) end++
+                    byWay[ways[first]] = IntArray(end-first) { first+it }
+                    first = end
+                }
+                @Suppress("UNCHECKED_CAST")
+                RoadGraph(version, lons, lats, from, to, lengths, ways, classes as Array<String>,
+                    start, adjacency, byWay, nodeGrid, components, main, coverage, direction, roadGrid)
+            }
 
         /**
          * Walkable classes from the routing plan; motorway, trunk (and their
