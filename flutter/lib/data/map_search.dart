@@ -75,6 +75,7 @@ class MapSearchIndex {
   final List<TaiwanSearchEntry> _roadEntries;
   final Iterable<TaiwanSearchEntry> _roadSource;
   final bool _indexedRoadSearch;
+  final Map<GeoPoint, String?> _contextCache = {};
   late final _RoadSearchLookup _roadLookup =
       _roadLookups[_roadSource] ??= _RoadSearchLookup(_roadEntries);
   final List<MapAdministrativeArea> _administrativeAreas;
@@ -99,6 +100,14 @@ class MapSearchIndex {
             .where((area) => area.level == MapAdministrativeLevel.village)
             .toList(growable: false),
       );
+  late final List<String> _contextLabels = [
+    for (final area in _administrativeAreas)
+      _normalizeText(
+        area.parent != null && !area.displayName.startsWith(area.parent!)
+            ? '${area.parent}${area.displayName}'
+            : area.displayName,
+      ),
+  ];
 
   MapSearchQuery search(String text) {
     final input = text.trim();
@@ -128,13 +137,26 @@ class MapSearchIndex {
 
     final requestedArea = _requestedAdministrativeAreaFor(normalized);
     final matches = <_RankedResult>[];
+    final contextAffectsRanking = _contextLabels.any(
+      (label) => label.length >= 2 && normalized.contains(label),
+    );
+    void collect(_RankedResult match) {
+      if (matches.length == maxResults &&
+          _compareRankedResults(match, matches.last) >= 0) {
+        return;
+      }
+      matches.add(match);
+      matches.sort(_compareRankedResults);
+      if (matches.length > maxResults) matches.removeLast();
+    }
+
     for (var index = 0; index < _features.length; index += 1) {
       final feature = _features[index];
       final coordinate = _focusCoordinate(feature.geometry);
       if (coordinate == null) continue;
       final score = _featureMatchScore(feature, normalized);
       if (score == null) continue;
-      matches.add(
+      collect(
         _RankedResult(
           score: score,
           sourceIndex: index,
@@ -156,26 +178,43 @@ class MapSearchIndex {
             : Iterable<int>.generate(_roadEntries.length);
     for (final index in roadCandidates) {
       final entry = _roadEntries[index];
-      final baseScore = _entryMatchScore(entry, normalized);
+      final text =
+          _indexedRoadSearch ? _roadLookup.texts[index] : _entryText(entry);
+      final baseScore = _entryMatchScore(text, normalized);
       if (baseScore == null) continue;
-      final nameMatches = _entryNameMatches(entry, normalized);
+      final nameMatches = baseScore <= 3;
       final region =
           entry.region ??
-          (nameMatches ? _administrativeContextFor(entry.coordinate) : null);
+          (nameMatches && contextAffectsRanking
+              ? _administrativeContextFor(entry.coordinate)
+              : null);
       final score = _prioritizedEntryScore(
-        entry,
+        nameMatches,
         normalized,
         baseScore,
         region,
       );
-      matches.add(
+      final sourceIndex = _features.length + index;
+      final proximity =
+          requestedArea != null && nameMatches
+              ? _distanceSquared(entry.coordinate, requestedArea.point)
+              : null;
+      if (matches.length == maxResults) {
+        final last = matches.last;
+        var order = score.compareTo(last.score);
+        if (order == 0 && proximity != null && last.proximity != null) {
+          order = proximity.compareTo(last.proximity!);
+        }
+        if (order == 0) order = sourceIndex.compareTo(last.sourceIndex);
+        if (order >= 0) continue;
+      }
+      collect(
         _RankedResult(
           score: score,
-          sourceIndex: _features.length + index,
-          proximity:
-              requestedArea != null && nameMatches
-                  ? _distanceSquared(entry.coordinate, requestedArea.point)
-                  : null,
+          sourceIndex: sourceIndex,
+          inferRegion:
+              entry.region == null && nameMatches && !contextAffectsRanking,
+          proximity: proximity,
           result: MapSearchResult(
             feature: null,
             title: entry.name,
@@ -193,7 +232,7 @@ class MapSearchIndex {
       final area = _administrativeAreas[index];
       final score = _administrativeMatchScore(area, normalized);
       if (score == null) continue;
-      matches.add(
+      collect(
         _RankedResult(
           score: score,
           sourceIndex: _features.length + _roadEntries.length + index,
@@ -210,22 +249,24 @@ class MapSearchIndex {
       );
     }
 
-    matches.sort((left, right) {
-      final scoreOrder = left.score.compareTo(right.score);
-      if (scoreOrder != 0) return scoreOrder;
-      if (left.proximity != null && right.proximity != null) {
-        final proximityOrder = left.proximity!.compareTo(right.proximity!);
-        if (proximityOrder != 0) return proximityOrder;
-      }
-      final sourceOrder = left.sourceIndex.compareTo(right.sourceIndex);
-      if (sourceOrder != 0) return sourceOrder;
-      return (left.result.id ?? '').compareTo(right.result.id ?? '');
-    });
     return MapSearchQuery(
       input: input,
       results: matches
           .take(maxResults)
-          .map((match) => match.result)
+          .map((match) {
+            final result = match.result;
+            if (!match.inferRegion) return result;
+            return MapSearchResult(
+              feature: result.feature,
+              title: result.title,
+              typeLabel: result.typeLabel,
+              coordinate: result.coordinate,
+              region: _administrativeContextFor(result.coordinate),
+              address: result.address,
+              resultId: result.resultId,
+              searchKind: result.searchKind,
+            );
+          })
           .toList(growable: false),
     );
   }
@@ -234,7 +275,10 @@ class MapSearchIndex {
 
   String? _administrativeContextFor(GeoPoint point) {
     if (_administrativeAreas.isEmpty) return null;
-    return _administrativeLabelIndex.contextLabelFor(point);
+    if (_contextCache.containsKey(point)) return _contextCache[point];
+    return _contextCache[point] = _administrativeLabelIndex.contextLabelFor(
+      point,
+    );
   }
 
   MapAdministrativeArea? _requestedAdministrativeAreaFor(String query) {
@@ -276,8 +320,7 @@ int? _featureMatchScore(StaticFeature feature, String query) {
   );
 }
 
-int? _entryMatchScore(TaiwanSearchEntry entry, String query) {
-  final text = _entryText(entry);
+int? _entryMatchScore(_SearchText text, String query) {
   final sourceRegion = text.region;
   final score = _matchScore(
     name: text.name,
@@ -293,14 +336,14 @@ int? _entryMatchScore(TaiwanSearchEntry entry, String query) {
 
   // A source region alone may match an administrative part of a longer
   // address, but it must not make every road in that region a result.
-  if (score == 4 && sourceRegion != query && !_entryNameMatches(entry, query)) {
+  if (score == 4 && sourceRegion != query) {
     return null;
   }
   return score;
 }
 
 int _prioritizedEntryScore(
-  TaiwanSearchEntry entry,
+  bool nameMatches,
   String query,
   int baseScore,
   String? displayRegion,
@@ -311,25 +354,11 @@ int _prioritizedEntryScore(
   // match was already checked before this context was derived.
   if (normalizedRegion.length >= 2 &&
       query.contains(normalizedRegion) &&
-      _entryNameMatches(entry, query) &&
+      nameMatches &&
       baseScore > 1) {
     return 1;
   }
   return baseScore;
-}
-
-bool _entryNameMatches(TaiwanSearchEntry entry, String query) {
-  final text = _entryText(entry);
-  final name = text.name;
-  if (_valueMatches(name, query)) return true;
-  return text.aliases.any((alias) => _valueMatches(alias, query));
-}
-
-bool _valueMatches(String value, String query) {
-  if (value == query || value.startsWith(query) || value.contains(query)) {
-    return true;
-  }
-  return value.length >= 2 && query.contains(value);
 }
 
 int? _administrativeMatchScore(MapAdministrativeArea area, String query) =>
@@ -382,10 +411,11 @@ final _roadLookups = Expando<_RoadSearchLookup>();
 /// The worker shares this immutable lookup when facilities/areas are updated.
 class _RoadSearchLookup {
   _RoadSearchLookup(List<TaiwanSearchEntry> entries) : count = entries.length {
+    texts = entries.map(_entryText).toList(growable: false);
     final grams = <String, List<int>>{};
     final reverse = <String, List<int>>{};
     for (var index = 0; index < entries.length; index++) {
-      final text = _entryText(entries[index]);
+      final text = texts[index];
       final fields = [
         text.name,
         ...text.aliases,
@@ -395,8 +425,9 @@ class _RoadSearchLookup {
       ];
       final seen = <String>{};
       for (final field in fields) {
-        for (var i = 0; i + 1 < field.length; i++) {
-          seen.add(field.substring(i, i + 2));
+        for (var i = 0; i < field.length; i++) {
+          seen.add(field.substring(i, i + 1));
+          if (i + 1 < field.length) seen.add(field.substring(i, i + 2));
         }
       }
       for (final gram in seen) {
@@ -415,13 +446,14 @@ class _RoadSearchLookup {
   }
 
   final int count;
+  late final List<_SearchText> texts;
   int maxReverseLength = 0;
   late final Map<String, Uint32List> postings;
   late final Map<String, Uint32List> reverseFields;
 
   Iterable<int> candidates(String query) {
     // Preserve one-character and UTF-16 matching semantics of the old scan.
-    if (query.length < 2) return Iterable<int>.generate(count);
+    if (query.length < 2) return postings[query] ?? const <int>[];
     Uint32List? smallest;
     for (var i = 0; i + 1 < query.length; i++) {
       final posting = postings[query.substring(i, i + 2)];
@@ -570,12 +602,26 @@ class _RankedResult {
     required this.sourceIndex,
     required this.result,
     this.proximity,
+    this.inferRegion = false,
   });
 
   final int score;
   final int sourceIndex;
   final MapSearchResult result;
   final double? proximity;
+  final bool inferRegion;
+}
+
+int _compareRankedResults(_RankedResult left, _RankedResult right) {
+  final scoreOrder = left.score.compareTo(right.score);
+  if (scoreOrder != 0) return scoreOrder;
+  if (left.proximity != null && right.proximity != null) {
+    final order = left.proximity!.compareTo(right.proximity!);
+    if (order != 0) return order;
+  }
+  final sourceOrder = left.sourceIndex.compareTo(right.sourceIndex);
+  if (sourceOrder != 0) return sourceOrder;
+  return (left.result.id ?? '').compareTo(right.result.id ?? '');
 }
 
 double _distanceSquared(GeoPoint left, GeoPoint right) {

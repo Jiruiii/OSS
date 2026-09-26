@@ -14,7 +14,9 @@ class TaipeiRoutingPerformanceTest {
     @Test fun regionalRoutesAndLatency() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val graphStart = System.nanoTime()
-        val graph = EvacuationRouteService.assetGraphLoader(context)()
+        val graph = RoadGraph.fromPrebuilt(context.assets.open(EvacuationRouteService.GRAPH_ASSET)) { stage ->
+            Log.i("RoutingBenchmark", "load_stage=$stage elapsed_ms=${(System.nanoTime()-graphStart)/1e6}")
+        }
         val graphMs = (System.nanoTime()-graphStart)/1e6
         Log.i("RoutingBenchmark","graph_load_ms=$graphMs nodes=${graph.nodeCount} edges=${graph.edgeCount}")
         // Station-adjacent street positions across both cities; the target is

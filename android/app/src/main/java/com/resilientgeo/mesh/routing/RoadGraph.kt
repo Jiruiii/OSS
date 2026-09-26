@@ -11,15 +11,11 @@ import kotlin.math.floor
 import kotlin.math.roundToLong
 
 /**
- * Walking graph built from the bundled OSM road snapshot
- * (`assets/routing/walk-roads.json`, produced by
- * `pipeline/tools/generate-walk-graph.mjs`).
- *
- * Vertices shared by several ways (keyed at 1e-7 degree) become one node, and
- * every pair of consecutive vertices becomes one undirected edge carrying its
- * OSM way id, road class and haversine length. Node and edge ids follow file
- * order, which the generator sorts by way id, so the same asset always yields
- * the same ids and therefore the same routes.
+ * Offline walking graph. Production uses prebuilt Taipei/New Taipei arrays
+ * from tools/maps/build_taipei_walk_graph.py, preserving shared OSM node IDs
+ * and pedestrian direction flags. The original Neihu JSON/fromWays path
+ * remains available for compatibility and golden tests; that legacy path
+ * merges vertices by coordinates and treats segments as undirected.
  */
 class RoadGraph private constructor(
     val graphVersion: String,
@@ -156,8 +152,13 @@ class RoadGraph private constructor(
         private const val EDGE_CELL_DEGREES = 0.01
 
         /** Load build-time arrays directly, avoiding JSON objects and phone-side graph construction. */
-        fun fromPrebuilt(input: InputStream): RoadGraph =
-            DataInputStream(BufferedInputStream(GZIPInputStream(input), 64 * 1024)).use { data ->
+        fun fromPrebuilt(input: InputStream, onStep: ((String) -> Unit)? = null): RoadGraph =
+            // Buffer compressed reads too: AssetManager's JNI boundary must not
+            // be crossed once per default 512-byte inflater refill.
+            DataInputStream(BufferedInputStream(
+                GZIPInputStream(BufferedInputStream(input, 128 * 1024), 128 * 1024),
+                64 * 1024,
+            )).use { data ->
                 val magic = ByteArray(8).also(data::readFully)
                 require(magic.contentEquals("RGMWALK1".toByteArray(Charsets.US_ASCII))) { "invalid walk graph" }
                 fun text(): String {
@@ -177,6 +178,7 @@ class RoadGraph private constructor(
                     lats[n] = data.readInt() / 1e7
                     require(LonLat(lons[n], lats[n]).isValid)
                 }
+                onStep?.invoke("nodes")
                 val from = IntArray(edges)
                 val to = IntArray(edges)
                 val lengths = DoubleArray(edges)
@@ -195,12 +197,14 @@ class RoadGraph private constructor(
                     require(direction[e].toInt() in 1..3)
                     if (e > 0) require(ways[e] >= ways[e-1]) { "unsorted walk ways" }
                 }
+                onStep?.invoke("edges")
                 val start = IntArray(nodes + 1) { data.readInt() }
                 require(start[0] == 0 && start[nodes] == edges * 2)
                 for (n in 0 until nodes) require(start[n] <= start[n + 1])
                 val adjacency = IntArray(edges * 2) { data.readInt().also { require(it in 0 until edges) } }
                 val components = IntArray(nodes) { data.readInt() }
                 val main = data.readInt()
+                onStep?.invoke("adjacency_components")
                 fun grid(limit: Int): Map<Long, IntArray> {
                     val count = data.readInt()
                     require(count in 0..5_000_000)
@@ -216,6 +220,7 @@ class RoadGraph private constructor(
                 }
                 val nodeGrid = grid(nodes)
                 val roadGrid = grid(edges)
+                onStep?.invoke("spatial_indexes")
                 require(data.read() == -1) { "trailing walk graph data" }
                 // The generator sorts edges by OSM way. Build each range
                 // once instead of boxing/hashing a Long for every road segment.
@@ -227,6 +232,7 @@ class RoadGraph private constructor(
                     byWay[ways[first]] = IntArray(end-first) { first+it }
                     first = end
                 }
+                onStep?.invoke("way_index")
                 @Suppress("UNCHECKED_CAST")
                 RoadGraph(version, lons, lats, from, to, lengths, ways, classes as Array<String>,
                     start, adjacency, byWay, nodeGrid, components, main, coverage, direction, roadGrid)

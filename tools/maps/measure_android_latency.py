@@ -22,6 +22,7 @@ def main():
     parser.add_argument('--serial', required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--swipes', action='store_true')
+    parser.add_argument('--long-routes', action='store_true')
     args = parser.parse_args()
     def adb(*command):
         return subprocess.check_output([args.adb,'-s',args.serial,*command],text=True,encoding='utf-8',errors='replace')
@@ -53,7 +54,7 @@ def main():
         else:
             raise RuntimeError('Search worker did not become ready')
         observations['search'] = []
-        for query in ['成功路','板橋','中正路','新北市板橋區文化路一段']:
+        for query in ['成功路','板橋','中正路','新北市板橋區文化路一段','路']:
             for _ in range(3):
                 observations['search'].append({'query':query,**call('search',query=query)})
         pairs = [
@@ -64,6 +65,11 @@ def main():
             ('tamsui',121.445,25.168,121.441,25.171),
             ('cross_city_bridge',121.506,25.062,121.492,25.063),
         ]
+        if args.long_routes:
+            pairs.extend([
+                ('taipei_to_banqiao',121.517,25.047,121.462,25.014),
+                ('tamsui_to_banqiao',121.445,25.168,121.462,25.014),
+            ])
         observations['routes'] = []
         for name,lon,lat,target_lon,target_lat in pairs:
             for iteration in range(6):
@@ -84,9 +90,12 @@ def main():
             values = sorted(values)
             return values[round((len(values)-1)*.95)]
         observations['summary'] = {
-            'cold_route_ms':observations['routes'][0]['elapsed_ms'],
+            # Only cold if the caller just restarted the process. A second
+            # run in the same app must not label its first request as cold.
+            'first_route_ms':observations['routes'][0]['elapsed_ms'],
             'warm_route_p95_ms':p95([r['elapsed_ms'] for r in observations['routes'] if r['iteration']>0]),
-            'search_p95_ms':p95([s['elapsed_ms'] for s in observations['search']]),
+            'search_p95_ms':p95([s['elapsed_ms'] for s in observations['search'] if len(s['query'])>=2]),
+            'single_character_search_ms':max(s['elapsed_ms'] for s in observations['search'] if len(s['query'])==1),
             'all_routes_ok':all(r['status']=='ok' for r in observations['routes']),
         }
         args.output.parent.mkdir(parents=True,exist_ok=True)
