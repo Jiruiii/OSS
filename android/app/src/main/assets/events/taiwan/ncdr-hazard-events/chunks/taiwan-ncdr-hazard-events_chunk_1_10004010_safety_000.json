@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10004010:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 58,
+  "priority": "HIGH",
+  "area_id": "tw.10004010",
+  "theme": "safety",
+  "bbox": [
+    120.953333,
+    24.866111,
+    120.953333,
+    24.866111
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090070",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.953333,
+          24.866111
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.10004010",
+        "county_code": "10004",
+        "town_code": "10004010",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090070",
+        "affected_area": "新竹縣",
+        "source_description": "新竹縣,興鴻家具行(特登),乙類-傢俱展示販售場,新竹縣竹北市崇義里西濱路二段206號,消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090070",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "新竹縣,興鴻家具行(特登),乙類-傢俱展示販售場,新竹縣竹北市崇義里西濱路二段206號,消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090070",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "新竹縣,興鴻家具行(特登),乙類-傢俱展示販售場,新竹縣竹北市崇義里西濱路二段206號,消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "新竹縣,興鴻家具行(特登),乙類-傢俱展示販售場,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "新竹縣,興鴻家具行(特登),乙類-傢俱展示販售場,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新竹縣",
+                  "geocode": null,
+                  "circle": "24.866111,120.953333 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:6feed7cb797213b0436597e6777124b506195a8fdaf190dd2f9f8857a9e63460",
+      "signature": "7fTiE0WfCsvlD157516To/hQDSvcaHgBN3j8HuXSrC4F/7H5jO+76CJyFoPkfRyuJ68xthijV4mJAme6k3ozCQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2981,
+  "chunk_hash": "sha256:5e722a71a6afc2c8cb28cd6ed443192db8d7a6584f6e2f17c2873b8ac70d77dc",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "Rdoh38vQzddgg/Ks/qV+iOj10dSXWWkEzx8Z3E1P56t/aFjRjRPASzK54Lf8bX0rG5/1pWRr6+bUYAmamKs8Dg=="
+}

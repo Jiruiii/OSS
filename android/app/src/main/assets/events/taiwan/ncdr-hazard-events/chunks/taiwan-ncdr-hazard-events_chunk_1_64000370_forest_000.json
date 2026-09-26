@@ -1,0 +1,128 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000370:forest:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 136,
+  "priority": "HIGH",
+  "area_id": "tw.64000370",
+  "theme": "forest",
+  "bbox": [
+    120.7546,
+    23.067602,
+    120.7546,
+    23.067602
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:forest_rec_20260601t121541",
+      "event_type": "FOREST_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.754600225021,
+          23.0676018110464
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-06-01T12:15:41+08:00",
+      "event_version": 1,
+      "issued_at": "2026-06-01T04:15:41.000Z",
+      "expires_at": "2027-04-30T16:00:00.000Z",
+      "attributes": {
+        "area_id": "tw.64000370",
+        "county_code": "64000",
+        "town_code": "64000370",
+        "village_code": null,
+        "theme": "forest",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "Forest_rec_20260601T121541",
+        "affected_area": "藤枝國家森林遊樂區",
+        "source_description": "整修聯外道路,休園\n\n預計開始日期：2026年06月01日\n預計恢復日期：2027年05月01日",
+        "source_record": {
+          "capid": "Forest_rec_20260601T121541",
+          "capCode": "facilityClos",
+          "effective": "2026-06-01T00:00:00",
+          "expires": "2027-05-01T00:00:00",
+          "description": "整修聯外道路,休園\n\n預計開始日期：2026年06月01日\n預計恢復日期：2027年05月01日",
+          "identifier": "Forest_rec_20260601T121541",
+          "sender": "recreation.forest.gov.tw",
+          "sent": "2026-06-01T12:15:41+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "整修聯外道路,休園\n\n預計開始日期：2026年06月01日\n預計恢復日期：2027年05月01日",
+              "language": "zh-TW",
+              "category": "Safety",
+              "event": "國家森林遊樂區",
+              "responseType": "Monitor",
+              "urgency": "Future",
+              "severity": "Severe",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "facilityClos"
+              },
+              "effective": "2026-06-01T00:00:00+08:00",
+              "expires": "2027-05-01T00:00:00+08:00",
+              "senderName": "農業部林業及自然保育署",
+              "headline": "藤枝國家森林遊樂區 - 休園",
+              "instruction": null,
+              "web": "https://recreation.forest.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "國家森林遊樂區入園示警"
+                },
+                {
+                  "valueName": "alert_color",
+                  "value": "紅色"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "藤枝國家森林遊樂區",
+                  "geocode": null,
+                  "circle": "23.0676018110464,120.754600225021 0.5",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:3ebc838954c55dd0e1e2ce322eb85504af24aac87eab9ac30016b7d44f0fe7b4",
+      "signature": "JT8K8S4PV4L6I2Zlh9U9RiXRethVAnIvXQa4ffwWOdLnaomyIcMtBQvVM7Cwcw4/Fdipbilk3/sEsCet5A4QBA=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2842,
+  "chunk_hash": "sha256:8f3e2f53d51e41cf1bb94e40189f052b5ad4ae685376b39420e55ff59774e1ab",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "gLiTZ/YNlKzCbbg5+eHh9oR0/tDPzkxmM/Qa6Bg5EZ9uaM1O3d0Lu1CXCKVCl3SDZkmJ75jOdvTAuD88xFEhBA=="
+}

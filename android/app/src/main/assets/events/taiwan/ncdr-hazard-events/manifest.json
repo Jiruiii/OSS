@@ -1,0 +1,3881 @@
+{
+  "schema_version": "manifest-v0",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "source": "NCDR",
+  "source_version": "2026-09-26T11:30:01+08:00",
+  "dataset_version": 1,
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "expires_at": "2027-04-30T16:00:00.000Z",
+  "chunking": {
+    "algorithm": "fixed-size",
+    "target_size_bytes": 4096,
+    "hash_algorithm": "SHA-256"
+  },
+  "total_event_count": 203,
+  "total_size_bytes": 38702775,
+  "chunks": [
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:heat:000",
+      "sequence": 0,
+      "chunk_hash": "sha256:9f9fba286066f29536e198ec0c827ccdc6a2af564ceaae5637284766ef5a4d54",
+      "size_bytes": 806282,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.09007010",
+      "theme": "heat",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:cwa-weather_heat_202609261127001"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:heat:001",
+      "sequence": 1,
+      "chunk_hash": "sha256:e43f4c81dfbb211be23f3b26a0ad74c38bb1bc7839be8895a4c37be2569c1e0b",
+      "size_bytes": 806438,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.09007010",
+      "theme": "heat",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:cwa-weather_heat_202609251754001"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:marine_pollution:000",
+      "sequence": 2,
+      "chunk_hash": "sha256:582fa1599e8e1f16dc05447db1fd8f0063aec9f086c4298260cbdc3d1e6fc18f",
+      "size_bytes": 803789,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3161"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:marine_pollution:001",
+      "sequence": 3,
+      "chunk_hash": "sha256:956cdaf16431a85052a18aeaac8f68ba0cc4cf6c5ec9cd1f1cc79c0cde8839be",
+      "size_bytes": 803804,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3149"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:marine_pollution:002",
+      "sequence": 4,
+      "chunk_hash": "sha256:45ddc13deb275ffbf71a736834075b383e3adaedac890c4db0f622dc5f3a6a13",
+      "size_bytes": 803736,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3124"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:marine_pollution:003",
+      "sequence": 5,
+      "chunk_hash": "sha256:238f8d31b9b28292715e94741a222cbf2e696233d96c1eb390ca3997e4dbacee",
+      "size_bytes": 803731,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3122"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:marine_pollution:004",
+      "sequence": 6,
+      "chunk_hash": "sha256:738adae27ca7e3940581b239d5279868f38af3880b5b859ee8a1c6f4b241868d",
+      "size_bytes": 803895,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3117"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:marine_pollution:005",
+      "sequence": 7,
+      "chunk_hash": "sha256:cd14943276efb64a11b2011549c84529fe4f46f7b6b7bbdb3657acf781ecb351",
+      "size_bytes": 803925,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3085"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:marine_pollution:006",
+      "sequence": 8,
+      "chunk_hash": "sha256:1915625a84a70b4c14ae0359d3698a82b3cbc79b17c41737cac3822fce20cadf",
+      "size_bytes": 803813,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3075"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:marine_pollution:007",
+      "sequence": 9,
+      "chunk_hash": "sha256:8af24080a2c2a05c5c15e49e0baf0d93bcd2a8dc622200e5fcca73853852932f",
+      "size_bytes": 803769,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3066"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:marine_pollution:008",
+      "sequence": 10,
+      "chunk_hash": "sha256:9af17fae7514b9638071cf7136fb809483e15d1dfb6f29ed9c55d4e440fa4d16",
+      "size_bytes": 803723,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3065"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:marine_pollution:009",
+      "sequence": 11,
+      "chunk_hash": "sha256:a1d133e017a031edf227691462a5278394e68bb1ee11999ec87514a1278a1415",
+      "size_bytes": 803732,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3064"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:marine_pollution:010",
+      "sequence": 12,
+      "chunk_hash": "sha256:b23c29905b84a0c7c09096cb7de64fb53c4f72969bee84e02f9be627c792abf4",
+      "size_bytes": 803804,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3063"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:marine_pollution:011",
+      "sequence": 13,
+      "chunk_hash": "sha256:923846ba829725fd295d7cf36812c7cfe2e4cdd19673d70584da51002a8d1d1c",
+      "size_bytes": 803730,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3048"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:marine_pollution:012",
+      "sequence": 14,
+      "chunk_hash": "sha256:ae2d41e2628ed4350a294391ea3cc2d5f2e5a131002951e97313108144c9e120",
+      "size_bytes": 803821,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3036"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:reservoir:000",
+      "sequence": 15,
+      "chunk_hash": "sha256:8618d0659501bd9885fa0628ed96d6563034439a75887450a3becfe16d80dd24",
+      "size_bytes": 806768,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "reservoir",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:wra_reservoirwarn_20260926111840_0000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:reservoir:001",
+      "sequence": 16,
+      "chunk_hash": "sha256:ef6459a0c20224f6396d30ad239f2f824aef8c3e4ebcd0f151d4b83f60d9f411",
+      "size_bytes": 804912,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "reservoir",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:wra_reservoirwarn_20260926110840_0000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:000",
+      "sequence": 17,
+      "chunk_hash": "sha256:6100c2e31e2391cc27b5bb1aea8061a26d801154f860c87fcd8b0ec66235bfa4",
+      "size_bytes": 803876,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609261130"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:001",
+      "sequence": 18,
+      "chunk_hash": "sha256:2849e4e298d1d2a7dda37a5b25600f2e2766419b816634ab006df2cf713fc60f",
+      "size_bytes": 804524,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609261120"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:002",
+      "sequence": 19,
+      "chunk_hash": "sha256:9fb8bcb5051938963f052eb66d31a63e3aee00206dcb0100f567261fa1218f8a",
+      "size_bytes": 804215,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609261020"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:003",
+      "sequence": 20,
+      "chunk_hash": "sha256:9d211d14d0f9fd2f66c313c4e524416f2383e2fd41a53852a85c2f2a4ef3c851",
+      "size_bytes": 804356,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609260900"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:004",
+      "sequence": 21,
+      "chunk_hash": "sha256:8d3b99f779a7e3dff241ab47a5302e31c7deff5615818e425d11cfe403c801e8",
+      "size_bytes": 803651,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609260850"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:005",
+      "sequence": 22,
+      "chunk_hash": "sha256:c274d949fb6daf2c7c62d6cc1f1c17480b0dc0010b2ef3994d66aabb3567253c",
+      "size_bytes": 805369,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609260820"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:006",
+      "sequence": 23,
+      "chunk_hash": "sha256:68cd0335254007c2379a7461a469945f2fcc7f2d6630f3388df312439fb03482",
+      "size_bytes": 805388,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609260820"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:007",
+      "sequence": 24,
+      "chunk_hash": "sha256:3da95290e98965318e8afcb46dee60b343a423372d045c9fa7a1ede5215682b6",
+      "size_bytes": 804539,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609242140"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:008",
+      "sequence": 25,
+      "chunk_hash": "sha256:8e06045a311069f8ffee13c035c8361abffa197de6267b52b6be59b1802fbcae",
+      "size_bytes": 804779,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609241700"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:009",
+      "sequence": 26,
+      "chunk_hash": "sha256:e6b9f839b153da9fd0555be3fa6dcf68585683c2f868ce2cabed8ad1d5ff4cd3",
+      "size_bytes": 804875,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609241550"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:010",
+      "sequence": 27,
+      "chunk_hash": "sha256:004cb090b533d184a7b184557f52a0d17dfa5a5777668461bc9ad29b5a418c3e",
+      "size_bytes": 806035,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609241610"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:011",
+      "sequence": 28,
+      "chunk_hash": "sha256:f3a925710de76a8a11baf8d90176adf5c60c97fa9a4c1e736e9393edd1584fc2",
+      "size_bytes": 804901,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609241550"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:012",
+      "sequence": 29,
+      "chunk_hash": "sha256:d89316785d07bfc9fb77b90c29fd916e9af8bbdc29286e57e241d5b13fea751b",
+      "size_bytes": 804155,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609241540"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:013",
+      "sequence": 30,
+      "chunk_hash": "sha256:a9aa6c1809e8551a6afc2c4116abd608a1a594ccb7dc74b3a8272297dabb2e26",
+      "size_bytes": 805415,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609241500"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:014",
+      "sequence": 31,
+      "chunk_hash": "sha256:67def26e62e2ffa6a6b8dccbd4f04621dca71743cc19b5b757ae56e0dfb0d46b",
+      "size_bytes": 806883,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609241720"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:015",
+      "sequence": 32,
+      "chunk_hash": "sha256:d0c93967bdb19b4f017400b855fe65d85e5c5ebfe10daff17ca6884e30a3ec2b",
+      "size_bytes": 810194,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609241400"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:016",
+      "sequence": 33,
+      "chunk_hash": "sha256:808e31d7715d482b7f846b2c7c9a87e7aeff8422a9a8a1c83221102dafe7f05d",
+      "size_bytes": 810194,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609241400"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:017",
+      "sequence": 34,
+      "chunk_hash": "sha256:abc2e4593ae361a4da8c3f9609e7c11226d287fad4e76be1e924af9a80de4f1c",
+      "size_bytes": 808303,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609241130"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:018",
+      "sequence": 35,
+      "chunk_hash": "sha256:5895adb69253e6a4c32428ddd83426156e0f6d7f46e0068c3898b23ab99b1cfa",
+      "size_bytes": 805931,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609241220"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:019",
+      "sequence": 36,
+      "chunk_hash": "sha256:d19fdd6a0d4e497d3a7cff48eb27a47ae3bb032bf33542650a6007c2ddc75600",
+      "size_bytes": 805334,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609240830"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:020",
+      "sequence": 37,
+      "chunk_hash": "sha256:1aa91c32d8d68e4ae1b0c78da2dd0d270ed1db889906737b5629ab34116af860",
+      "size_bytes": 804228,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609241630"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:021",
+      "sequence": 38,
+      "chunk_hash": "sha256:c461e39b023cb25e2ce9b709fecb2052b74f067237abf7c9c08042a66a3371c4",
+      "size_bytes": 805706,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609221540"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:022",
+      "sequence": 39,
+      "chunk_hash": "sha256:dee9497c78ac2f33f6060bd062a7708a4c0a065444bc1f21870fb25b2ea2cecc",
+      "size_bytes": 808699,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609221520"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:023",
+      "sequence": 40,
+      "chunk_hash": "sha256:84ddb5253fca62d9916def9f644fd967cc2e0909725e883fa69ad002cc4b44d7",
+      "size_bytes": 808699,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609221520"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:024",
+      "sequence": 41,
+      "chunk_hash": "sha256:6b6ed76ecbe342cbb6ff5e020abe43556dbd5d94bd3b84f126a4d6ea37e6f6db",
+      "size_bytes": 804111,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609240920"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:025",
+      "sequence": 42,
+      "chunk_hash": "sha256:a03a1dcd1296a326a8b2ec96f49228ef69850770edb9d1bc6ab49c77ad29d267",
+      "size_bytes": 806119,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609221010"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:026",
+      "sequence": 43,
+      "chunk_hash": "sha256:734f3c96bce7040dbc16857ebc676e34ec4d6119059cca8ac65930c8ee9b4958",
+      "size_bytes": 808699,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609221520"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:027",
+      "sequence": 44,
+      "chunk_hash": "sha256:f94a182c5d552329c06a25f9c8eae98916a0dd09248992d93c1edb0b321bf613",
+      "size_bytes": 808699,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609221520"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:028",
+      "sequence": 45,
+      "chunk_hash": "sha256:a32828646af05b8c683b727f54aa854e6e35e965c847a502f03b18e5dbb5c33d",
+      "size_bytes": 807095,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609231040"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:09007010:water_supply:029",
+      "sequence": 46,
+      "chunk_hash": "sha256:b307f8f104045575648d02b2023f46b8236a06383f2dd625b3d88c55160672f7",
+      "size_bytes": 809268,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.09007010",
+      "theme": "water_supply",
+      "bbox": [
+        119.908905,
+        25.940995,
+        120.511751,
+        26.385275
+      ],
+      "event_ids": [
+        "ncdr:twc_water_202609221520"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002010:safety:000",
+      "sequence": 47,
+      "chunk_hash": "sha256:243b171f071950933b79c01002c9c1622f13c8c0e7b01e2875e91e45909c3dc8",
+      "size_bytes": 2995,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10002010",
+      "theme": "safety",
+      "bbox": [
+        121.762355,
+        24.76095,
+        121.762355,
+        24.76095
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090064"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002010:safety:001",
+      "sequence": 48,
+      "chunk_hash": "sha256:7444cdc725a5dbefd65bff355ea60e800d384cb2bb9eed26636f9f3940ae5747",
+      "size_bytes": 2956,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10002010",
+      "theme": "safety",
+      "bbox": [
+        121.742397,
+        24.745149,
+        121.742397,
+        24.745149
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090065"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002010:safety:002",
+      "sequence": 49,
+      "chunk_hash": "sha256:e0587a847c225032c6c71c1b02b444e9d0c359ae609861e4a3a1cb4aecee4959",
+      "size_bytes": 3031,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10002010",
+      "theme": "safety",
+      "bbox": [
+        121.735079,
+        24.748148,
+        121.735079,
+        24.748148
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090066"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002010:safety:003",
+      "sequence": 50,
+      "chunk_hash": "sha256:854170e001fc0527d084edb30c15f2cf6efee6c54d2bf63388810eddc7b2da3f",
+      "size_bytes": 2992,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10002010",
+      "theme": "safety",
+      "bbox": [
+        121.767532,
+        24.755486,
+        121.767532,
+        24.755486
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090067"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002030:marine_pollution:000",
+      "sequence": 51,
+      "chunk_hash": "sha256:3e7fb2fa60a15b4b866add77189064ef5b13a9aded7e373ce1a1e64aef8aec51",
+      "size_bytes": 2693,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10002030",
+      "theme": "marine_pollution",
+      "bbox": [
+        121.871222,
+        24.579833,
+        121.871222,
+        24.579833
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3106"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002030:marine_pollution:001",
+      "sequence": 52,
+      "chunk_hash": "sha256:3d93b14293a9b798fb248843768f1f3c17984b614edd7d5f959d12b7ecd66196",
+      "size_bytes": 2606,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10002030",
+      "theme": "marine_pollution",
+      "bbox": [
+        121.819833,
+        24.462139,
+        121.819833,
+        24.462139
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3040"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002030:safety:000",
+      "sequence": 53,
+      "chunk_hash": "sha256:2ab90e591c3a5392055b91b600416b47117119819b40f1f31df6922025043135",
+      "size_bytes": 3106,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10002030",
+      "theme": "safety",
+      "bbox": [
+        121.82996,
+        24.61407,
+        121.82996,
+        24.61407
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090062"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002030:safety:001",
+      "sequence": 54,
+      "chunk_hash": "sha256:c4bcc2f2d6cc92adb3e5b4f2c74a640a041693d7d3d32acfc11d9135e4a4e291",
+      "size_bytes": 2935,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10002030",
+      "theme": "safety",
+      "bbox": [
+        121.834084,
+        24.612148,
+        121.834084,
+        24.612148
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090063"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002040:marine_pollution:000",
+      "sequence": 55,
+      "chunk_hash": "sha256:8d0a4cfbccb4749b05ed4e86d5e919607c0a8e3b35b4f9481ae6f5c589151182",
+      "size_bytes": 2570,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10002040",
+      "theme": "marine_pollution",
+      "bbox": [
+        121.951139,
+        24.979472,
+        121.951139,
+        24.979472
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3134"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002050:safety:000",
+      "sequence": 56,
+      "chunk_hash": "sha256:8ecda7fae490d3994fd80efe2bb63ac99858b3e932a12e1aaf29c303bed78d3f",
+      "size_bytes": 3248,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10002050",
+      "theme": "safety",
+      "bbox": [
+        121.73716,
+        24.821062,
+        121.73716,
+        24.821062
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090060"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002090:safety:000",
+      "sequence": 57,
+      "chunk_hash": "sha256:e92cc28b6faa6d8f9324f9af3aaa163cc76e201682b4c4f287e45248affd861b",
+      "size_bytes": 3115,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10002090",
+      "theme": "safety",
+      "bbox": [
+        121.819852,
+        24.707324,
+        121.819852,
+        24.707324
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090061"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10004010:safety:000",
+      "sequence": 58,
+      "chunk_hash": "sha256:5e722a71a6afc2c8cb28cd6ed443192db8d7a6584f6e2f17c2873b8ac70d77dc",
+      "size_bytes": 2981,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10004010",
+      "theme": "safety",
+      "bbox": [
+        120.953333,
+        24.866111,
+        120.953333,
+        24.866111
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090070"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10004020:safety:000",
+      "sequence": 59,
+      "chunk_hash": "sha256:e92e730a3897a0d4e1fc4c0d3da0b977e47f58420016ae9a394d09b996535ad2",
+      "size_bytes": 2972,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10004020",
+      "theme": "safety",
+      "bbox": [
+        121.027502,
+        24.780532,
+        121.027502,
+        24.780532
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090068"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10004020:safety:001",
+      "sequence": 60,
+      "chunk_hash": "sha256:917010ccf7a0759c4a40d45dff6a43579a350b116461c96444a4e00ca592e92e",
+      "size_bytes": 2990,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10004020",
+      "theme": "safety",
+      "bbox": [
+        121.027502,
+        24.780532,
+        121.027502,
+        24.780532
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090069"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10005010:safety:000",
+      "sequence": 61,
+      "chunk_hash": "sha256:21e3ce6c5ac0cf38bb72fe178a45cad4d3bc00d2f57564a2242e9831b42e086e",
+      "size_bytes": 2860,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10005010",
+      "theme": "safety",
+      "bbox": [
+        120.818089,
+        24.564764,
+        120.818089,
+        24.564764
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090071"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10005050:safety:000",
+      "sequence": 62,
+      "chunk_hash": "sha256:47e2a41b3562c3dd3ca3826e44aeda310f3b7e0d9c8fae30ade6f6490b3719a6",
+      "size_bytes": 2957,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10005050",
+      "theme": "safety",
+      "bbox": [
+        120.922906,
+        24.670121,
+        120.922906,
+        24.670121
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090072"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10007020:safety:000",
+      "sequence": 63,
+      "chunk_hash": "sha256:e1a89dadf817c6e0395987f5119251e330a64ee5cf4c9132b236c2f518a54836",
+      "size_bytes": 2953,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10007020",
+      "theme": "safety",
+      "bbox": [
+        120.435936,
+        24.062619,
+        120.435936,
+        24.062619
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090075"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10007020:safety:001",
+      "sequence": 64,
+      "chunk_hash": "sha256:88506a666a31d3a56a09e126329752f1c6cca339df2baf0052897a3a68a46de1",
+      "size_bytes": 3066,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10007020",
+      "theme": "safety",
+      "bbox": [
+        120.461564,
+        24.08743,
+        120.461564,
+        24.08743
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090077"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10007030:safety:000",
+      "sequence": 65,
+      "chunk_hash": "sha256:4d58470874710a066960144d8580cf745d59ab6bd4672d3a7e66bf836dcb7fde",
+      "size_bytes": 2941,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10007030",
+      "theme": "safety",
+      "bbox": [
+        120.493337,
+        24.114315,
+        120.493337,
+        24.114315
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090074"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10007100:safety:000",
+      "sequence": 66,
+      "chunk_hash": "sha256:c6ccf902766f3b621f48d453d95fcb764947a59be2b290562ca9d6c30f5c15c0",
+      "size_bytes": 3019,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10007100",
+      "theme": "safety",
+      "bbox": [
+        120.580288,
+        23.960846,
+        120.580288,
+        23.960846
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090073"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10007100:safety:001",
+      "sequence": 67,
+      "chunk_hash": "sha256:424edbd2ad645ebef5d967a50ae28a95e437dcdd9603a9db8e023a0a1956b7a0",
+      "size_bytes": 2998,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10007100",
+      "theme": "safety",
+      "bbox": [
+        120.56921,
+        23.944485,
+        120.56921,
+        23.944485
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090076"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10008040:safety:000",
+      "sequence": 68,
+      "chunk_hash": "sha256:1d04dd84d1af73ea7b45cd965ff38211da6b372708b4f7df23266a0ed0a429d4",
+      "size_bytes": 3233,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10008040",
+      "theme": "safety",
+      "bbox": [
+        120.657695,
+        23.768236,
+        120.657695,
+        23.768236
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090078"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10009040:safety:000",
+      "sequence": 69,
+      "chunk_hash": "sha256:f7b787a92b4ddb4d7b5061ee774f481da3c11d0087b9a781053a92c0a5bc0ac7",
+      "size_bytes": 2917,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10009040",
+      "theme": "safety",
+      "bbox": [
+        120.447154,
+        23.802382,
+        120.447154,
+        23.802382
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090080"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10009040:safety:001",
+      "sequence": 70,
+      "chunk_hash": "sha256:666dab06737191c360f24c7d4ecac8aa4637a1787674ff117bd4d65c6cd249ca",
+      "size_bytes": 2890,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10009040",
+      "theme": "safety",
+      "bbox": [
+        120.450121,
+        23.80263,
+        120.450121,
+        23.80263
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090081"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10009050:safety:000",
+      "sequence": 71,
+      "chunk_hash": "sha256:895f5c0657f66967ef0b467010a6c7e554d12fffee1f2c81d7c6d4bf78cbec9c",
+      "size_bytes": 2845,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10009050",
+      "theme": "safety",
+      "bbox": [
+        120.395523,
+        23.67545,
+        120.395523,
+        23.67545
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090079"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10009060:safety:000",
+      "sequence": 72,
+      "chunk_hash": "sha256:cc0b2d78656c1b25ea7522ac938f04e38aa7d4f811fb6f80fe673d9c3f549ed1",
+      "size_bytes": 2971,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10009060",
+      "theme": "safety",
+      "bbox": [
+        120.300752,
+        23.568645,
+        120.300752,
+        23.568645
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090082"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10009060:safety:001",
+      "sequence": 73,
+      "chunk_hash": "sha256:2cac202ed3a64216a59d09e8fb03878adc9d595f12ae4b67d6b0f869a494826c",
+      "size_bytes": 3032,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10009060",
+      "theme": "safety",
+      "bbox": [
+        120.301075,
+        23.568591,
+        120.301075,
+        23.568591
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090083"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10009060:safety:002",
+      "sequence": 74,
+      "chunk_hash": "sha256:78a5c8f0f380b5d4c5db4166c6dcba9ee67d737642b89a555e0fedce49e13994",
+      "size_bytes": 2929,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10009060",
+      "theme": "safety",
+      "bbox": [
+        120.300448,
+        23.568763,
+        120.300448,
+        23.568763
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090084"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10009060:safety:003",
+      "sequence": 75,
+      "chunk_hash": "sha256:a57f9a980ff5c0826094895daf0b504ebd2d95987a692e46bcaabc8d0bbb8ad3",
+      "size_bytes": 2932,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10009060",
+      "theme": "safety",
+      "bbox": [
+        120.300631,
+        23.568376,
+        120.300631,
+        23.568376
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090085"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10009180:marine_pollution:000",
+      "sequence": 76,
+      "chunk_hash": "sha256:57bdfd9b5e5ece9446c3b16f1fe79778968976184bf985466ae483a3ca1b8987",
+      "size_bytes": 2635,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10009180",
+      "theme": "marine_pollution",
+      "bbox": [
+        120.201833,
+        23.6185,
+        120.201833,
+        23.6185
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3139"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10009180:marine_pollution:001",
+      "sequence": 77,
+      "chunk_hash": "sha256:a5a8386274057f78f535dc59d1b79bc8dc297c29a6a26dd22ea896bde6d307b9",
+      "size_bytes": 2630,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10009180",
+      "theme": "marine_pollution",
+      "bbox": [
+        120.141111,
+        23.620833,
+        120.141111,
+        23.620833
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3082"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10010020:safety:000",
+      "sequence": 78,
+      "chunk_hash": "sha256:7c58166b2aa47a3acc2f28d61cc397281950327c1af0f6d992b36e585f13eac8",
+      "size_bytes": 2971,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10010020",
+      "theme": "safety",
+      "bbox": [
+        120.262454,
+        23.458756,
+        120.262454,
+        23.458756
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090087"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10010040:safety:000",
+      "sequence": 79,
+      "chunk_hash": "sha256:f932a04a70d297f2cf9bb341263697c2b11bbc4de52b4b186818f012132ab803",
+      "size_bytes": 3109,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10010040",
+      "theme": "safety",
+      "bbox": [
+        120.451556,
+        23.603252,
+        120.451556,
+        23.603252
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090089"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10010050:safety:000",
+      "sequence": 80,
+      "chunk_hash": "sha256:d5d6fb0f251cd1ad6f0c2a0bed92a2c1315df9c2f08f5cad9c923aaab544ce65",
+      "size_bytes": 2926,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10010050",
+      "theme": "safety",
+      "bbox": [
+        120.439464,
+        23.521854,
+        120.439464,
+        23.521854
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090086"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10010050:safety:001",
+      "sequence": 81,
+      "chunk_hash": "sha256:75d45494a07e4c5d32f957755461dad73c9a8d31632f769e303fe7b3ccb078a5",
+      "size_bytes": 2978,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10010050",
+      "theme": "safety",
+      "bbox": [
+        120.43205,
+        23.543372,
+        120.43205,
+        23.543372
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090088"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10013020:safety:000",
+      "sequence": 82,
+      "chunk_hash": "sha256:bbbbfbe65f24dd81a3ac9cdb28276d4dd9a4ea69611c3c294730cc60c99cd2ca",
+      "size_bytes": 3262,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10013020",
+      "theme": "safety",
+      "bbox": [
+        120.538425,
+        22.528662,
+        120.538425,
+        22.528662
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090092"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10013160:safety:000",
+      "sequence": 83,
+      "chunk_hash": "sha256:0f5620368ba8f9c1f02c8a56c4facecd271d1d67950e663c173e7845433777a9",
+      "size_bytes": 3114,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10013160",
+      "theme": "safety",
+      "bbox": [
+        120.571968,
+        22.407133,
+        120.571968,
+        22.407133
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090091"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10013170:marine_pollution:000",
+      "sequence": 84,
+      "chunk_hash": "sha256:dc0be10cce00b5c4258de8cc0832cc34c6a9c6b4e2d3889689da1546cb519202",
+      "size_bytes": 2648,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10013170",
+      "theme": "marine_pollution",
+      "bbox": [
+        120.433611,
+        22.471389,
+        120.433611,
+        22.471389
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3160"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10013170:marine_pollution:001",
+      "sequence": 85,
+      "chunk_hash": "sha256:b2eabdf5d1665d0201585b1de411874f299366ac092f61d357498dd5ab77a35f",
+      "size_bytes": 2612,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10013170",
+      "theme": "marine_pollution",
+      "bbox": [
+        120.442222,
+        22.470278,
+        120.442222,
+        22.470278
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3127"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10013170:safety:000",
+      "sequence": 86,
+      "chunk_hash": "sha256:26256654ddcb2d07e3b5f42ac52a81e0f7d10b35de64170cfd74c5246ac93e0a",
+      "size_bytes": 2833,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10013170",
+      "theme": "safety",
+      "bbox": [
+        120.463922,
+        22.488527,
+        120.463922,
+        22.488527
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090090"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10014010:safety:000",
+      "sequence": 87,
+      "chunk_hash": "sha256:03734ebd5c5a057809a70fec65c3ffa73a8638d79dc3a6b3c01a6aa9005815c8",
+      "size_bytes": 2821,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10014010",
+      "theme": "safety",
+      "bbox": [
+        121.144019,
+        22.767806,
+        121.144019,
+        22.767806
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090093"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10014020:marine_pollution:000",
+      "sequence": 88,
+      "chunk_hash": "sha256:92d8f0f480d8d0b64be3f906786f14b8ed75217d6aae011def92fb6fa9572e40",
+      "size_bytes": 2789,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10014020",
+      "theme": "marine_pollution",
+      "bbox": [
+        121.351389,
+        23.069722,
+        121.351389,
+        23.069722
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3090"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10014020:marine_pollution:001",
+      "sequence": 89,
+      "chunk_hash": "sha256:21e5d086f0d8fdc09bfcded508733f64d8b399cc90f541cb68eb805da903416b",
+      "size_bytes": 2627,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10014020",
+      "theme": "marine_pollution",
+      "bbox": [
+        121.321611,
+        22.992417,
+        121.321611,
+        22.992417
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3041"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015010:safety:000",
+      "sequence": 90,
+      "chunk_hash": "sha256:f1f50850dd8906295233f1667a7c55c1466ca6938d9cc2a09b0e1bc86f7876c1",
+      "size_bytes": 2914,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10015010",
+      "theme": "safety",
+      "bbox": [
+        121.602591,
+        23.970911,
+        121.602591,
+        23.970911
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090095"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015010:safety:001",
+      "sequence": 91,
+      "chunk_hash": "sha256:2d31de42157378061ed5d11633e195e91dc482c12ca578077e4631c8418f973d",
+      "size_bytes": 3281,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10015010",
+      "theme": "safety",
+      "bbox": [
+        121.609329,
+        23.979019,
+        121.609329,
+        23.979019
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090096"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015010:safety:002",
+      "sequence": 92,
+      "chunk_hash": "sha256:3e94f425fa18f8fe6d959c4311cf99c17a46ef97a80955ec37bb0abf3c6fd67a",
+      "size_bytes": 2896,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10015010",
+      "theme": "safety",
+      "bbox": [
+        121.633439,
+        23.990746,
+        121.633439,
+        23.990746
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090099"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015010:safety:003",
+      "sequence": 93,
+      "chunk_hash": "sha256:55b4e78b419acc0a119b13e5516c823e431fa4db0ecf73a28ea80a79f1c17287",
+      "size_bytes": 2854,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10015010",
+      "theme": "safety",
+      "bbox": [
+        121.590858,
+        23.991491,
+        121.590858,
+        23.991491
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090100"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015010:safety:004",
+      "sequence": 94,
+      "chunk_hash": "sha256:d307cef3fbe635aea59a7e42c646dbd7d6a7be8280250e5e6c1d21ba348f4852",
+      "size_bytes": 2857,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10015010",
+      "theme": "safety",
+      "bbox": [
+        121.604084,
+        23.991838,
+        121.604084,
+        23.991838
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090101"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015010:safety:005",
+      "sequence": 95,
+      "chunk_hash": "sha256:5a9f67ed932383871f06f3033fffa59e7bd088e159c7082483be2e7a5428f468",
+      "size_bytes": 2863,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10015010",
+      "theme": "safety",
+      "bbox": [
+        121.623858,
+        23.99822,
+        121.623858,
+        23.99822
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090103"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015020:hazard:000",
+      "sequence": 96,
+      "chunk_hash": "sha256:2e8d7d0211e599b93d24b5958881432d0725d27d2b046c03976bf805c1e519d6",
+      "size_bytes": 6476,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10015020",
+      "theme": "hazard",
+      "bbox": [
+        121.381043,
+        23.699526,
+        121.513074,
+        23.768788
+      ],
+      "event_ids": [
+        "ncdr:a2026092608083652745446410"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015050:safety:000",
+      "sequence": 97,
+      "chunk_hash": "sha256:fa6ce6f330037fd37c65c212d8181936257d57fcc9f2b8378690e62b8060f905",
+      "size_bytes": 3350,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10015050",
+      "theme": "safety",
+      "bbox": [
+        121.580033,
+        23.973552,
+        121.580033,
+        23.973552
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090094"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015050:safety:001",
+      "sequence": 98,
+      "chunk_hash": "sha256:c5e8b64a7350e8b41878e506376cd02fb4b09e14c5677839b675bfc402b3686d",
+      "size_bytes": 3233,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10015050",
+      "theme": "safety",
+      "bbox": [
+        121.594883,
+        23.939014,
+        121.594883,
+        23.939014
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090097"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015050:safety:002",
+      "sequence": 99,
+      "chunk_hash": "sha256:20edc314eea69b579554fc30accf4bc1ae1512e72470867b6da9d7593861b9cc",
+      "size_bytes": 2977,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10015050",
+      "theme": "safety",
+      "bbox": [
+        121.583872,
+        23.974976,
+        121.583872,
+        23.974976
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090102"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015050:safety:003",
+      "sequence": 100,
+      "chunk_hash": "sha256:da0d9cf0e44ad2f547d34e1e3a4ffb1db6f67c1239742ac09c32b72eeb194137",
+      "size_bytes": 2950,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10015050",
+      "theme": "safety",
+      "bbox": [
+        121.580699,
+        23.970417,
+        121.580699,
+        23.970417
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090104"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015060:safety:000",
+      "sequence": 101,
+      "chunk_hash": "sha256:e3bbae9adbd0a4f49cf815207d57f7209c38be763693b52240f8cc93518fcfbf",
+      "size_bytes": 2876,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10015060",
+      "theme": "safety",
+      "bbox": [
+        121.53888,
+        23.905557,
+        121.53888,
+        23.905557
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090098"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015080:marine_pollution:000",
+      "sequence": 102,
+      "chunk_hash": "sha256:8b01b6f5c80ca52bef0a8c701090aeb9977c1d133e0d0c41ae796445aa2054ce",
+      "size_bytes": 2654,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10015080",
+      "theme": "marine_pollution",
+      "bbox": [
+        121.506389,
+        23.4925,
+        121.506389,
+        23.4925
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3051"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10016020:safety:000",
+      "sequence": 103,
+      "chunk_hash": "sha256:e37b4465780eb372f2149313bf6f31cf785e389697f14e8ad71a59100631c149",
+      "size_bytes": 2876,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10016020",
+      "theme": "safety",
+      "bbox": [
+        119.676541,
+        23.559329,
+        119.676541,
+        23.559329
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090105"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10016020:safety:001",
+      "sequence": 104,
+      "chunk_hash": "sha256:5bec13ef2960155f856c33bdeff1d3f1c18bc285eb4960877bdb72922a8c9c3d",
+      "size_bytes": 3236,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10016020",
+      "theme": "safety",
+      "bbox": [
+        119.659577,
+        23.564339,
+        119.659577,
+        23.564339
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090106"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10016030:marine_pollution:000",
+      "sequence": 105,
+      "chunk_hash": "sha256:87e58d753675f511c91525effa54dfb8c33d03f454713a9d5697e165e349d563",
+      "size_bytes": 2622,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10016030",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.614167,
+        23.751667,
+        119.614167,
+        23.751667
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3107"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10016040:marine_pollution:000",
+      "sequence": 106,
+      "chunk_hash": "sha256:79a1bc5a9cb0e324f61ebac3230eac7692b32454d1c4471e6deea18f8afffb54",
+      "size_bytes": 2589,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10016040",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.478889,
+        23.562778,
+        119.478889,
+        23.562778
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3162"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10016040:marine_pollution:001",
+      "sequence": 107,
+      "chunk_hash": "sha256:16b55288420ad91ccfe450107172cf369b4c7132a8279ff24f08ec718a7658d7",
+      "size_bytes": 2589,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10016040",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.478889,
+        23.562778,
+        119.478889,
+        23.562778
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3076"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10016050:marine_pollution:000",
+      "sequence": 108,
+      "chunk_hash": "sha256:bd1e8a0e64e210ce4996a7f76a8143e7aabba86cfb08ac39dd70582c46ecb36a",
+      "size_bytes": 2649,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10016050",
+      "theme": "marine_pollution",
+      "bbox": [
+        119.493889,
+        23.377222,
+        119.493889,
+        23.377222
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3050"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10017010:safety:000",
+      "sequence": 109,
+      "chunk_hash": "sha256:2769f5a1497f5d90c6cf3ea108f1b4513f25587f64874b1da3c2f0330a73282b",
+      "size_bytes": 3084,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10017010",
+      "theme": "safety",
+      "bbox": [
+        121.771477,
+        25.148029,
+        121.771477,
+        25.148029
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090107"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10018010:safety:000",
+      "sequence": 110,
+      "chunk_hash": "sha256:a08099fc2a7105fb44d885296c8050dcb9f6d775adc15cc361469a4c40da70cc",
+      "size_bytes": 2995,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10018010",
+      "theme": "safety",
+      "bbox": [
+        121.013499,
+        24.783894,
+        121.013499,
+        24.783894
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090108"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10018010:safety:001",
+      "sequence": 111,
+      "chunk_hash": "sha256:204ba7447d86e3967a7aa81c2d3378e9db467fdfe03c67e152300c52b28e6cd9",
+      "size_bytes": 3204,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10018010",
+      "theme": "safety",
+      "bbox": [
+        120.990576,
+        24.802033,
+        120.990576,
+        24.802033
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090110"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10018020:marine_pollution:000",
+      "sequence": 112,
+      "chunk_hash": "sha256:d066889bf61a289dd294b895e220d337f8ddb4126b4db90565648e2e3b921ca5",
+      "size_bytes": 2585,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.10018020",
+      "theme": "marine_pollution",
+      "bbox": [
+        120.919444,
+        24.8475,
+        120.919444,
+        24.8475
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3126"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10018020:safety:000",
+      "sequence": 113,
+      "chunk_hash": "sha256:d14eb0e9be927e2ec5cef2a9249af12a8c1cf217d4e24e63c7146b86975d5dc2",
+      "size_bytes": 3324,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10018020",
+      "theme": "safety",
+      "bbox": [
+        120.957953,
+        24.819217,
+        120.957953,
+        24.819217
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090109"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10020010:safety:000",
+      "sequence": 114,
+      "chunk_hash": "sha256:d40e2490117a5cbc5d3ce51eb864d45c6e28137827b64b005c0a653edd73d71a",
+      "size_bytes": 2816,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10020010",
+      "theme": "safety",
+      "bbox": [
+        120.49891,
+        23.46601,
+        120.49891,
+        23.46601
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090111"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10020010:safety:001",
+      "sequence": 115,
+      "chunk_hash": "sha256:c2fec1570febfc727a878c3da3a30023a31ea7c5d34ec479475d7abea08b5a37",
+      "size_bytes": 2855,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10020010",
+      "theme": "safety",
+      "bbox": [
+        120.45528,
+        23.47913,
+        120.45528,
+        23.47913
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090113"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10020020:safety:000",
+      "sequence": 116,
+      "chunk_hash": "sha256:b5ac8c64de52660d2214d674fdc07b3031d410961bcd0ef3f6fd07a826e339e9",
+      "size_bytes": 2982,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.10020020",
+      "theme": "safety",
+      "bbox": [
+        120.43888,
+        23.46871,
+        120.43888,
+        23.46871
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090112"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:63000020:safety:000",
+      "sequence": 117,
+      "chunk_hash": "sha256:c900fd3bda22627d7be35a2b27f9835db5f165dc0da0288daf51021725a4c191",
+      "size_bytes": 3042,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.63000020",
+      "theme": "safety",
+      "bbox": [
+        121.573123,
+        25.03329,
+        121.573123,
+        25.03329
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090011"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:63000030:safety:000",
+      "sequence": 118,
+      "chunk_hash": "sha256:0335d4a68fbac1a042c03ba4dc824f0c28e46016308ef712801b1317351441a7",
+      "size_bytes": 2840,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.63000030",
+      "theme": "safety",
+      "bbox": [
+        121.546505,
+        25.024851,
+        121.546505,
+        25.024851
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090010"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000020:safety:000",
+      "sequence": 119,
+      "chunk_hash": "sha256:f32bac4def717efa885617f03652ad2e3252cbef80bf8efcdf2a14ddc176aadf",
+      "size_bytes": 2876,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.64000020",
+      "theme": "safety",
+      "bbox": [
+        120.281704,
+        22.635915,
+        120.281704,
+        22.635915
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090055"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000030:safety:000",
+      "sequence": 120,
+      "chunk_hash": "sha256:188b32238b5f60d2ade42892b17c2ddd6eebc904fe13484ceb9db7b92dae9a9c",
+      "size_bytes": 3024,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.64000030",
+      "theme": "safety",
+      "bbox": [
+        120.303575,
+        22.666544,
+        120.303575,
+        22.666544
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090052"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000030:safety:001",
+      "sequence": 121,
+      "chunk_hash": "sha256:1a531555fd872b700037337597943214abc74aa279a9fa2b7288a87be349f3d2",
+      "size_bytes": 2837,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.64000030",
+      "theme": "safety",
+      "bbox": [
+        120.307351,
+        22.672476,
+        120.307351,
+        22.672476
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090054"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000030:safety:002",
+      "sequence": 122,
+      "chunk_hash": "sha256:295c1bc0de08c76fad81f7b447036125a89276c7cfc8c1ffbcb4456c261d2d86",
+      "size_bytes": 2907,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.64000030",
+      "theme": "safety",
+      "bbox": [
+        120.31304,
+        22.686669,
+        120.31304,
+        22.686669
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090058"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000050:safety:000",
+      "sequence": 123,
+      "chunk_hash": "sha256:576c6c8ff2b46a7bd091f2a44a0213858d3e8f919acef2053477b4e0c78a6150",
+      "size_bytes": 2924,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.64000050",
+      "theme": "safety",
+      "bbox": [
+        120.338392,
+        22.640167,
+        120.338392,
+        22.640167
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090056"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000050:safety:001",
+      "sequence": 124,
+      "chunk_hash": "sha256:a053109c7a489dd349503ce6c42c509ff461c02d6be2033ef6be802c41bc1eaa",
+      "size_bytes": 3101,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.64000050",
+      "theme": "safety",
+      "bbox": [
+        120.3167,
+        22.63903,
+        120.3167,
+        22.63903
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090059"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000070:safety:000",
+      "sequence": 125,
+      "chunk_hash": "sha256:1ee729823fd3ae48d581977f06615c082f7edc3c9b8ac306d02c63a5ca53cad4",
+      "size_bytes": 2961,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.64000070",
+      "theme": "safety",
+      "bbox": [
+        120.294622,
+        22.630735,
+        120.294622,
+        22.630735
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090051"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000080:safety:000",
+      "sequence": 126,
+      "chunk_hash": "sha256:311d09f9dbde204d3d98a2fa2fdc75ccb8f93d1a14e0e48a3052c8f6fb633f7a",
+      "size_bytes": 2885,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.64000080",
+      "theme": "safety",
+      "bbox": [
+        120.300358,
+        22.612734,
+        120.300358,
+        22.612734
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090057"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000090:marine_pollution:000",
+      "sequence": 127,
+      "chunk_hash": "sha256:dbe03e0d0995873994988e358ec92a596d2658caaefe8c360f7adf18dffa4944",
+      "size_bytes": 2592,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.64000090",
+      "theme": "marine_pollution",
+      "bbox": [
+        120.312778,
+        22.566389,
+        120.312778,
+        22.566389
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3057"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000100:marine_pollution:000",
+      "sequence": 128,
+      "chunk_hash": "sha256:125885c9bd2e9be648fad051b7e1f6a676588a19380e27e1058a346fcbe570bb",
+      "size_bytes": 2640,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.64000100",
+      "theme": "marine_pollution",
+      "bbox": [
+        120.284444,
+        22.594722,
+        120.284444,
+        22.594722
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3147"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000100:marine_pollution:001",
+      "sequence": 129,
+      "chunk_hash": "sha256:719902c8c8f34356b4008e8ea2a9ef49f5792f23c6fb8adda210ffaad22ec5c9",
+      "size_bytes": 2634,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.64000100",
+      "theme": "marine_pollution",
+      "bbox": [
+        120.291667,
+        22.586944,
+        120.291667,
+        22.586944
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3130"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000130:safety:000",
+      "sequence": 130,
+      "chunk_hash": "sha256:55db4a77cdf3a085ca44e3ec2168a028f76edd6a8be0c74c3d72c17b68812f89",
+      "size_bytes": 2922,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.64000130",
+      "theme": "safety",
+      "bbox": [
+        120.394178,
+        22.493342,
+        120.394178,
+        22.493342
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090049"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000140:safety:000",
+      "sequence": 131,
+      "chunk_hash": "sha256:1c9c990e3147ded983f13713dc323d582eddf4532286d9b1ae05590fb28a2609",
+      "size_bytes": 2975,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.64000140",
+      "theme": "safety",
+      "bbox": [
+        120.382653,
+        22.589001,
+        120.382653,
+        22.589001
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090048"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000170:safety:000",
+      "sequence": 132,
+      "chunk_hash": "sha256:573c6d2aaeee60b0c7587f21e69fa2f9422c01e565112ef0c803cdbd2285cca3",
+      "size_bytes": 3037,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.64000170",
+      "theme": "safety",
+      "bbox": [
+        120.378643,
+        22.700847,
+        120.378643,
+        22.700847
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090053"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000190:safety:000",
+      "sequence": 133,
+      "chunk_hash": "sha256:c465d4bed4009b95c0e14217f5c2c240502291f5bcfdd4723d1b662c70bb9ed6",
+      "size_bytes": 2867,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.64000190",
+      "theme": "safety",
+      "bbox": [
+        120.299259,
+        22.793699,
+        120.299259,
+        22.793699
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090050"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000260:marine_pollution:000",
+      "sequence": 134,
+      "chunk_hash": "sha256:974e2e3404e4b61072e3fc2997ac8ac09fab086f255d66adbf5e4809b81496eb",
+      "size_bytes": 2667,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.64000260",
+      "theme": "marine_pollution",
+      "bbox": [
+        120.211111,
+        22.877222,
+        120.211111,
+        22.877222
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3145"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000260:marine_pollution:001",
+      "sequence": 135,
+      "chunk_hash": "sha256:6028eeb0f630fee87f12fc9c36daae1001eec80aaa4ee47b5217f28ac8c2826c",
+      "size_bytes": 2589,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.64000260",
+      "theme": "marine_pollution",
+      "bbox": [
+        120.201917,
+        22.872333,
+        120.201917,
+        22.872333
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3125"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000370:forest:000",
+      "sequence": 136,
+      "chunk_hash": "sha256:8f3e2f53d51e41cf1bb94e40189f052b5ad4ae685376b39420e55ff59774e1ab",
+      "size_bytes": 2842,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.64000370",
+      "theme": "forest",
+      "bbox": [
+        120.7546,
+        23.067602,
+        120.7546,
+        23.067602
+      ],
+      "event_ids": [
+        "ncdr:forest_rec_20260601t121541"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000010:safety:000",
+      "sequence": 137,
+      "chunk_hash": "sha256:1eaefe9bbe38bb2a42ca503c42e402e278db73d18656b5463edbde39ffbdf4f5",
+      "size_bytes": 2823,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.65000010",
+      "theme": "safety",
+      "bbox": [
+        121.453328,
+        25.009058,
+        121.453328,
+        25.009058
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090003"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000010:safety:001",
+      "sequence": 138,
+      "chunk_hash": "sha256:4e1983ad2e48ef86a978ff7f95eeb9341ca2ffc0198970880d6ad50165ebea1e",
+      "size_bytes": 2772,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.65000010",
+      "theme": "safety",
+      "bbox": [
+        121.456434,
+        25.016866,
+        121.456434,
+        25.016866
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090006"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000010:safety:002",
+      "sequence": 139,
+      "chunk_hash": "sha256:d5d1d26cc9fbacf40e6e3bb9d00dbabe05d3ae09c06c7ec1f308deb8a2734a28",
+      "size_bytes": 2924,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.65000010",
+      "theme": "safety",
+      "bbox": [
+        121.48076,
+        25.030633,
+        121.48076,
+        25.030633
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090007"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000020:safety:000",
+      "sequence": 140,
+      "chunk_hash": "sha256:72a64b2cb0b610362b2fa815039311210d6600bdf97d5ea3c16e396f06ff28f0",
+      "size_bytes": 2846,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.65000020",
+      "theme": "safety",
+      "bbox": [
+        121.480526,
+        25.075977,
+        121.480526,
+        25.075977
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090004"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000020:safety:001",
+      "sequence": 141,
+      "chunk_hash": "sha256:56f791074a20118b9e7ebca7a225c7db550e45e2091943565adf1768bc18c9fb",
+      "size_bytes": 2823,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.65000020",
+      "theme": "safety",
+      "bbox": [
+        121.498019,
+        25.061122,
+        121.498019,
+        25.061122
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090005"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000020:safety:002",
+      "sequence": 142,
+      "chunk_hash": "sha256:5a2004bd72da2857ffc4c4643f1932979726d6e6fae94647384991c8ef746048",
+      "size_bytes": 2859,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.65000020",
+      "theme": "safety",
+      "bbox": [
+        121.47272,
+        25.068669,
+        121.47272,
+        25.068669
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090008"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000030:safety:000",
+      "sequence": 143,
+      "chunk_hash": "sha256:bd99d5ffb39076e75c331b9801e1481b450f7566fa2af905365ae7717ed27db3",
+      "size_bytes": 2890,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.65000030",
+      "theme": "safety",
+      "bbox": [
+        121.480735,
+        25.011595,
+        121.480735,
+        25.011595
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090002"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000050:safety:000",
+      "sequence": 144,
+      "chunk_hash": "sha256:e0de74394409cd82be408d9c1513733346be8cb966095215dd76307cbf31c897",
+      "size_bytes": 2907,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.65000050",
+      "theme": "safety",
+      "bbox": [
+        121.451607,
+        25.039923,
+        121.451607,
+        25.039923
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090001"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000060:safety:000",
+      "sequence": 145,
+      "chunk_hash": "sha256:ae7d352c9bccc9763afb751e407237057151c3f918109f8c52d17ea43591f0f1",
+      "size_bytes": 2886,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.65000060",
+      "theme": "safety",
+      "bbox": [
+        121.552548,
+        24.98067,
+        121.552548,
+        24.98067
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090009"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:000",
+      "sequence": 146,
+      "chunk_hash": "sha256:5074325b632f7b74a7c20b02ed920a4c84766a361d9caa2368cd574ba4491863",
+      "size_bytes": 23162,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:001",
+      "sequence": 147,
+      "chunk_hash": "sha256:5ea61585c85fa79486bc72508b8743fc8440626553038cf7810f25b141e87f8f",
+      "size_bytes": 23201,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:002",
+      "sequence": 148,
+      "chunk_hash": "sha256:dd3dd8f69a47a8fb96e97ad9360816aa881481d8b37e626799904c40c43bfd2e",
+      "size_bytes": 23189,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:003",
+      "sequence": 149,
+      "chunk_hash": "sha256:7ded94f62ad4d946bc39494365f9baecde5e3e4b43017332eac7a87a326afc4a",
+      "size_bytes": 23207,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:004",
+      "sequence": 150,
+      "chunk_hash": "sha256:cbaf8f5781904f4fa3784bbb2a81925c81b2561bd1767914c2758fde966f0eb5",
+      "size_bytes": 23255,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:005",
+      "sequence": 151,
+      "chunk_hash": "sha256:1a2e2108fd9f82ae15532d548cf3b4995383028c5e2c710605914550e625d510",
+      "size_bytes": 23240,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:006",
+      "sequence": 152,
+      "chunk_hash": "sha256:b97e871c179730ac2f53d9200b9019c218ed18dbd2c39c80fd88e947303fda80",
+      "size_bytes": 23198,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:007",
+      "sequence": 153,
+      "chunk_hash": "sha256:33a50a7824b82cf2df7b7403bf5cf5a8002a42a11224861f9a00f992a1d475be",
+      "size_bytes": 23162,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:008",
+      "sequence": 154,
+      "chunk_hash": "sha256:1879fa5d605589c4ac8af491fc3d982559992a9bac2670b9649962e2518dd900",
+      "size_bytes": 23201,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:009",
+      "sequence": 155,
+      "chunk_hash": "sha256:e1e41fd5c342aab7b6d45cdc33129741aa4a735eed1ee3d7c74ff0a659b18514",
+      "size_bytes": 23198,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:010",
+      "sequence": 156,
+      "chunk_hash": "sha256:5f5fa0ca4a1320824f204ae8929ae5bb80196ebd3fb99423f6d171abb4fcf5a0",
+      "size_bytes": 23243,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:011",
+      "sequence": 157,
+      "chunk_hash": "sha256:2185e4d6b84f84671a076057883b563fd50740f1a7da855a3987a5bad3ff5c72",
+      "size_bytes": 23174,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:012",
+      "sequence": 158,
+      "chunk_hash": "sha256:01d28c446114c31316172dff93f9f59b5c449a00a2722b437ad72ce8d5e02417",
+      "size_bytes": 23180,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:013",
+      "sequence": 159,
+      "chunk_hash": "sha256:6b1caa526cc5e7836658bd042a03774f825f1532775593b082433fc4bb7e4bee",
+      "size_bytes": 23168,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:014",
+      "sequence": 160,
+      "chunk_hash": "sha256:945de8c3399849f72b9fc95447d6a5b06eb7b6500b7350838266bfcdf7622204",
+      "size_bytes": 23168,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:015",
+      "sequence": 161,
+      "chunk_hash": "sha256:06cbcc7da4035f622cde381419764827feea4eec8bdbabdb6581b6f309a83ec6",
+      "size_bytes": 23177,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:016",
+      "sequence": 162,
+      "chunk_hash": "sha256:b0c6559261d18367e656f163d9caadee90b5daeada42ba1873b0cd7e9cfd7345",
+      "size_bytes": 23180,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:017",
+      "sequence": 163,
+      "chunk_hash": "sha256:37db2f67e766993144566a00d275d274e96ffdeca2c3afaf9367cbbf50858570",
+      "size_bytes": 23222,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:018",
+      "sequence": 164,
+      "chunk_hash": "sha256:63733cf511c69fbabf892104079a68111b54cddf20efdaba90dd38fcd3abedeb",
+      "size_bytes": 23216,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000070",
+      "theme": "health",
+      "bbox": [
+        121.420043,
+        24.987174,
+        121.420043,
+        24.987174
+      ],
+      "event_ids": [
+        "ncdr:hospitalreport_000194_20260926_20260925180000"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000120:marine_pollution:000",
+      "sequence": 165,
+      "chunk_hash": "sha256:9922ffbcd44b8afff71566775a676af61fca0f85d4b70eaf1ce3cfffd3ac8a33",
+      "size_bytes": 2568,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000120",
+      "theme": "marine_pollution",
+      "bbox": [
+        121.820278,
+        25.13,
+        121.820278,
+        25.13
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3142"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000120:marine_pollution:001",
+      "sequence": 166,
+      "chunk_hash": "sha256:edfaa559d520a3b262f5afad5c99e6691685bbcd25af72160a6d2ae7d5627b31",
+      "size_bytes": 2670,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.65000120",
+      "theme": "marine_pollution",
+      "bbox": [
+        121.820278,
+        25.130278,
+        121.820278,
+        25.130278
+      ],
+      "event_ids": [
+        "ncdr:oca-marinepollution_3143"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:66000050:safety:000",
+      "sequence": 167,
+      "chunk_hash": "sha256:e4672c30ea7bd8c0500351185168a11326b74cef08b73902e18d244a5198c780",
+      "size_bytes": 2910,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.66000050",
+      "theme": "safety",
+      "bbox": [
+        120.675107,
+        24.148364,
+        120.675107,
+        24.148364
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090031"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:66000050:safety:001",
+      "sequence": 168,
+      "chunk_hash": "sha256:5dbe9acec54c401ae534ba0c4c47475d6a9e1e7c27eec8af121fae93469bb3f4",
+      "size_bytes": 2996,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.66000050",
+      "theme": "safety",
+      "bbox": [
+        120.694149,
+        24.158581,
+        120.694149,
+        24.158581
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090034"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:66000080:safety:000",
+      "sequence": 169,
+      "chunk_hash": "sha256:1e10b64a9d0f930acaaa410f3eeefc5ba495b4f3836d242ecb06a9935cc3438c",
+      "size_bytes": 3039,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.66000080",
+      "theme": "safety",
+      "bbox": [
+        120.684359,
+        24.178916,
+        120.684359,
+        24.178916
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090035"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:66000090:safety:000",
+      "sequence": 170,
+      "chunk_hash": "sha256:3e1faf62ba48b450a7e6c397f0fa92732460bafd1fce287aad2aa744d21a34a9",
+      "size_bytes": 3087,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.66000090",
+      "theme": "safety",
+      "bbox": [
+        120.706114,
+        24.251985,
+        120.706114,
+        24.251985
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090032"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:66000090:safety:001",
+      "sequence": 171,
+      "chunk_hash": "sha256:3c2381f49ec5e16416090631ace953e54d9dcfae0ff3be2463f1c3dcfb63e05e",
+      "size_bytes": 3075,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.66000090",
+      "theme": "safety",
+      "bbox": [
+        120.706114,
+        24.251985,
+        120.706114,
+        24.251985
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090033"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000010:safety:000",
+      "sequence": 172,
+      "chunk_hash": "sha256:1a1f19f9c12c6204bd9c78b59002d5b3b1c79737c47654baf31458c13b7dc26a",
+      "size_bytes": 2948,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.67000010",
+      "theme": "safety",
+      "bbox": [
+        120.313299,
+        23.302574,
+        120.313299,
+        23.302574
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090039"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000010:safety:001",
+      "sequence": 173,
+      "chunk_hash": "sha256:8dc999cf0047e634518bf0bbe808a7e764715729280bad6e764013fe0a3696d4",
+      "size_bytes": 2966,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.67000010",
+      "theme": "safety",
+      "bbox": [
+        120.319805,
+        23.307779,
+        120.319805,
+        23.307779
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090040"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000270:safety:000",
+      "sequence": 174,
+      "chunk_hash": "sha256:d4ef200ffa326f4fa4219d137bc0a508575a3b63bb3be2b0696916563f9f7746",
+      "size_bytes": 3066,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.67000270",
+      "theme": "safety",
+      "bbox": [
+        120.223997,
+        22.937711,
+        120.223997,
+        22.937711
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090038"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000310:safety:000",
+      "sequence": 175,
+      "chunk_hash": "sha256:1f9e9831c3fb4c08496685e633990592a2078d943f283597a1e08660c4351954",
+      "size_bytes": 3389,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.67000310",
+      "theme": "safety",
+      "bbox": [
+        120.227707,
+        23.017299,
+        120.227707,
+        23.017299
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090037"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000310:safety:001",
+      "sequence": 176,
+      "chunk_hash": "sha256:878b0d8f629806e24bd57d4e299d4c66eca02f6a389796eb5f8b62a5c76cbf58",
+      "size_bytes": 2902,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.67000310",
+      "theme": "safety",
+      "bbox": [
+        120.22632,
+        23.016304,
+        120.22632,
+        23.016304
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090044"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000320:safety:000",
+      "sequence": 177,
+      "chunk_hash": "sha256:03e364f9c87803b744f9c08e8e4584c353442ddd188923f7a5ca9fbeef553f73",
+      "size_bytes": 2967,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.67000320",
+      "theme": "safety",
+      "bbox": [
+        120.232973,
+        22.995037,
+        120.232973,
+        22.995037
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090041"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000320:safety:001",
+      "sequence": 178,
+      "chunk_hash": "sha256:c56ea57907b626c32bead95776aead8e6c67aa3faffea1a106d54279e7bb614a",
+      "size_bytes": 2949,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.67000320",
+      "theme": "safety",
+      "bbox": [
+        120.23014,
+        22.98753,
+        120.23014,
+        22.98753
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090043"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000320:safety:002",
+      "sequence": 179,
+      "chunk_hash": "sha256:b16dc6838a0982d7fe56255e4ef9e28442f778e1367cf88dc4a0af9f2dbcb57b",
+      "size_bytes": 2903,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.67000320",
+      "theme": "safety",
+      "bbox": [
+        120.221419,
+        22.991615,
+        120.221419,
+        22.991615
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090045"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000320:safety:003",
+      "sequence": 180,
+      "chunk_hash": "sha256:a85e4ed9c0ddb32a3d1d672bfd3f23027a3e062e0ba9b08edd9649a6e637cc25",
+      "size_bytes": 2933,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.67000320",
+      "theme": "safety",
+      "bbox": [
+        120.221329,
+        22.969253,
+        120.221329,
+        22.969253
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090046"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000320:safety:004",
+      "sequence": 181,
+      "chunk_hash": "sha256:d70e0340648a5fe242480ee46801fbd537c9c7af2154fc9319be64ca3e17df25",
+      "size_bytes": 3050,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.67000320",
+      "theme": "safety",
+      "bbox": [
+        120.217456,
+        22.983927,
+        120.217456,
+        22.983927
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090047"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000360:safety:000",
+      "sequence": 182,
+      "chunk_hash": "sha256:2808e52e710ab0bb317155fec20c801d6471cfd60b86b8062174a746e3f3ec36",
+      "size_bytes": 2972,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.67000360",
+      "theme": "safety",
+      "bbox": [
+        120.163274,
+        22.989716,
+        120.163274,
+        22.989716
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090042"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000370:safety:000",
+      "sequence": 183,
+      "chunk_hash": "sha256:f1a68201f2a6d599bb55b1a76bd7a8e749efafc24e370d1e46fd7b0cc1786139",
+      "size_bytes": 2825,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.67000370",
+      "theme": "safety",
+      "bbox": [
+        120.198975,
+        22.999749,
+        120.198975,
+        22.999749
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090036"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000010:safety:000",
+      "sequence": 184,
+      "chunk_hash": "sha256:15acc64e3ecaf5dac00b00ca87fae6ed31b1826ce7029db08fc0a9ca04243b49",
+      "size_bytes": 2994,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.68000010",
+      "theme": "safety",
+      "bbox": [
+        121.268175,
+        24.986089,
+        121.268175,
+        24.986089
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090027"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000010:safety:001",
+      "sequence": 185,
+      "chunk_hash": "sha256:aae2b32dee0a43b44336440bf352637ccd829c04cbb40f3b5d560ca0d90bc460",
+      "size_bytes": 2958,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.68000010",
+      "theme": "safety",
+      "bbox": [
+        121.297424,
+        24.989806,
+        121.297424,
+        24.989806
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090028"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000020:safety:000",
+      "sequence": 186,
+      "chunk_hash": "sha256:2fca11e33b3d9a0948a9169fb8c44c24df636be35a29c327bbc1e9d8a34d6e84",
+      "size_bytes": 2928,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.68000020",
+      "theme": "safety",
+      "bbox": [
+        121.234618,
+        25.001332,
+        121.234618,
+        25.001332
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090017"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000020:safety:001",
+      "sequence": 187,
+      "chunk_hash": "sha256:d5206c9c6b2c878d65bd125de3f9af51125e45150cbc3141deeb75ed36c412bf",
+      "size_bytes": 2946,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.68000020",
+      "theme": "safety",
+      "bbox": [
+        121.215083,
+        24.955949,
+        121.215083,
+        24.955949
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090024"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000020:safety:002",
+      "sequence": 188,
+      "chunk_hash": "sha256:bde1ebceaedef41c4cb3c394d7c173b167463295b67787f1017736960799bac7",
+      "size_bytes": 2940,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.68000020",
+      "theme": "safety",
+      "bbox": [
+        121.221436,
+        24.958599,
+        121.221436,
+        24.958599
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090030"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000030:safety:000",
+      "sequence": 189,
+      "chunk_hash": "sha256:fdaa41ed31309a799502f8af4e72bb72518f10dccb676e38487312547e154510",
+      "size_bytes": 3006,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.68000030",
+      "theme": "safety",
+      "bbox": [
+        121.278565,
+        24.907511,
+        121.278565,
+        24.907511
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090025"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000040:safety:000",
+      "sequence": 190,
+      "chunk_hash": "sha256:11a4a8d4d2bfe62c60833951de1902f385e11738b8ac48b0a08095183a226a48",
+      "size_bytes": 3018,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.68000040",
+      "theme": "safety",
+      "bbox": [
+        121.151293,
+        24.925127,
+        121.151293,
+        24.925127
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090018"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000040:safety:001",
+      "sequence": 191,
+      "chunk_hash": "sha256:81ddbe9d3e36e769aadc4828da2003631ba49692ce2e47268feb3bf98dd3c793",
+      "size_bytes": 3051,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.68000040",
+      "theme": "safety",
+      "bbox": [
+        121.103103,
+        24.930543,
+        121.103103,
+        24.930543
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090022"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000040:safety:002",
+      "sequence": 192,
+      "chunk_hash": "sha256:2ec7fb73ab6e9f6ec8db0accafeea1c86a10d18a087315c81fdf69e1bf9e7674",
+      "size_bytes": 3033,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.68000040",
+      "theme": "safety",
+      "bbox": [
+        121.138114,
+        24.936895,
+        121.138114,
+        24.936895
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090023"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000050:safety:000",
+      "sequence": 193,
+      "chunk_hash": "sha256:4a14aa09345365ad609f95f5d10ec0cff68bef7418b50162ce5913b416758676",
+      "size_bytes": 2982,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.68000050",
+      "theme": "safety",
+      "bbox": [
+        121.280122,
+        25.065511,
+        121.280122,
+        25.065511
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090021"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000060:safety:000",
+      "sequence": 194,
+      "chunk_hash": "sha256:3239a4799be638f8d01164acf85b91f385dc634255b4d1e46b617b954e2f7e89",
+      "size_bytes": 3082,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.68000060",
+      "theme": "safety",
+      "bbox": [
+        121.218243,
+        25.023043,
+        121.218243,
+        25.023043
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090029"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000070:safety:000",
+      "sequence": 195,
+      "chunk_hash": "sha256:dbc4048bc9ac66b0f430f90be44a112f43f8985ac4e7a912397d40278946415f",
+      "size_bytes": 2943,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.68000070",
+      "theme": "safety",
+      "bbox": [
+        121.366384,
+        25.035781,
+        121.366384,
+        25.035781
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090015"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000070:safety:001",
+      "sequence": 196,
+      "chunk_hash": "sha256:18fccd7c7ef749376288cab82d70223b3420cb0dcf27c7db3b33a72d3fe4f7fd",
+      "size_bytes": 2979,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.68000070",
+      "theme": "safety",
+      "bbox": [
+        121.378792,
+        25.04802,
+        121.378792,
+        25.04802
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090016"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000080:safety:000",
+      "sequence": 197,
+      "chunk_hash": "sha256:be458c232f19f4f99027180c170464e3dbe0912e2a69b0eed4126dfc9b8d4165",
+      "size_bytes": 2934,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.68000080",
+      "theme": "safety",
+      "bbox": [
+        121.275288,
+        24.956007,
+        121.275288,
+        24.956007
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090012"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000080:safety:001",
+      "sequence": 198,
+      "chunk_hash": "sha256:b8724d208416e9a4961e1a1f98ba9c3a24e06ed22bc7b5116336d1ab334a7f98",
+      "size_bytes": 3003,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.68000080",
+      "theme": "safety",
+      "bbox": [
+        121.30098,
+        24.968178,
+        121.30098,
+        24.968178
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090014"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000090:safety:000",
+      "sequence": 199,
+      "chunk_hash": "sha256:d8fd65e9374e5fd18c36053a6d4c76151f39130a30088afd2fa4dc02ffa1b0f5",
+      "size_bytes": 3030,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.68000090",
+      "theme": "safety",
+      "bbox": [
+        121.206153,
+        24.824968,
+        121.206153,
+        24.824968
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090013"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000100:safety:000",
+      "sequence": 200,
+      "chunk_hash": "sha256:81952b4ce3a3b88dd12362fcbc4fdb9afb10c819dd28af2b8dafcadbbafe2b8c",
+      "size_bytes": 2964,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.68000100",
+      "theme": "safety",
+      "bbox": [
+        121.238382,
+        24.891451,
+        121.238382,
+        24.891451
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090019"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000100:safety:001",
+      "sequence": 201,
+      "chunk_hash": "sha256:cdca53f6a0534897bd73aa5b41dfbbd7abbc30e4e8a53427ec0d16caae838bc8",
+      "size_bytes": 2991,
+      "event_count": 1,
+      "priority": "HIGH",
+      "area_id": "tw.68000100",
+      "theme": "safety",
+      "bbox": [
+        121.197475,
+        24.901529,
+        121.197475,
+        24.901529
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090020"
+      ]
+    },
+    {
+      "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000100:safety:002",
+      "sequence": 202,
+      "chunk_hash": "sha256:67f5bb0ef0ea4a693d34fc488b429f0c86120a0d58ec512538fccff89219301a",
+      "size_bytes": 2958,
+      "event_count": 1,
+      "priority": "LOW",
+      "area_id": "tw.68000100",
+      "theme": "safety",
+      "bbox": [
+        121.209222,
+        24.943632,
+        121.209222,
+        24.943632
+      ],
+      "event_ids": [
+        "ncdr:nfa-fireinspectiondanger202609090026"
+      ]
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "FE/j8JOU49cNKnne5eMc2SLfR26eyOUs21hAsU75H2H759QjGqbtbqdDF5MciZzW2gUXI2QIhlJFc0K1LSKICw=="
+}

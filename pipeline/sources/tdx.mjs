@@ -1,6 +1,8 @@
 import {
+  filterRecordsToBoundary,
   filterRecordsToNeihu,
 } from '../lib/geo.mjs';
+import { areaMetadataForRecord } from '../lib/coverage.mjs';
 import {
   makeRawSnapshot,
   requestJson,
@@ -9,6 +11,17 @@ import {
 
 export const DEFAULT_TDX_ENDPOINT = 'https://tdx.transportdata.tw/api/basic/v1/Traffic/RoadEvent/LiveEvent/City/Taipei?$format=JSON';
 export const DEFAULT_TDX_TOKEN_ENDPOINT = 'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token';
+export const DEFAULT_TDX_FRESHNESS_SECONDS = 900;
+export const DEFAULT_TDX_CITY_CODES = [
+  'Taipei', 'NewTaipei', 'Taoyuan', 'Taichung', 'Tainan', 'Kaohsiung',
+  'Keelung', 'Hsinchu', 'HsinchuCounty', 'MiaoliCounty', 'ChanghuaCounty',
+  'NantouCounty', 'YunlinCounty', 'Chiayi', 'ChiayiCounty', 'PingtungCounty',
+  'YilanCounty', 'HualienCounty', 'TaitungCounty', 'PenghuCounty',
+  'KinmenCounty', 'LienchiangCounty',
+];
+export const DEFAULT_TDX_NATIONWIDE_ENDPOINTS = DEFAULT_TDX_CITY_CODES.map(
+  (city) => `https://tdx.transportdata.tw/api/basic/v1/Traffic/RoadEvent/LiveEvent/City/${city}?$format=JSON`,
+);
 
 const RFC3339_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u;
 const SEVERITIES = new Set(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'UNKNOWN']);
@@ -298,16 +311,30 @@ function isNeihuTown(town) {
   return town.includes('內湖') || town.includes('内湖');
 }
 
-function sourceFreshnessExpiry(rawSnapshot, payload) {
+function sourceFreshnessPolicy(rawSnapshot, payload, options = {}) {
   const sourceTime = firstValue(
     payload?.UpdateTime,
     payload?.update_time,
     rawSnapshot.retrieved_at,
   );
   const updateInterval = Number(firstValue(payload?.UpdateInterval, payload?.update_interval));
-  if (!sourceTime || !Number.isFinite(updateInterval) || updateInterval <= 0) return undefined;
-  if (Number.isNaN(Date.parse(sourceTime))) return undefined;
-  return new Date(Date.parse(sourceTime) + updateInterval * 1000).toISOString();
+  const configuredTtl = Number(firstValue(
+    options.freshnessSeconds,
+    process.env.TDX_EVENT_FRESHNESS_SECONDS,
+    DEFAULT_TDX_FRESHNESS_SECONDS,
+  ));
+  const hasUpdateInterval = Number.isFinite(updateInterval) && updateInterval > 0;
+  const ttlSeconds = hasUpdateInterval
+    ? updateInterval
+    : (Number.isFinite(configuredTtl) && configuredTtl > 0
+      ? configuredTtl
+      : DEFAULT_TDX_FRESHNESS_SECONDS);
+  if (!sourceTime || Number.isNaN(Date.parse(sourceTime))) return undefined;
+  return {
+    expiresAt: new Date(Date.parse(sourceTime) + ttlSeconds * 1000).toISOString(),
+    ttlSeconds,
+    source: hasUpdateInterval ? 'source_update_interval' : 'source_freshness_ttl',
+  };
 }
 
 function normalizeRecord(record, index, rawSnapshot, payload, options) {
@@ -333,7 +360,7 @@ function normalizeRecord(record, index, rawSnapshot, payload, options) {
     record.issued_at,
     rawSnapshot.issued_at,
   );
-  const expiresAt = firstValue(
+  const sourceExpiresAt = firstValue(
     record.ExpireTime,
     record.expire_time,
     record.EndTime,
@@ -341,8 +368,11 @@ function normalizeRecord(record, index, rawSnapshot, payload, options) {
     record.ExpiresAt,
     record.expires_at,
     rawSnapshot.expires_at,
-    sourceFreshnessExpiry(rawSnapshot, payload),
   );
+  const freshness = sourceExpiresAt === undefined
+    ? sourceFreshnessPolicy(rawSnapshot, payload, options)
+    : undefined;
+  const expiresAt = sourceExpiresAt ?? freshness?.expiresAt;
   assertTimestamp(issuedAt, `TDX event ${stableId} source start time`);
   assertTimestamp(expiresAt, `TDX event ${stableId} source end time`);
   if (Date.parse(expiresAt) < Date.parse(issuedAt)) {
@@ -363,6 +393,22 @@ function normalizeRecord(record, index, rawSnapshot, payload, options) {
   }
   const towns = collectTowns(record);
   const sourceAttributes = record.attributes ?? record.properties;
+  const area = areaMetadataForRecord(options, record, geometry);
+  const attributes = {
+    ...(options.scope === 'taiwan' || options.areaId || options.areaIdResolver
+      ? {
+        ...area,
+        theme: 'road',
+        ...(options.coverage ? { coverage: options.coverage } : {}),
+      }
+      : {}),
+    source_record: record,
+    ...(sourceAttributes && typeof sourceAttributes === 'object' ? { source_attributes: sourceAttributes } : {}),
+    ...(freshness ? {
+      expiry_source: freshness.source,
+      freshness_ttl_seconds: freshness.ttlSeconds,
+    } : {}),
+  };
   return {
     townMatches: towns.length === 0 || towns.some(isNeihuTown),
     event: {
@@ -377,10 +423,7 @@ function normalizeRecord(record, index, rawSnapshot, payload, options) {
       event_version: eventVersion,
       issued_at: issuedAt,
       expires_at: expiresAt,
-      attributes: {
-        source_record: record,
-        ...(sourceAttributes && typeof sourceAttributes === 'object' ? { source_attributes: sourceAttributes } : {}),
-      },
+      attributes,
       signature_algorithm: 'Ed25519',
       signing_key_id: options.signingKeyId ?? 'tdx-source-2026',
       provenance: {
@@ -395,6 +438,24 @@ function normalizeRecord(record, index, rawSnapshot, payload, options) {
   };
 }
 
+function isUnresolvedTdxError(error) {
+  return new Set([
+    'TDX_EVENT_ID_MISSING',
+    'TDX_EVENT_GEOMETRY_MISSING',
+    'TDX_INVALID_SOURCE_TIME',
+    'TDX_EVENT_TYPE_MISSING',
+    'TDX_EVENT_TYPE_INVALID',
+  ]).has(error?.code) || error?.name === 'GeoValidationError';
+}
+
+function unresolvedRecord(record, error) {
+  return {
+    event_id: sourceEventId(record) ?? null,
+    code: error?.code ?? 'TDX_EVENT_UNRESOLVED',
+    message: error?.message ?? 'TDX event could not be normalized',
+  };
+}
+
 function assertRawSnapshot(rawSnapshot) {
   const errors = validateRawSnapshot(rawSnapshot);
   if (errors.length > 0) {
@@ -405,22 +466,52 @@ function assertRawSnapshot(rawSnapshot) {
   }
 }
 
-export function normalizeTdxRoadEvents(rawSnapshot, options = {}) {
+export function normalizeTdxRoadEventsReport(rawSnapshot, options = {}) {
   assertRawSnapshot(rawSnapshot);
-  if (!options.boundary) throw new TdxSourceError('Neihu boundary is required for TDX curation', { code: 'TDX_BOUNDARY_MISSING' });
+  if (!options.boundary) throw new TdxSourceError('TDX scope boundary is required for curation', { code: 'TDX_BOUNDARY_MISSING' });
   const receivedAt = options.receivedAt ?? rawSnapshot.retrieved_at;
   assertTimestamp(receivedAt, 'receivedAt');
   const payload = rawSnapshot.payload;
-  const records = eventRecords(payload).map((record, index) => normalizeRecord(
-    record,
-    index,
-    rawSnapshot,
-    payload,
-    { ...options, receivedAt },
-  ));
-  const townFiltered = records.filter((record) => record.townMatches);
-  return filterRecordsToNeihu(townFiltered, options.boundary, (record) => record.event.geometry)
-    .map((record) => record.event);
+  const allowUnresolved = options.allowUnresolved ?? options.scope === 'taiwan';
+  const unresolved = [];
+  const records = [];
+  eventRecords(payload).forEach((record, index) => {
+    try {
+      records.push(normalizeRecord(
+        record,
+        index,
+        rawSnapshot,
+        payload,
+        { ...options, receivedAt },
+      ));
+    } catch (error) {
+      if (!allowUnresolved || !isUnresolvedTdxError(error)) throw error;
+      unresolved.push(unresolvedRecord(record, error));
+    }
+  });
+  const townFiltered = options.scope === 'taiwan'
+    ? records
+    : records.filter((record) => record.townMatches);
+  const boundaryFiltered = [];
+  for (const record of townFiltered) {
+    try {
+      const selected = options.scope === 'taiwan'
+        ? filterRecordsToBoundary([record], options.boundary, (item) => item.event.geometry)
+        : filterRecordsToNeihu([record], options.boundary, (item) => item.event.geometry);
+      boundaryFiltered.push(...selected);
+    } catch (error) {
+      if (!allowUnresolved || !isUnresolvedTdxError(error)) throw error;
+      unresolved.push(unresolvedRecord(record.event, error));
+    }
+  }
+  return {
+    events: boundaryFiltered.map((record) => record.event),
+    unresolved,
+  };
+}
+
+export function normalizeTdxRoadEvents(rawSnapshot, options = {}) {
+  return normalizeTdxRoadEventsReport(rawSnapshot, options).events;
 }
 
 async function fetchTdxAccessToken({ clientId, clientSecret, tokenEndpoint, fetchImpl, timeoutMs }) {
@@ -471,6 +562,8 @@ export async function fetchTdxRoadEvents({
   clientId = process.env.TDX_CLIENT_ID,
   clientSecret = process.env.TDX_CLIENT_SECRET,
   endpoint = process.env.TDX_API_ENDPOINT ?? DEFAULT_TDX_ENDPOINT,
+  endpoints,
+  scope,
   tokenEndpoint = process.env.TDX_TOKEN_ENDPOINT ?? DEFAULT_TDX_TOKEN_ENDPOINT,
   fetchImpl = globalThis.fetch,
   retrievedAt = new Date().toISOString(),
@@ -490,30 +583,88 @@ export async function fetchTdxRoadEvents({
     fetchImpl,
     timeoutMs,
   });
-  const result = await requestJson(endpoint, {
-    fetchImpl,
-    headers: {
-      Accept: 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    timeoutMs,
-  });
+  const requestedEndpoints = Array.isArray(endpoints) && endpoints.length > 0
+    ? endpoints
+    : scope === 'taiwan'
+      ? DEFAULT_TDX_NATIONWIDE_ENDPOINTS
+      : [endpoint];
+  if (requestedEndpoints.some((value) => typeof value !== 'string' || value.trim() === '')) {
+    throw new TdxSourceError('TDX endpoints must be non-empty URL strings', { code: 'TDX_ENDPOINT_INVALID' });
+  }
+  const allowPartial = scope === 'taiwan' && requestedEndpoints.length > 1;
+  const results = [];
+  const sourceEntries = [];
+  for (const requestedEndpoint of requestedEndpoints) {
+    try {
+      const result = await requestJson(requestedEndpoint, {
+        fetchImpl,
+        headers: {
+          Accept: 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        timeoutMs,
+      });
+      const records = eventRecords(result.payload);
+      const entry = { endpoint: requestedEndpoint, ...result };
+      results.push({ ...entry, records });
+      sourceEntries.push(entry);
+    } catch (error) {
+      if (!allowPartial) throw error;
+      sourceEntries.push({
+        endpoint: requestedEndpoint,
+        status: error.status ?? null,
+        headers: {},
+        error_code: error.code ?? 'TDX_SOURCE_ERROR',
+        error_message: String(error.message ?? 'TDX endpoint failed').replace(/Bearer\s+\S+/giu, 'Bearer [redacted]'),
+      });
+    }
+  }
+  if (results.length === 0) {
+    const failure = sourceEntries.find((entry) => entry.error_code);
+    throw new TdxSourceError('all Taiwan TDX endpoints failed', {
+      code: 'TDX_NATIONWIDE_UNAVAILABLE',
+      status: failure?.status ?? null,
+    });
+  }
+  const payload = requestedEndpoints.length === 1
+    ? results[0].payload
+    : {
+      UpdateTime: results
+        .map((result) => firstValue(result.payload?.UpdateTime, result.payload?.update_time))
+        .filter(Boolean)
+        .sort()
+        .at(-1),
+      Events: results.flatMap((result) => result.records),
+      partial: sourceEntries.some((entry) => entry.error_code),
+      sources: sourceEntries.map((entry) => ({
+        endpoint: entry.endpoint,
+        status: entry.status,
+        headers: entry.headers,
+        ...(entry.payload !== undefined ? { payload: entry.payload } : {}),
+        ...(entry.error_code ? {
+          error_code: entry.error_code,
+          error_message: entry.error_message,
+        } : {}),
+      })),
+    };
   return makeRawSnapshot({
     sourceId: 'tdx-road-events',
     request: {
       method: 'GET',
-      url: endpoint,
-      query: { $format: 'JSON' },
+      url: requestedEndpoints[0],
+      query: requestedEndpoints.length === 1
+        ? { $format: 'JSON' }
+        : { $format: 'JSON', endpoints: requestedEndpoints },
     },
-    responseStatus: result.status,
-    responseHeaders: result.headers,
+    responseStatus: 200,
+    responseHeaders: results[0].headers,
     retrievedAt,
-    payload: result.payload,
+    payload,
   });
 }
 
 export async function collectTdxRoadEvents(options = {}) {
   const rawSnapshot = await fetchTdxRoadEvents(options);
-  const events = normalizeTdxRoadEvents(rawSnapshot, options);
-  return { rawSnapshot, events };
+  const normalized = normalizeTdxRoadEventsReport(rawSnapshot, options);
+  return { rawSnapshot, ...normalized };
 }

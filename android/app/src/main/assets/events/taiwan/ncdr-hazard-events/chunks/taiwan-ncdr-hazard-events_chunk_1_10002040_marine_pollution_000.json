@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002040:marine_pollution:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 55,
+  "priority": "LOW",
+  "area_id": "tw.10002040",
+  "theme": "marine_pollution",
+  "bbox": [
+    121.951139,
+    24.979472,
+    121.951139,
+    24.979472
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:oca-marinepollution_3134",
+      "event_type": "MARINE_POLLUTION_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.951138888889,
+          24.9794722222222
+        ]
+      },
+      "severity": "LOW",
+      "source": "NCDR",
+      "source_version": "2026-09-01T00:00:08+08:00",
+      "event_version": 1,
+      "issued_at": "2026-08-31T16:00:08.000Z",
+      "expires_at": "2026-11-30T01:25:00.000Z",
+      "attributes": {
+        "area_id": "tw.10002040",
+        "county_code": "10002",
+        "town_code": "10002040",
+        "village_code": null,
+        "theme": "marine_pollution",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "OCA-marinePollution_3134",
+        "affected_area": "石城漁港",
+        "source_description": "地方單位\\宜蘭縣政府\\環境保護局：石城漁港油污案",
+        "source_record": {
+          "capid": "OCA-marinePollution_3134",
+          "capCode": "marinePollution",
+          "effective": "2026-08-31T09:25:00",
+          "expires": "2026-11-30T09:25:00",
+          "description": "地方單位\\宜蘭縣政府\\環境保護局：石城漁港油污案",
+          "identifier": "OCA-marinePollution_3134",
+          "sender": "https://iocean.oca.gov.tw",
+          "sent": "2026-09-01T00:00:08+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "地方單位\\宜蘭縣政府\\環境保護局：石城漁港油污案",
+              "language": "zh-TW",
+              "category": "Env",
+              "event": "海洋污染",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "marinePollution"
+              },
+              "effective": "2026-08-31T09:25:00+08:00",
+              "expires": "2026-11-30T09:25:00+08:00",
+              "senderName": "海洋保育署",
+              "headline": "海洋污染事件",
+              "instruction": null,
+              "web": "",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": ""
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "石城漁港",
+                  "geocode": null,
+                  "circle": "24.9794722222222,121.951138888889 0.5",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:6f46a9c483d440ab0332580db77e01af07729d4c7213c7fe260f066224009743",
+      "signature": "ZSFEev08QEe7AfLB9RuegubNTOFXerKPTZmg3x/DYwXgZLlUcSkulfptEF4/2s1zMInxj4QPdXFjrpi5v8uFAQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2570,
+  "chunk_hash": "sha256:8d0a4cfbccb4749b05ed4e86d5e919607c0a8e3b35b4f9481ae6f5c589151182",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "dZBNMDLaCd5XoSzPlaKsaR9VWtssrRGjtgCfomLg6s6pvNbrytGGrbjZXtxqH7c57VPeXnZvoh4aMJK5BuEsCw=="
+}

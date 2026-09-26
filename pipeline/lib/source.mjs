@@ -181,6 +181,7 @@ export async function requestJson(url, {
 } = {}) {
   const allowedSensitiveNames = new Set(allowedSensitiveQueryNames.map((name) => String(name).toLowerCase()));
   const requestUrl = urlWithQuery(url, query, allowedSensitiveNames);
+  const safeRequestUrl = urlWithQuery(url, query);
   if (typeof fetchImpl !== 'function') throw new TypeError('fetchImpl must be a function');
   if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) throw new TypeError('timeoutMs must be positive');
   if (!Number.isInteger(maxAttempts) || maxAttempts <= 0) throw new TypeError('maxAttempts must be positive');
@@ -199,14 +200,14 @@ export async function requestJson(url, {
       if (!response || typeof response.status !== 'number') {
         throw new SourceRequestError('source response has no HTTP status', {
           code: 'INVALID_RESPONSE',
-          url: requestUrl,
+          url: safeRequestUrl,
         });
       }
       if (response.status < 200 || response.status >= 300) {
         const error = new SourceRequestError(`source returned HTTP ${response.status}`, {
           code: 'HTTP_ERROR',
           status: response.status,
-          url: requestUrl,
+          url: safeRequestUrl,
         });
         if (attempt === maxAttempts || !shouldRetryStatus(response.status)) throw error;
         lastError = error;
@@ -220,7 +221,7 @@ export async function requestJson(url, {
         throw new SourceRequestError('source returned invalid JSON', {
           code: 'INVALID_JSON',
           status: response.status,
-          url: requestUrl,
+          url: safeRequestUrl,
           cause: error,
         });
       }
@@ -228,7 +229,7 @@ export async function requestJson(url, {
         throw new SourceRequestError('source JSON payload must be an object or array', {
           code: 'INVALID_PAYLOAD',
           status: response.status,
-          url: requestUrl,
+          url: safeRequestUrl,
         });
       }
       return { status: response.status, headers: responseHeaders, payload };
@@ -239,7 +240,7 @@ export async function requestJson(url, {
       } else {
         lastError = new SourceRequestError('source request failed', {
           code: 'NETWORK_ERROR',
-          url: requestUrl,
+          url: safeRequestUrl,
           cause: error,
         });
         if (attempt === maxAttempts) throw lastError;
@@ -249,7 +250,7 @@ export async function requestJson(url, {
       clearTimeout(timer);
     }
   }
-  throw lastError ?? new SourceRequestError('source request failed', { code: 'NETWORK_ERROR', url: requestUrl });
+  throw lastError ?? new SourceRequestError('source request failed', { code: 'NETWORK_ERROR', url: safeRequestUrl });
 }
 
 export async function requestText(url, {
@@ -262,6 +263,7 @@ export async function requestText(url, {
 } = {}) {
   const allowedSensitiveNames = new Set(allowedSensitiveQueryNames.map((name) => String(name).toLowerCase()));
   const requestUrl = urlWithQuery(url, query, allowedSensitiveNames);
+  const safeRequestUrl = urlWithQuery(url, query);
   if (typeof fetchImpl !== 'function') throw new TypeError('fetchImpl must be a function');
   if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) throw new TypeError('timeoutMs must be positive');
   if (!Number.isInteger(maxAttempts) || maxAttempts <= 0) throw new TypeError('maxAttempts must be positive');
@@ -280,14 +282,14 @@ export async function requestText(url, {
       if (!response || typeof response.status !== 'number') {
         throw new SourceRequestError('source response has no HTTP status', {
           code: 'INVALID_RESPONSE',
-          url: requestUrl,
+          url: safeRequestUrl,
         });
       }
       if (response.status < 200 || response.status >= 300) {
         const error = new SourceRequestError(`source returned HTTP ${response.status}`, {
           code: 'HTTP_ERROR',
           status: response.status,
-          url: requestUrl,
+          url: safeRequestUrl,
         });
         if (attempt === maxAttempts || !shouldRetryStatus(response.status)) throw error;
         lastError = error;
@@ -301,7 +303,7 @@ export async function requestText(url, {
         throw new SourceRequestError('source returned an unreadable text body', {
           code: 'INVALID_BODY',
           status: response.status,
-          url: requestUrl,
+          url: safeRequestUrl,
           cause: error,
         });
       }
@@ -309,7 +311,7 @@ export async function requestText(url, {
         throw new SourceRequestError('source text body is not a string', {
           code: 'INVALID_BODY',
           status: response.status,
-          url: requestUrl,
+          url: safeRequestUrl,
         });
       }
       return { status: response.status, headers: responseHeaders, body };
@@ -320,7 +322,7 @@ export async function requestText(url, {
       } else {
         lastError = new SourceRequestError('source request failed', {
           code: 'NETWORK_ERROR',
-          url: requestUrl,
+          url: safeRequestUrl,
           cause: error,
         });
         if (attempt === maxAttempts) throw lastError;
@@ -330,5 +332,85 @@ export async function requestText(url, {
       clearTimeout(timer);
     }
   }
-  throw lastError ?? new SourceRequestError('source request failed', { code: 'NETWORK_ERROR', url: requestUrl });
+  throw lastError ?? new SourceRequestError('source request failed', { code: 'NETWORK_ERROR', url: safeRequestUrl });
+}
+
+/**
+ * Fetch a binary public resource while retaining the same retry, timeout and
+ * secret-free URL/header handling as requestJson/requestText. This is used by
+ * the MOHW ODS medical master, which is a ZIP container rather than JSON/CSV.
+ */
+export async function requestBytes(url, {
+  fetchImpl = globalThis.fetch,
+  headers = {},
+  query,
+  allowedSensitiveQueryNames = [],
+  timeoutMs = 30000,
+  maxAttempts = 3,
+} = {}) {
+  const allowedSensitiveNames = new Set(allowedSensitiveQueryNames.map((name) => String(name).toLowerCase()));
+  const requestUrl = urlWithQuery(url, query, allowedSensitiveNames);
+  const safeRequestUrl = urlWithQuery(url, query);
+  if (typeof fetchImpl !== 'function') throw new TypeError('fetchImpl must be a function');
+  if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) throw new TypeError('timeoutMs must be positive');
+  if (!Number.isInteger(maxAttempts) || maxAttempts <= 0) throw new TypeError('maxAttempts must be positive');
+
+  let lastError;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetchImpl(requestUrl, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+      const responseHeaders = safeResponseHeaders(response.headers);
+      if (!response || typeof response.status !== 'number') {
+        throw new SourceRequestError('source response has no HTTP status', {
+          code: 'INVALID_RESPONSE',
+          url: safeRequestUrl,
+        });
+      }
+      if (response.status < 200 || response.status >= 300) {
+        const error = new SourceRequestError(`source returned HTTP ${response.status}`, {
+          code: 'HTTP_ERROR',
+          status: response.status,
+          url: safeRequestUrl,
+        });
+        if (attempt === maxAttempts || !shouldRetryStatus(response.status)) throw error;
+        lastError = error;
+        await wait(Math.min(250 * 2 ** (attempt - 1), 2000));
+        continue;
+      }
+      let body;
+      try {
+        body = new Uint8Array(await response.arrayBuffer());
+      } catch (error) {
+        throw new SourceRequestError('source returned an unreadable binary body', {
+          code: 'INVALID_BODY',
+          status: response.status,
+          url: safeRequestUrl,
+          cause: error,
+        });
+      }
+      return { status: response.status, headers: responseHeaders, body };
+    } catch (error) {
+      if (error instanceof SourceRequestError) {
+        if (error.code !== 'HTTP_ERROR' || attempt === maxAttempts || !shouldRetryStatus(error.status)) throw error;
+        lastError = error;
+      } else {
+        lastError = new SourceRequestError('source request failed', {
+          code: 'NETWORK_ERROR',
+          url: safeRequestUrl,
+          cause: error,
+        });
+        if (attempt === maxAttempts) throw lastError;
+      }
+      if (attempt < maxAttempts) await wait(Math.min(250 * 2 ** (attempt - 1), 2000));
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw lastError ?? new SourceRequestError('source request failed', { code: 'NETWORK_ERROR', url: safeRequestUrl });
 }

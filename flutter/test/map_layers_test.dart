@@ -10,6 +10,68 @@ import 'package:resilientgeo_flutter/data/maplibre_map_config.dart';
 import 'package:resilientgeo_flutter/widgets/map_layers.dart';
 
 void main() {
+  test('does not render expired events on the map', () {
+    final current = _event(
+      'ncdr:current',
+      issuedAt: '2026-09-26T03:00:00Z',
+      expiresAt: '2026-09-26T05:00:00Z',
+    );
+    final expired = _event(
+      'ncdr:expired',
+      issuedAt: '2026-09-26T01:00:00Z',
+      expiresAt: '2026-09-26T02:00:00Z',
+    );
+
+    final markers = MapLayers.buildMarkers(
+      features: const <StaticFeature>[],
+      events: <MeshEvent>[current, expired],
+      showShelters: false,
+      showMedical: false,
+      showEvents: true,
+      onStaticFeatureSelected: (_) {},
+      onEventSelected: (_) {},
+      now: DateTime.utc(2026, 9, 26, 4),
+    );
+
+    expect(markers, hasLength(1));
+    expect(markers.single.kind, MapMarkerKind.event);
+    expect(
+      markers.single.key,
+      ValueKey<String>('event-marker-${meshEventIdentity(current)}'),
+    );
+  });
+
+  test('does not render a classified NCDR background event on the map', () {
+    final background = _event(
+      'ncdr:fire-inspection',
+      issuedAt: '2026-09-26T03:00:00Z',
+      expiresAt: '2026-09-26T05:00:00Z',
+      mapVisible: false,
+    );
+    final actionable = _event(
+      'ncdr:evacuation',
+      issuedAt: '2026-09-26T03:00:00Z',
+      expiresAt: '2026-09-26T05:00:00Z',
+    );
+
+    final markers = MapLayers.buildMarkers(
+      features: const <StaticFeature>[],
+      events: <MeshEvent>[background, actionable],
+      showShelters: false,
+      showMedical: false,
+      showEvents: true,
+      onStaticFeatureSelected: (_) {},
+      onEventSelected: (_) {},
+      now: DateTime.utc(2026, 9, 26, 4),
+    );
+
+    expect(markers, hasLength(1));
+    expect(
+      markers.single.key,
+      ValueKey<String>('event-marker-${meshEventIdentity(actionable)}'),
+    );
+  });
+
   test('uses compact marker bounds and keeps the tap action on the marker', () {
     var tapped = false;
     final markers = MapLayers.buildMarkers(
@@ -574,9 +636,9 @@ void main() {
     expect(icons.every((marker) => marker.width == 28), isTrue);
   });
 
-  test('keeps the bundled Neihu facilities in the Neihu district bucket', () {
+  test('keeps nationwide shelter and medical features in area buckets', () {
     final featuresJson = jsonDecode(
-      File('assets/data/neihu/static-features.json').readAsStringSync(),
+      File('assets/data/taiwan/static-features.json').readAsStringSync(),
     );
     final labelsJson = jsonDecode(
       File(
@@ -605,10 +667,35 @@ void main() {
       zoom: 10.2,
     );
 
-    expect(markers, hasLength(1));
-    expect(markers.single.itemCount, 30);
+    expect(markers, isNotEmpty);
+    expect(
+      markers.fold<int>(0, (count, marker) => count + marker.itemCount),
+      greaterThan(1000),
+    );
   });
 }
+
+MeshEvent _event(
+  String id, {
+  required String issuedAt,
+  required String expiresAt,
+  bool mapVisible = true,
+}) => MeshEvent(
+  namespace: 'official.ncdr',
+  eventId: id,
+  eventVersion: 1,
+  eventType: 'NCDR_HAZARD',
+  severity: 'HIGH',
+  source: 'NCDR',
+  issuedAt: issuedAt,
+  expiresAt: expiresAt,
+  applyState: null,
+  geometry: const PointGeometry(GeoPoint(longitude: 121.5, latitude: 25.0)),
+  attributes: <String, dynamic>{
+    'source_description': '測試示警',
+    'map_visible': mapVisible,
+  },
+);
 
 Map<String, dynamic> _label(
   String name,

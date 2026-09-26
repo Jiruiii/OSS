@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,12 +10,17 @@ import 'package:resilientgeo_flutter/widgets/map_layers.dart'
     show MapIconCatalog;
 
 void main() {
-  test('bundles the static Neihu map data for rootBundle loading', () async {
+  test('bundles nationwide static map data for rootBundle loading', () async {
     final raw = await rootBundle.loadString(
-      'assets/data/neihu/static-features.json',
+      'assets/data/taiwan/static-features.json',
     );
 
-    expect(raw, contains('resilientgeo-neihu'));
+    final decoded = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+    final features = (decoded['features'] as List).cast<Map>();
+    expect(decoded['dataset_id'], 'resilientgeo-taiwan');
+    expect(decoded['coverage'], 'TW');
+    expect(features.any((feature) => feature['kind'] == 'shelter'), isTrue);
+    expect(features.any((feature) => feature['kind'] == 'medical'), isTrue);
   });
 
   test('bundles the all-Taiwan offline road search asset', () async {

@@ -67,4 +67,23 @@ void main() {
     expect(screens[1].dx, closeTo(500, 0.001));
     expect(screens[1].dy, closeTo(400, 0.001));
   });
+
+  test('calculates a padded viewport bounds for raw marker filtering', () {
+    final bounds = MapCameraProjection.viewportBounds(
+      cameraTarget: cameraTarget,
+      zoom: 12,
+      viewportSize: viewport,
+      paddingPixels: 64,
+    );
+
+    expect(bounds.contains(cameraTarget), isTrue);
+    expect(
+      bounds.contains(const GeoPoint(longitude: 121.02, latitude: 23.5)),
+      isTrue,
+    );
+    expect(
+      bounds.contains(const GeoPoint(longitude: 121.5, latitude: 23.5)),
+      isFalse,
+    );
+  });
 }

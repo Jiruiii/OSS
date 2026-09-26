@@ -4,6 +4,26 @@ import 'package:flutter/widgets.dart';
 
 import 'map_models.dart';
 
+class MapViewportBounds {
+  const MapViewportBounds({
+    required this.minLongitude,
+    required this.minLatitude,
+    required this.maxLongitude,
+    required this.maxLatitude,
+  });
+
+  final double minLongitude;
+  final double minLatitude;
+  final double maxLongitude;
+  final double maxLatitude;
+
+  bool contains(GeoPoint point) =>
+      point.longitude >= minLongitude &&
+      point.longitude <= maxLongitude &&
+      point.latitude >= minLatitude &&
+      point.latitude <= maxLatitude;
+}
+
 /// Projects WGS84 coordinates into the current MapLibre camera viewport.
 ///
 /// MapLibre uses a Web Mercator world. Keeping this calculation local and
@@ -53,6 +73,31 @@ class MapCameraProjection {
         .toList(growable: false);
   }
 
+  static MapViewportBounds viewportBounds({
+    required GeoPoint cameraTarget,
+    required double zoom,
+    required Size viewportSize,
+    double paddingPixels = 0,
+  }) {
+    final worldSize = _tileSize * math.pow(2, zoom).toDouble();
+    final padding = math.max(0, paddingPixels);
+    final halfWidth = (viewportSize.width / 2 + padding) / worldSize;
+    final halfHeight = (viewportSize.height / 2 + padding) / worldSize;
+    final centerX = _longitudeToWorld(cameraTarget.longitude);
+    final centerY = _latitudeToWorld(cameraTarget.latitude);
+    final west = (centerX - halfWidth).clamp(0.0, 1.0).toDouble();
+    final east = (centerX + halfWidth).clamp(0.0, 1.0).toDouble();
+    final north = (centerY - halfHeight).clamp(0.0, 1.0).toDouble();
+    final south = (centerY + halfHeight).clamp(0.0, 1.0).toDouble();
+
+    return MapViewportBounds(
+      minLongitude: _worldToLongitude(west),
+      maxLongitude: _worldToLongitude(east),
+      minLatitude: _worldToLatitude(south),
+      maxLatitude: _worldToLatitude(north),
+    );
+  }
+
   static double _longitudeToWorld(double longitude) {
     return (longitude + 180) / 360;
   }
@@ -66,6 +111,14 @@ class MapCameraProjection {
     final mercatorY =
         math.log(math.tan(math.pi / 4 + latitudeRadians / 2)) / math.pi;
     return (1 - mercatorY) / 2;
+  }
+
+  static double _worldToLongitude(double x) => (x * 360) - 180;
+
+  static double _worldToLatitude(double y) {
+    final mercatorY = (1 - (2 * y)) * math.pi;
+    final sinh = (math.exp(mercatorY) - math.exp(-mercatorY)) / 2;
+    return 180 / math.pi * math.atan(sinh);
   }
 
   static double _wrapWorldDelta(double delta) {

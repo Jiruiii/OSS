@@ -1,5 +1,7 @@
-import { isGeometryInNeihu, normalizeCoordinate } from './geo.mjs';
-import { makeRawSnapshot, requestText, validateRawSnapshot } from './source.mjs';
+import { inflateRawSync } from 'node:zlib';
+
+import { isGeometryInBoundary, normalizeCoordinate } from './geo.mjs';
+import { makeRawSnapshot, requestBytes, requestText, validateRawSnapshot } from './source.mjs';
 
 const RFC3339_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u;
 const STATIC_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -106,6 +108,110 @@ export function parseJsonOrCsv(body) {
   }
 }
 
+function xmlAttribute(attributes, name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  return attributes.match(new RegExp(`(?:^|\\s)${escaped}="([^"]*)"`, 'u'))?.[1];
+}
+
+function xmlText(fragment) {
+  return String(fragment ?? '')
+    .replace(/<text:line-break\s*\/?\s*>/gu, '\n')
+    .replace(/<[^>]+>/gu, '')
+    .replace(/&lt;/gu, '<')
+    .replace(/&gt;/gu, '>')
+    .replace(/&quot;/gu, '"')
+    .replace(/&apos;/gu, "'")
+    .replace(/&amp;/gu, '&')
+    .trim();
+}
+
+/** Parse the tabular first sheet used by the MOHW medical master ODS. */
+export function parseOdsXml(xml) {
+  if (typeof xml !== 'string' || xml.trim() === '') throw new TypeError('ODS content.xml must be non-empty text');
+  const rows = [];
+  const rowPattern = /<table:table-row\b([^>]*)>([\s\S]*?)<\/table:table-row>/gu;
+  for (const rowMatch of xml.matchAll(rowPattern)) {
+    const values = [];
+    const cellPattern = /<table:table-cell\b([^>]*?)(?:\/>|>([\s\S]*?)<\/table:table-cell>)/gu;
+    for (const cellMatch of rowMatch[2].matchAll(cellPattern)) {
+      const attributes = cellMatch[1] ?? '';
+      const repeated = Number(xmlAttribute(attributes, 'table:number-columns-repeated') ?? 1);
+      if (!Number.isInteger(repeated) || repeated < 1) throw new TypeError('ODS cell repeat count is invalid');
+      const value = xmlText(cellMatch[2])
+        || xmlAttribute(attributes, 'office:string-value')
+        || xmlAttribute(attributes, 'office:value')
+        || '';
+      // LibreOffice writes a 16K-column trailing empty run for this source.
+      // It has no semantic columns, so do not materialize it in memory.
+      if (repeated > 1000 && value === '') continue;
+      for (let index = 0; index < Math.min(repeated, 1000); index += 1) values.push(value);
+    }
+    const rowRepeated = Number(xmlAttribute(rowMatch[1] ?? '', 'table:number-rows-repeated') ?? 1);
+    if (!Number.isInteger(rowRepeated) || rowRepeated < 1) throw new TypeError('ODS row repeat count is invalid');
+    if (values.some((value) => value !== '')) {
+      for (let index = 0; index < Math.min(rowRepeated, 1000); index += 1) rows.push(values);
+    }
+  }
+  if (rows.length < 2) throw new TypeError('ODS table must contain a header and at least one record');
+  const headers = rows[0].map((value, index) => String(value).replace(/^\uFEFF/u, '').trim() || `column_${index + 1}`);
+  return rows.slice(1).map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ''])));
+}
+
+function uint16(bytes, offset) {
+  return bytes[offset] | (bytes[offset + 1] << 8);
+}
+
+function uint32(bytes, offset) {
+  return bytes[offset]
+    | (bytes[offset + 1] << 8)
+    | (bytes[offset + 2] << 16)
+    | (bytes[offset + 3] * 0x1000000);
+}
+
+function zipEntry(bytes, targetName) {
+  const endOfCentralDirectory = 0x06054b50;
+  const centralDirectoryHeader = 0x02014b50;
+  const localFileHeader = 0x04034b50;
+  let end = -1;
+  for (let offset = bytes.length - 22; offset >= Math.max(0, bytes.length - 65557); offset -= 1) {
+    if (uint32(bytes, offset) === endOfCentralDirectory) {
+      end = offset;
+      break;
+    }
+  }
+  if (end < 0) throw new TypeError('ODS is not a ZIP container');
+  const count = uint16(bytes, end + 10);
+  let cursor = uint32(bytes, end + 16);
+  for (let index = 0; index < count; index += 1) {
+    if (uint32(bytes, cursor) !== centralDirectoryHeader) throw new TypeError('ODS ZIP central directory is invalid');
+    const compression = uint16(bytes, cursor + 10);
+    const compressedSize = uint32(bytes, cursor + 20);
+    const nameLength = uint16(bytes, cursor + 28);
+    const extraLength = uint16(bytes, cursor + 30);
+    const commentLength = uint16(bytes, cursor + 32);
+    const name = new TextDecoder().decode(bytes.slice(cursor + 46, cursor + 46 + nameLength));
+    const localOffset = uint32(bytes, cursor + 42);
+    if (name === targetName) {
+      if (uint32(bytes, localOffset) !== localFileHeader) throw new TypeError('ODS ZIP local file header is invalid');
+      const localNameLength = uint16(bytes, localOffset + 26);
+      const localExtraLength = uint16(bytes, localOffset + 28);
+      const start = localOffset + 30 + localNameLength + localExtraLength;
+      const compressed = Buffer.from(bytes.slice(start, start + compressedSize));
+      if (compression === 0) return compressed;
+      if (compression === 8) return inflateRawSync(compressed);
+      throw new TypeError(`ODS ZIP compression method ${compression} is unsupported`);
+    }
+    cursor += 46 + nameLength + extraLength + commentLength;
+  }
+  throw new TypeError(`ODS ZIP entry ${targetName} is missing`);
+}
+
+export function parseOds(bytes) {
+  if (!(bytes instanceof Uint8Array)) throw new TypeError('ODS body must be Uint8Array');
+  const xml = new TextDecoder('utf-8').decode(zipEntry(bytes, 'content.xml'));
+  return parseOdsXml(xml);
+}
+
 export function recordsFromPayload(payload, keys = ['records', 'results', 'data', 'items', 'resources']) {
   if (Array.isArray(payload)) return payload;
   if (!payload || typeof payload !== 'object') throw new TypeError('source payload must be an object or array');
@@ -129,11 +235,13 @@ export function assertRawFeatureSnapshot(rawSnapshot, sourceId, ErrorClass) {
   }
 }
 
-export async function fetchStaticText({ sourceId, endpoint, fetchImpl, retrievedAt, query = {}, headers = {}, ErrorClass }) {
+export async function fetchStaticText({ sourceId, endpoint, fetchImpl, retrievedAt, query = {}, headers = {}, ErrorClass, timeoutMs = 30000, maxAttempts = 3 }) {
   try {
     const result = await requestText(endpoint, {
       fetchImpl,
       query,
+      timeoutMs,
+      maxAttempts,
       headers: {
         Accept: 'application/json, text/csv;q=0.9, text/plain;q=0.8',
         ...headers,
@@ -157,6 +265,37 @@ export async function fetchStaticText({ sourceId, endpoint, fetchImpl, retrieved
   }
 }
 
+export async function fetchStaticBinary({ sourceId, endpoint, fetchImpl, retrievedAt, query = {}, headers = {}, ErrorClass, format, timeoutMs = 30000, maxAttempts = 3 }) {
+  try {
+    const result = await requestBytes(endpoint, {
+      fetchImpl,
+      query,
+      timeoutMs,
+      maxAttempts,
+      headers: {
+        Accept: 'application/vnd.oasis.opendocument.spreadsheet, application/octet-stream;q=0.9',
+        ...headers,
+      },
+    });
+    const records = format === 'ods' ? parseOds(result.body) : undefined;
+    return makeRawSnapshot({
+      sourceId,
+      request: { method: 'GET', url: endpoint, query },
+      responseStatus: result.status,
+      responseHeaders: result.headers,
+      retrievedAt,
+      payload: { format: format ?? 'binary', records },
+    });
+  } catch (error) {
+    if (error instanceof ErrorClass) throw error;
+    throw new ErrorClass(`static binary source request failed: ${error.message}`, {
+      code: error.code === 'HTTP_ERROR' ? 'STATIC_HTTP_ERROR' : 'STATIC_REQUEST_ERROR',
+      status: error.status ?? null,
+      cause: error,
+    });
+  }
+}
+
 export function staticTimes(rawSnapshot, options, ErrorClass) {
   const issuedAt = normalizeTime(options.issuedAt ?? rawSnapshot.retrieved_at, 'issued_at', ErrorClass);
   const explicitExpiresAt = options.expiresAt;
@@ -170,7 +309,7 @@ export function staticTimes(rawSnapshot, options, ErrorClass) {
 }
 
 export function featureBase({
-  datasetId = 'resilientgeo-neihu',
+  datasetId,
   layerId,
   featureId,
   featureType,
@@ -186,7 +325,7 @@ export function featureBase({
   return {
     schema_version: 'feature-v0',
     namespace: options.namespace ?? 'official.taipei',
-    dataset_id: datasetId,
+    dataset_id: datasetId ?? (options.scope === 'taiwan' ? 'resilientgeo-taiwan' : 'resilientgeo-neihu'),
     layer_id: layerId,
     feature_id: featureId,
     feature_type: featureType,
@@ -208,7 +347,18 @@ export function featureBase({
 
 export function isInsideNeihu(geometry, boundary, ErrorClass) {
   try {
-    return isGeometryInNeihu(geometry, boundary);
+    return isGeometryInBoundary(geometry, boundary);
+  } catch (error) {
+    throw new ErrorClass(`static source geometry is invalid: ${error.message}`, {
+      code: 'STATIC_SOURCE_GEOMETRY_INVALID',
+      cause: error,
+    });
+  }
+}
+
+export function isInsideBoundary(geometry, boundary, ErrorClass) {
+  try {
+    return isGeometryInBoundary(geometry, boundary);
   } catch (error) {
     throw new ErrorClass(`static source geometry is invalid: ${error.message}`, {
       code: 'STATIC_SOURCE_GEOMETRY_INVALID',

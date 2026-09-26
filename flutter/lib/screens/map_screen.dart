@@ -17,6 +17,7 @@ import '../data/maplibre_map_config.dart';
 import '../data/map_runtime_state.dart';
 import '../data/map_search.dart';
 import '../data/map_search_asset.dart';
+import '../data/ncdr_map_filter.dart';
 import '../data/offline_map_asset_store.dart';
 import '../widgets/feature_details_sheet.dart';
 import '../widgets/crowd_report_sheet.dart';
@@ -186,7 +187,7 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<StaticFeatureCollection> _loadStaticFeatures() async {
     final raw = await rootBundle.loadString(
-      'assets/data/neihu/static-features.json',
+      'assets/data/taiwan/static-features.json',
     );
     return StaticFeatureCollection.fromJson(
       Map<String, dynamic>.from(jsonDecode(raw) as Map),
@@ -283,7 +284,10 @@ class _MapScreenState extends State<MapScreen> {
     for (final event in _persistedEvents) {
       byId[meshEventIdentity(event)] = event;
     }
-    return byId.values.toList(growable: false);
+    return byId.values
+        .where((event) => event.isCurrentAt())
+        .where(isMapVisibleEvent)
+        .toList(growable: false);
   }
 
   void _showStaticSelection(List<StaticFeature> features) {

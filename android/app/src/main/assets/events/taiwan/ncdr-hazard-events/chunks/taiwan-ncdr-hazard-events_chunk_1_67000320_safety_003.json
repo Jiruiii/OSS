@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000320:safety:003",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 180,
+  "priority": "HIGH",
+  "area_id": "tw.67000320",
+  "theme": "safety",
+  "bbox": [
+    120.221329,
+    22.969253,
+    120.221329,
+    22.969253
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090046",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.221329,
+          22.969253
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.67000320",
+        "county_code": "67000",
+        "town_code": "67000320",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090046",
+        "affected_area": "臺南市",
+        "source_description": "臺南市,家苑健康股份有限公司,乙類-寄宿舍,臺南市東區崇明里崇賢六路9號,消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090046",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "臺南市,家苑健康股份有限公司,乙類-寄宿舍,臺南市東區崇明里崇賢六路9號,消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090046",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "臺南市,家苑健康股份有限公司,乙類-寄宿舍,臺南市東區崇明里崇賢六路9號,消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "臺南市,家苑健康股份有限公司,乙類-寄宿舍,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "臺南市,家苑健康股份有限公司,乙類-寄宿舍,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "臺南市",
+                  "geocode": null,
+                  "circle": "22.969253,120.221329 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:225202b17115445a60406c80e3e2a4a36871c330918ef326bcfa4356c75ab3d8",
+      "signature": "tcL0J5u5rv35U7qwI73dOyfjJ52iU3eded+aA1anNSrGky7tRUAvKTHcaTVHydt3vInR6yJ/s5TTjrFKiKgVAg=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2933,
+  "chunk_hash": "sha256:a85e4ed9c0ddb32a3d1d672bfd3f23027a3e062e0ba9b08edd9649a6e637cc25",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "GAm1PhNzK4uoFRmJvMyBSfBxfW+gU0q97Uuk4PYRYO+fQYufGJRttBJRj6kyNXIW8GRwHeZq3Wc9t4asP0b0BA=="
+}

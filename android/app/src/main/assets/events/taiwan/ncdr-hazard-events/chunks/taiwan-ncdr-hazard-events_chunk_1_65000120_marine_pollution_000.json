@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000120:marine_pollution:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 165,
+  "priority": "LOW",
+  "area_id": "tw.65000120",
+  "theme": "marine_pollution",
+  "bbox": [
+    121.820278,
+    25.13,
+    121.820278,
+    25.13
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:oca-marinepollution_3142",
+      "event_type": "MARINE_POLLUTION_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.820277777778,
+          25.13
+        ]
+      },
+      "severity": "LOW",
+      "source": "NCDR",
+      "source_version": "2026-09-06T00:00:12+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-05T16:00:12.000Z",
+      "expires_at": "2026-12-12T11:30:00.000Z",
+      "attributes": {
+        "area_id": "tw.65000120",
+        "county_code": "65000",
+        "town_code": "65000120",
+        "village_code": null,
+        "theme": "marine_pollution",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "OCA-marinePollution_3142",
+        "affected_area": "深澳漁港港內",
+        "source_description": "地方單位\\新北市政府\\環境保護局：CT0-6070深澳漁港沉船",
+        "source_record": {
+          "capid": "OCA-marinePollution_3142",
+          "capCode": "marinePollution",
+          "effective": "2026-09-12T19:30:00",
+          "expires": "2026-12-12T19:30:00",
+          "description": "地方單位\\新北市政府\\環境保護局：CT0-6070深澳漁港沉船",
+          "identifier": "OCA-marinePollution_3142",
+          "sender": "https://iocean.oca.gov.tw",
+          "sent": "2026-09-06T00:00:12+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "地方單位\\新北市政府\\環境保護局：CT0-6070深澳漁港沉船",
+              "language": "zh-TW",
+              "category": "Env",
+              "event": "海洋污染",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "marinePollution"
+              },
+              "effective": "2026-09-12T19:30:00+08:00",
+              "expires": "2026-12-12T19:30:00+08:00",
+              "senderName": "海洋保育署",
+              "headline": "海洋污染事件",
+              "instruction": null,
+              "web": "",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": ""
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "深澳漁港港內",
+                  "geocode": null,
+                  "circle": "25.13,121.820277777778 0.5",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:85ace780156ecd540f792e2d96bbd82afe6096773b43e724908aa14ab1467950",
+      "signature": "EWGVB/SiFHcBv5p9YsNgrfT4GiBpZMg6Xt0tHzOdeBIA3XYMHQ9tRhuL9yLsaO0JKORqpO76xaX8oKPIh6/fDA=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2568,
+  "chunk_hash": "sha256:9922ffbcd44b8afff71566775a676af61fca0f85d4b70eaf1ce3cfffd3ac8a33",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "Qp3XKXjuQ4HMOugBYWygsAJ2f29bLbnl+7Oh7eR5jc/SUTDLgvwY8G1UjxvBpwcWUT3fAHqz68B1cfn/4rRRCQ=="
+}

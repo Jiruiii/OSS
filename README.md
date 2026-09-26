@@ -188,7 +188,7 @@ App 主畫面直接進入 Flutter 台灣離線地圖，提供道路／建物／�
 
 **已知限制**
 
-- **地圖與靜態點位是版本化快照；災情事件是可重播／合成資料，不是即時官方 API。** 地圖幾何與道路索引取自 OSM／Protomaps 快照，避難所與醫療院所使用已保存的政府資料快照，事件不代表任何真實災況。TDX／CWA／NCDR 的 collector 已實作並通過介面／官方 metadata 驗證，但目前 App 未接正式金鑰與即時 API。
+- **地圖與靜態點位是版本化快照；App 仍不直接呼叫官方 API。** 地圖幾何與道路索引取自 OSM／Protomaps 快照，避難所與醫療院所使用已保存的政府資料快照；pipeline 已完成 NCDR 真實全台 snapshot smoke test，但事件尚未由正式部署的 pipeline 持續供應到 App。TDX／CWA 仍待各自的正式 live smoke test。
 - **不宣稱在任何固定時間覆蓋全城。** 所有模擬數字只適用於 [`experiments/scenario.md`](experiments/scenario.md) 描述的內湖情境與接觸模型，單一 seed，非多次抽樣的信賴區間。
 - **模擬參數只校準了一半。** `max_bytes_per_round` 已用實機 BLE 接觸窗量測校準；`contact_probability`（社交接觸機率）與 `transfer_failure_prob` 仍是工程估計值 — 現有實機數據沒有一項直接對應到這兩個參數，硬套上去會是假精確。
 - **耗電只有單一機型、單一 60 秒視窗、只涵蓋持續傳輸**，不是 Emergency Mode 真實的間歇性接觸型態，也未涵蓋鎖屏情境。
@@ -203,7 +203,7 @@ App 主畫面直接進入 Flutter 台灣離線地圖，提供道路／建物／�
 
 **未來工作**
 
-- 接上 TDX／CWA／NCDR 正式金鑰，將可重播 fixture 換成即時官方資料。
+- 完成 TDX／CWA live smoke test，並把 NCDR 的本機全台 snapshot 接到正式簽章與部署流程，讓 App 只讀取驗證後資料。
 - 以 **Bloom filter 或對 manifest 順序的 bitmap** 取代逐條列舉的 HELLO（同樣 183 chunk 只要 23 bytes，省約 1,500 倍），讓資料集可擴展到全台規模。
 - 導入**內容導向切分（CDC / rolling hash）或組內單事件對齊**，讓版本更新能真正 delta 傳輸而非整組重傳。
 - 補齊跨機型連線成功率統計、鎖屏／Doze 長時存活驗證，以及間歇性接觸模式下的耗電量測。
@@ -229,16 +229,16 @@ repo 內不含任何 API 金鑰、Token 或個人資料。金鑰僅由本機 git
 
 | 來源                            | 連結                                                                                          | 授權                                                     | 用途與現況                                                                                                              |
 | ------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| OpenStreetMap（Overpass API）   | <https://overpass-api.de/api/interpreter>                                                     | ODbL，需標示 attribution（© OpenStreetMap contributors） | 內湖區道路與 POI 幾何，已擷取為版本化快照 `data/fixtures/neihu/osm-snapshot.json`                                       |
+| OpenStreetMap（Overpass API）   | <https://overpass-api.de/api/interpreter>                                                     | ODbL，需標示 attribution（© OpenStreetMap contributors） | 保留內湖 legacy 快照；第一階段 `osm-taiwan` 收集全台醫療／避難所必要 POI，道路仍由台灣 PMTiles 提供                         |
 | Geofabrik Taiwan OSM PBF        | <https://download.geofabrik.de/asia/taiwan-latest.osm.pbf>                                    | ODbL，需保留 OpenStreetMap attribution                   | `flutter/assets/map/search/taiwan-roads.json` 的離線道路搜尋來源；產生日期與 SHA-256 保存在資產 metadata                |
 | Protomaps daily basemap         | <https://docs.protomaps.com/basemaps/downloads>                                               | ODbL，需保留 OSM attribution                             | 台灣 bbox 與北／中／南／東分區 PMTiles；來源日期、zoom、bbox 與 SHA-256 見 `flutter/lib/data/offline_map_manifest.dart` |
 | 臺灣行政區邊界與地名資料         | <https://cdn.jsdelivr.net/npm/taiwan-atlas/towns-10t.json>                                    | MIT（來源為臺灣內政部資料衍生集）                         | `flutter/assets/map/labels/taiwan-reference-labels.geojson` 的縣市、區／鄉鎮、市／村里分級標籤；離線隨 App 載入。同一資產另維護離島名稱與著名地標 |
 | 臺北市區界圖                    | <https://data.taipei/dataset/detail?id=1601ef3a-c253-4988-b047-943d9e786143>                  | 臺北市資料開放授權                                       | **僅供 pipeline 的內湖空間過濾**，不是 Flutter 全台底圖來源                                                                   |
-| 消防署避難收容處所點位檔        | <https://data.gov.tw/dataset/73242>                                                           | 政府資料開放授權條款第 1 版                              | 產生內湖避難所靜態快照；目前地圖使用本機版本化資料，並非即時開設狀態                                               |
-| 臺北市公私立醫療院所            | <https://data.taipei/dataset/detail?id=ffdd5753-30db-4c38-b65f-b77892773d60>                  | 臺北市資料開放授權                                       | 產生內湖醫療院所靜態快照；目前地圖使用本機版本化資料                                                               |
-| TDX 運輸資料流通服務 — 道路事件 | <https://tdx.transportdata.tw/api-service/swagger/basic/60abfa19-ffe3-4eef-a4b1-0539435dfca9> | TDX 服務條款與資料授權                                   | pipeline collector／契約已建立；目前未接正式金鑰，App 使用可重播／簽章 fixture，不是即時資料                         |
-| 中央氣象署 CWA — 地震與警特報   | <https://opendata.cwa.gov.tw/dataset/earthquake/E-A0015-001>                                  | CWA 氣象開放資料平臺服務條款                             | pipeline collector／metadata 已建立；目前未接正式金鑰，App 使用可重播／簽章 fixture，不是即時資料                    |
-| NCDR 災害示警                   | <https://datahub.ncdr.nat.gov.tw/paradigm>                                                    | NCDR 平臺條款或來源機關授權                              | API 契約與 collector 已建立，但帳號／正式存取尚未開通；App 使用可重播 fallback                                      |
+| 消防署避難收容處所點位檔        | <https://data.gov.tw/dataset/73242>                                                           | 政府資料開放授權條款第 1 版                              | 第一階段接全台避難所位置；內湖 legacy 快照仍保留。開設狀態另接 <https://data.gov.tw/dataset/12849> XML feed                |
+| 醫療機構與人員基本資料          | <https://data.gov.tw/dataset/15393>                                                           | 政府資料開放授權條款第 1 版                              | 第一階段接全台 MOHW ODS 主檔；座標以 NLSC／OSM 補足，無法唯一定位者保留 `unresolved`，不畫 marker                 |
+| TDX 運輸資料流通服務 — 道路事件 | <https://tdx.transportdata.tw/api-service/swagger/basic/60abfa19-ffe3-4eef-a4b1-0539435dfca9> | TDX 服務條款與資料授權                                   | 第一階段 collector 支援 OAuth2 與全台端點彙整；真實 snapshot 不提交 repo，App 只接驗證後資料                         |
+| 中央氣象署 CWA — 地震與警特報   | <https://opendata.cwa.gov.tw/dataset/earthquake/E-A0015-001>                                  | CWA 氣象開放資料平臺服務條款                             | 第一階段接地震、縣市警報、颱風；API key 僅在 pipeline 本機使用，App 不直接呼叫                                           |
+| NCDR 災害示警                   | <https://alerts.ncdr.nat.gov.tw/api_swagger/index.html>                                      | NCDR 平臺條款或來源機關授權                              | 第一階段 adapter 使用 `/api/datastore` → `/api/dump/datastore` 兩階段 CAP API；key 僅在 pipeline 本機使用，App 不直接呼叫 |
 | NCC 鄉鎮區基地臺統計            | <https://data.gov.tw/dataset/41256>                                                           | 政府資料開放授權條款第 1 版                              | 僅保留來源 metadata，尚未接入地圖或計算訊號覆蓋／中斷風險                                                             |
 | 內政部 20m DTM／DEM·DSM         | <https://data.gov.tw/dataset/176927>                                                          | 政府資料開放授權條款第 1 版                              | 僅保留來源 metadata，尚未接入地圖或地形分析                                                                         |
 | Copernicus Data Space（STAC）   | <https://documentation.dataspace.copernicus.eu/APIs/STAC.html>                                | Copernicus Data Space Ecosystem 資料條款                 | 僅保留來源 metadata，尚未下載影像或進行災害判釋                                                                     |

@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000010:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 184,
+  "priority": "LOW",
+  "area_id": "tw.68000010",
+  "theme": "safety",
+  "bbox": [
+    121.268175,
+    24.986089,
+    121.268175,
+    24.986089
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090027",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.268175,
+          24.986089
+        ]
+      },
+      "severity": "MEDIUM",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.68000010",
+        "county_code": "68000",
+        "town_code": "68000010",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090027",
+        "affected_area": "桃園市",
+        "source_description": "桃園市,荃程汽車有限公司龍壽分公司,展覽場,桃園市桃園區龍壽里龍壽街300-1號,違反消防安全設備規定 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090027",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "桃園市,荃程汽車有限公司龍壽分公司,展覽場,桃園市桃園區龍壽里龍壽街300-1號,違反消防安全設備規定 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090027",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "桃園市,荃程汽車有限公司龍壽分公司,展覽場,桃園市桃園區龍壽里龍壽街300-1號,違反消防安全設備規定 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Moderate",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "桃園市,荃程汽車有限公司龍壽分公司,展覽場,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "桃園市,荃程汽車有限公司龍壽分公司,展覽場,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "桃園市",
+                  "geocode": null,
+                  "circle": "24.986089,121.268175 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:748257e863e8ed4b74225d779c974ebc0e4244ec76a6ca3b4b03e56178b980a6",
+      "signature": "gFo9GZ/W6iOt4noPaS8xeEcr6SQ1mUCUVHUGt7hZPZmIqpv7jolrzciWntkfpXgf7ZMFDJp8OOHjNdbenZHrCg=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2994,
+  "chunk_hash": "sha256:15acc64e3ecaf5dac00b00ca87fae6ed31b1826ce7029db08fc0a9ca04243b49",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "LL8EB/Obre6BdA2zFCtYYjXEf5oKRMQlnWNj2FuDeMZJYGM0Bo+bN1M394CSe9tTUczyvj6cDk5gIc18GGMgBg=="
+}

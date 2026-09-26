@@ -2,7 +2,137 @@
 
 This directory implements the `system.md` phase-2 path with only Node.js built-ins.
 
-## Task 3: TDX road events
+## 第一階段：全台灣真實資料接入
+
+目前的預設 scope 仍是 `neihu`，用來保留既有 fixture/replay 測試；真實資料收集請明確使用 `--scope taiwan`。全台流程是：官方來源 → Raw snapshot → AreaCatalog 空間歸屬 → 正規化事件／靜態 feature → Ed25519 簽章 layer → Android 驗證 → Flutter 顯示。Flutter 不直接呼叫這些外部 API。
+
+官方 7442／7441 下載檔是 TWD97 經緯度的 SHP／GML 資料；先以 GDAL／QGIS 轉成 EPSG:4326 GeoJSON，再交給 `area-catalog`。例如：
+
+```bash
+ogr2ogr -f GeoJSON -t_srs EPSG:4326 /tmp/county.geojson /tmp/COUNTY_MOI_1140318_.gml
+ogr2ogr -f GeoJSON -t_srs EPSG:4326 /tmp/town.geojson /tmp/TOWN_MOI_1140318.shp
+```
+
+檔名依資料發布版本調整；若環境沒有 GDAL，可用 QGIS 執行相同的「另存為 GeoJSON／EPSG:4326」。
+
+| 資料 | 官方來源／程式 source id | 認證 | 輸出與注意事項 |
+|---|---|---|---|
+| 縣市、鄉鎮市區界線 | [data.gov.tw 7442](https://data.gov.tw/dataset/7442)、[7441](https://data.gov.tw/dataset/7441)／`area-catalog` | 不需要 | 下載後轉成 EPSG:4326 GeoJSON，再合併產生 `area-catalog-v0`；每筆資料可得到 `county_code`、`town_code`、`area_id`。 |
+| NCDR 示警 | [NCDR Swagger](https://alerts.ncdr.nat.gov.tw/api_swagger/index.html)／`ncdr-hazard-events` | `NCDR_ALERT_API_KEY` | 全台採兩階段：`/api/datastore` 取得 `capid` 索引，再對每筆呼叫 `/api/dump/datastore` 取得完整 CAP；官方 `/api` 路由使用 query `apikey`。 |
+| CWA 地震、縣市警報、颱風 | `E-A0015-001`、`W-C0033-001`、`W-C0034-001`／`cwa-earthquake`、`cwa-weather-warning`、`cwa-typhoon-warning` | `CWA_API_KEY` | `Authorization` 僅在 collector request 使用，Raw 不保存。 |
+| TDX 道路事件 | [TDX Swagger](https://tdx.transportdata.tw/api-service/swagger)／`tdx-road-events` | `TDX_CLIENT_ID`、`TDX_CLIENT_SECRET` | OAuth2 client credentials；全台使用 `TDX_API_ENDPOINTS`，未指定時使用內建縣市端點清單。部分端點失敗時保留成功結果並標記 `partial`。 |
+| 避難所位置 | [data.gov.tw 73242](https://data.gov.tw/dataset/73242)／`taiwan-shelter` | 不需要 | CSV 靜態 layer；沒有 Neihu filter。 |
+| 避難所開設狀態 | [data.gov.tw 12849](https://data.gov.tw/dataset/12849)／`taiwan-shelter-status` | 不需要 | XML `SHELTER_STATUS` event；缺狀態保留 `UNKNOWN`，不當作 `CLOSED`。 |
+| 醫療機構主檔 | [data.gov.tw 15393](https://data.gov.tw/dataset/15393)／`taiwan-medical` | 不需要 | 目前官方資源是 ODS，pipeline 會解析 `content.xml`；主檔沒有座標，未定位資料保留在 `unresolved_medical`。 |
+| 醫療座標補足 | [NLSC 139250](https://data.gov.tw/dataset/139250)、[Overpass](https://overpass-api.de/api/interpreter) | 不需要 | 僅使用唯一且通過空間驗證的名稱／地址匹配；無法定位不畫 marker。 |
+| OSM 必要地物 | [Overpass API](https://overpass-api.de/api/interpreter)／`osm-taiwan` | 不需要 | 只抓醫療／避難所必要 POI；全台道路仍使用既有 PMTiles，不在第一階段建立離線導航圖。 |
+
+### API key 與簽章設定
+
+```dotenv
+NCDR_ALERT_API_KEY=               # 已有的 NCDR key
+NCDR_ALERT_ENDPOINT=https://alerts.ncdr.nat.gov.tw/api/datastore
+NCDR_ALERT_DETAIL_ENDPOINT=https://alerts.ncdr.nat.gov.tw/api/dump/datastore
+NCDR_AUTH_MODE=query
+NCDR_DETAIL_CONCURRENCY=4
+CWA_API_KEY=                      # 另向中央氣象署申請
+TDX_CLIENT_ID=                    # 另向 TDX 申請
+TDX_CLIENT_SECRET=                # 另向 TDX 申請
+TDX_API_ENDPOINTS=                # 可選；逗號分隔的全台端點
+PIPELINE_SIGNING_PRIVATE_KEY=     # pipeline 伺服器私鑰的本機路徑
+```
+
+OSM、行政區、避難所、醫療主檔與 NLSC 座標資料不需要 API key。真實值只能放在 gitignored 的 `pipeline/.env` 或伺服器 secret store，不能放在 Flutter、Android assets、Raw snapshot 或 log。`CWA_API_KEY`、TDX credentials 與 NCDR key 都不會被寫入 Raw request metadata；App 只放簽章 public key。
+
+簽章金鑰第一次建立在 pipeline 端：
+
+```bash
+node pipeline/cli.mjs keygen --out-dir /secure/resilientgeo-keys --key-id taiwan-static-2026
+```
+
+`key-metadata.json` 的 `public_key_spki_base64` 才是 Android `trust/trusted-keys.json` 使用的值；只把這個 public value 以相同 `key_id` 加入 App，`private-key.pem` 不得進 repo、Android 或 Flutter。
+
+### 全台收集順序
+
+先從兩個行政區資料集取得已轉為 EPSG:4326 的 GeoJSON，產生 AreaCatalog：
+
+```bash
+node pipeline/cli.mjs area-catalog \
+  --input /path/to/county.geojson,/path/to/town.geojson \
+  --out data/area-catalog.json
+```
+
+再執行動態來源與靜態來源。以下指令只會寫入指定的 `data/live` 快照目錄；若認證失敗，會寫 `collection-metadata.json` 並以非零狀態結束，不會用 fixture 冒充成功：
+
+```bash
+BOUNDARY=data/area-catalog.json
+LIVE=data/live/taiwan/$(date +%Y%m%d)
+
+node --env-file=pipeline/.env pipeline/cli.mjs collect \
+  --scope taiwan --boundary "$BOUNDARY" \
+  --source cwa-earthquake --out-dir "$LIVE/cwa-earthquake"
+node --env-file=pipeline/.env pipeline/cli.mjs collect \
+  --scope taiwan --boundary "$BOUNDARY" \
+  --source cwa-weather-warning --out-dir "$LIVE/cwa-warning"
+node --env-file=pipeline/.env pipeline/cli.mjs collect \
+  --scope taiwan --boundary "$BOUNDARY" \
+  --source cwa-typhoon-warning --out-dir "$LIVE/cwa-typhoon"
+node --env-file=pipeline/.env pipeline/cli.mjs collect \
+  --scope taiwan --boundary "$BOUNDARY" \
+  --source ncdr-hazard-events --out-dir "$LIVE/ncdr"
+node --env-file=pipeline/.env pipeline/cli.mjs collect \
+  --scope taiwan --boundary "$BOUNDARY" \
+  --source tdx-road-events --out-dir "$LIVE/tdx"
+
+node --env-file=pipeline/.env pipeline/cli.mjs collect \
+  --scope taiwan --boundary "$BOUNDARY" \
+  --source taiwan-shelter --out-dir "$LIVE/shelter"
+node --env-file=pipeline/.env pipeline/cli.mjs collect \
+  --scope taiwan --boundary "$BOUNDARY" \
+  --source taiwan-shelter-status --out-dir "$LIVE/shelter-status"
+node --env-file=pipeline/.env pipeline/cli.mjs collect \
+  --scope taiwan --boundary "$BOUNDARY" \
+  --source osm-taiwan --out-dir "$LIVE/osm"
+node --env-file=pipeline/.env pipeline/cli.mjs collect \
+  --scope taiwan --boundary "$BOUNDARY" \
+  --source taiwan-medical --out-dir "$LIVE/medical" \
+  --coordinate-input "$LIVE/osm/osm-taiwan.features.json"
+```
+
+醫療座標補足的實際順序是先收集 `osm-taiwan`，再收集 `taiwan-medical`；若某些醫療資料仍無法唯一匹配，會保留在 `unresolved_medical`，不會被估算成座標。
+
+`taiwan-shelter-status` 會同時產生 `taiwan-shelter-status.features.json`（保留正規化報告）與 `taiwan-shelter-status.events.json`（可直接交給 `build` 的 `event-batch-v0`）；位置 layer 與狀態 event 分開簽章／驗證，並以 `shelter_id` 對應。
+
+靜態 layer 需要逐 layer 簽章與驗證，不能把未簽章的 `features.json` 直接交給 App：
+
+```bash
+node --env-file=pipeline/.env pipeline/cli.mjs build-layer \
+  --input "$LIVE/shelter/taiwan-shelter.features.json" \
+  --out-dir "$LIVE/shelter/signed" \
+  --key-id taiwan-static-2026
+node pipeline/cli.mjs verify-layer \
+  --manifest "$LIVE/shelter/signed/manifest.json" \
+  --chunks-dir "$LIVE/shelter/signed/chunks" \
+  --public-key /path/to/public-key.pem
+```
+
+把通過 `verify-layer` 的 `manifest.json` 與 `chunks/*.json` 放到 `android/app/src/main/assets/static/taiwan/<layer-id>/` 後，Android `LayerBundleVerifier` 會在 bridge 回傳前驗證 manifest、chunk、feature hash 與 Ed25519 signature。缺少 layer asset 會回傳空集合；存在但驗證失敗則 fail closed。Flutter 的 `export-map` 輸出是預覽／資產格式，不是繞過 Android 驗證的替代品。
+
+若要產生 Flutter 的 versioned display asset，將已正規化的 feature batches 合併輸出；實際加入 `pubspec.yaml` 前應先完成簽章 layer 與資料審查：
+
+```bash
+node pipeline/cli.mjs export-map \
+  --input "$LIVE/shelter/taiwan-shelter.features.json,$LIVE/medical/taiwan-medical.features.json,$LIVE/osm/osm-taiwan.features.json" \
+  --out flutter/assets/data/taiwan/static-features.json
+```
+
+避難所狀態資料以 `shelter_id` 對應位置 layer；官方狀態 XML 若缺少或無法驗證座標，Raw 仍會保留該筆資料，並在收集結果標示 `unresolved_status_count`，不會把它誤判為關閉。
+
+認證失敗會標示 `blocked_by_auth`，多端點部分成功標示 `partial`，來源過期快照可標示 `stale`；`null`、`unknown`、`unresolved` 不會被轉成零或關閉。完整 source registry 在 [`sources/catalog.json`](sources/catalog.json)。
+
+以下 Task 3–5 的 Neihu 指令與 fixture 仍保留作為相容性回歸測試；它們不是第一階段全台 production snapshot。
+
+## Task 3: TDX road events（legacy Neihu compatibility）
 
 `pipeline/sources/tdx.mjs` separates the complete TDX response from the curated
 Neihu events:
@@ -41,33 +171,34 @@ node pipeline/cli.mjs normalize \
 fixture, not a live TDX capture. It is explicitly marked `local_fixture` until
 an authenticated response can be recorded.
 
-## Task 4: CWA and NCDR dynamic hazards
+## Task 4: CWA and NCDR dynamic hazards（全台）
 
 The CWA source adapters cover significant earthquakes (`E-A0015-001`) and
-county or city weather warnings (`W-C0033-001`). The optional NCDR adapter
-consumes the JSON alert datastore route configured in `NCDR_API_ENDPOINT`. It
-converts earthquake observations, weather warnings, flood, rainfall,
-debris-flow and landslide alerts into unsigned `event-v0` records, preserves
-the source record, and filters geometry against the official Neihu boundary.
-City-level warnings are retained with `attributes.coverage_level=city`; they
-are not presented as Neihu-specific measurements.
+county or city weather warnings (`W-C0033-001`). The NCDR adapter first reads
+the official `/api/datastore` index and then retrieves each complete CAP document
+from `/api/dump/datastore`; the legacy `NCDR_API_ENDPOINT` name is still accepted.
+It converts CAP event categories such as fire, reservoir release, health,
+heat, water supply, marine pollution and safety alerts into unsigned `event-v0`
+records, preserves the complete source CAP, parses polygon or circle geometry,
+and resolves each record against the nationwide `AreaCatalog`.
 
 Live collection:
 
 ```bash
-node --env-file=pipeline/.env pipeline/cli.mjs collect --source cwa-earthquake --out-dir data/live/cwa/2026-09-04/earthquake
-node --env-file=pipeline/.env pipeline/cli.mjs collect --source cwa-weather-warning --out-dir data/live/cwa/2026-09-04/weather-warning
-node --env-file=pipeline/.env pipeline/cli.mjs collect --source ncdr-hazard-events --out-dir data/live/ncdr/2026-09-04
+BOUNDARY=/absolute/path/to/data/area-catalog.json
+node --env-file=pipeline/.env pipeline/cli.mjs collect --scope taiwan --boundary "$BOUNDARY" --source cwa-earthquake --out-dir data/live/taiwan/cwa-earthquake
+node --env-file=pipeline/.env pipeline/cli.mjs collect --scope taiwan --boundary "$BOUNDARY" --source cwa-weather-warning --out-dir data/live/taiwan/cwa-warning
+node --env-file=pipeline/.env pipeline/cli.mjs collect --scope taiwan --boundary "$BOUNDARY" --source ncdr-hazard-events --out-dir data/live/taiwan/ncdr
 ```
 
-Set `CWA_API_KEY` for CWA. Run the NCDR command only after the account is
-approved and the complete `NCDR_API_ENDPOINT` is confirmed in the account API
-documentation. A missing key or unauthorized response writes
-`collection-metadata.json` with `source_status=blocked_by_access` and exits
+Set `CWA_API_KEY` for CWA. NCDR uses the two official routes above; the detail
+route is derived automatically when `NCDR_ALERT_DETAIL_ENDPOINT` is omitted.
+A missing key or unauthorized response writes
+`collection-metadata.json` with `source_status=blocked_by_auth` and exits
 non-zero. Raw snapshots never contain the CWA query key or NCDR token.
 
-NCDR access is optional for the deadline Demo. When NCDR is unavailable, use
-the deterministic Neihu simulation/replay data instead:
+The old Neihu replay data is retained only as a deterministic regression fixture.
+When testing the legacy demo without live sources, use it explicitly:
 
 ```bash
 node --test pipeline/test/neihu-replay.test.mjs
@@ -94,7 +225,7 @@ Expired alerts remain in the cached event batch with `expires_at`; downstream
 verification decides whether they are current. The collector does not assign a
 risk score.
 
-## Task 5: OSM, shelters and medical static layers
+## Task 5: OSM, shelters and medical static layers（全台）
 
 Task 5 keeps three different products separate:
 

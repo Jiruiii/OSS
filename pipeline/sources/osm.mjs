@@ -4,15 +4,17 @@ import {
   fetchStaticText,
   fieldText,
   firstValue,
-  isInsideNeihu,
+  isInsideBoundary,
   normalizeId,
   normalizeTime,
   staticTimes,
 } from '../lib/feature-source.mjs';
+import { areaMetadataForRecord } from '../lib/coverage.mjs';
 
 export const DEFAULT_OSM_ENDPOINT = 'https://overpass-api.de/api/interpreter';
 export const DEFAULT_OSM_RELATION_ID = 2905065;
 export const DEFAULT_OSM_QUERY = `[out:json][timeout:60];area(360${DEFAULT_OSM_RELATION_ID})->.neihu;(way(area.neihu)[highway];node(area.neihu)[amenity~"hospital|clinic|shelter"];way(area.neihu)[amenity~"hospital|clinic|shelter"];);out body geom;`;
+export const DEFAULT_OSM_TAIWAN_QUERY = '[out:json][timeout:180];(node[amenity~"hospital|clinic|shelter"](21.8,118.0,26.5,122.2);way[amenity~"hospital|clinic|shelter"](21.8,118.0,26.5,122.2););out body geom;';
 
 export class OsmSourceError extends Error {
   constructor(message, { code = 'OSM_SOURCE_ERROR', status = null, cause } = {}) {
@@ -62,9 +64,10 @@ function normalizeElement(element, index, rawSnapshot, options) {
   if (rawId === undefined) throw new OsmSourceError(`OSM element ${index} has no stable id`, { code: 'OSM_FEATURE_ID_MISSING' });
   const geometry = elementGeometry(element);
   if (!geometry) throw new OsmSourceError(`OSM element ${rawId} has no geometry`, { code: 'OSM_GEOMETRY_MISSING' });
-  const inside = isInsideNeihu(geometry, options.boundary, OsmSourceError);
+  const inside = isInsideBoundary(geometry, options.boundary, OsmSourceError);
   if (!inside) return undefined;
   const { layerId, featureType } = osmFeatureType(tags);
+  const area = areaMetadataForRecord(options, element, geometry);
   const id = normalizeId(`osm:${element.type ?? 'element'}:${rawId}`, 'OSM feature id', OsmSourceError);
   const sourceVersion = String(firstValue(
     element.timestamp,
@@ -77,6 +80,8 @@ function normalizeElement(element, index, rawSnapshot, options) {
     tags: { ...tags },
     osm_type: element.type ?? null,
     osm_id: Number(rawId),
+    ...area,
+    ...(options.coverage ? { coverage: options.coverage } : {}),
     source_record: element,
   };
   return featureBase({
@@ -86,7 +91,7 @@ function normalizeElement(element, index, rawSnapshot, options) {
     featureType,
     geometry,
     properties,
-    source: 'osm-neihu',
+    source: options.sourceId ?? rawSnapshot.source_id,
     sourceVersion,
     issuedAt: options.issuedAt,
     expiresAt: options.expiresAt,
@@ -96,8 +101,12 @@ function normalizeElement(element, index, rawSnapshot, options) {
 }
 
 export function normalizeOsmFeatures(rawSnapshot, options = {}) {
-  if (!options.boundary) throw new OsmSourceError('Neihu boundary is required for OSM curation', { code: 'OSM_BOUNDARY_MISSING' });
-  assertRawFeatureSnapshot(rawSnapshot, 'osm-neihu', OsmSourceError);
+  if (!options.boundary) throw new OsmSourceError('OSM scope boundary is required for curation', { code: 'OSM_BOUNDARY_MISSING' });
+  const sourceId = options.sourceId ?? rawSnapshot.source_id;
+  if (!['osm-neihu', 'osm-taiwan'].includes(sourceId)) {
+    throw new OsmSourceError(`OSM normalizer requires source_id=osm-neihu or osm-taiwan`, { code: 'STATIC_SOURCE_ID_INVALID' });
+  }
+  assertRawFeatureSnapshot(rawSnapshot, sourceId, OsmSourceError);
   const times = staticTimes(rawSnapshot, options, OsmSourceError);
   const normalizedOptions = {
     ...options,
@@ -115,6 +124,7 @@ export function fetchOsmNeihu({
   query = DEFAULT_OSM_QUERY,
   fetchImpl = globalThis.fetch,
   retrievedAt = new Date().toISOString(),
+  timeoutMs = Number(process.env.OSM_TIMEOUT_MS ?? 120000),
 } = {}) {
   return fetchStaticText({
     sourceId: 'osm-neihu',
@@ -123,6 +133,26 @@ export function fetchOsmNeihu({
     headers: { 'User-Agent': 'ResilientGeoMesh/0.1 (Neihu data pipeline)' },
     fetchImpl,
     retrievedAt,
+    timeoutMs,
+    ErrorClass: OsmSourceError,
+  });
+}
+
+export function fetchOsmTaiwan({
+  endpoint = process.env.OSM_API_ENDPOINT ?? DEFAULT_OSM_ENDPOINT,
+  query = process.env.OSM_TAIWAN_QUERY ?? DEFAULT_OSM_TAIWAN_QUERY,
+  fetchImpl = globalThis.fetch,
+  retrievedAt = new Date().toISOString(),
+  timeoutMs = Number(process.env.OSM_TIMEOUT_MS ?? 120000),
+} = {}) {
+  return fetchStaticText({
+    sourceId: 'osm-taiwan',
+    endpoint,
+    query: { data: query },
+    headers: { 'User-Agent': 'ResilientGeoMesh/0.1 (Taiwan data pipeline)' },
+    fetchImpl,
+    retrievedAt,
+    timeoutMs,
     ErrorClass: OsmSourceError,
   });
 }

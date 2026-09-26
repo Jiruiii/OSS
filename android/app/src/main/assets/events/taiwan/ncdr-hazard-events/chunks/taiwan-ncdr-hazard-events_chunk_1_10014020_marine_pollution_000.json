@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10014020:marine_pollution:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 88,
+  "priority": "LOW",
+  "area_id": "tw.10014020",
+  "theme": "marine_pollution",
+  "bbox": [
+    121.351389,
+    23.069722,
+    121.351389,
+    23.069722
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:oca-marinepollution_3090",
+      "event_type": "MARINE_POLLUTION_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.351388888889,
+          23.0697222222222
+        ]
+      },
+      "severity": "LOW",
+      "source": "NCDR",
+      "source_version": "2026-08-05T00:00:08+08:00",
+      "event_version": 1,
+      "issued_at": "2026-08-04T16:00:08.000Z",
+      "expires_at": "2026-11-03T23:36:00.000Z",
+      "attributes": {
+        "area_id": "tw.10014020",
+        "county_code": "10014",
+        "town_code": "10014020",
+        "village_code": null,
+        "theme": "marine_pollution",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "OCA-marinePollution_3090",
+        "affected_area": "叭嗡嗡守望哨前方岸際",
+        "source_description": "地方單位\\臺東縣政府\\環境保護局：叭嗡嗡守望哨前方岸際新港籍竹筏「清風（CTRTT-0908）翻覆擱淺",
+        "source_record": {
+          "capid": "OCA-marinePollution_3090",
+          "capCode": "marinePollution",
+          "effective": "2026-08-04T07:36:00",
+          "expires": "2026-11-04T07:36:00",
+          "description": "地方單位\\臺東縣政府\\環境保護局：叭嗡嗡守望哨前方岸際新港籍竹筏「清風（CTRTT-0908）翻覆擱淺",
+          "identifier": "OCA-marinePollution_3090",
+          "sender": "https://iocean.oca.gov.tw",
+          "sent": "2026-08-05T00:00:08+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "地方單位\\臺東縣政府\\環境保護局：叭嗡嗡守望哨前方岸際新港籍竹筏「清風（CTRTT-0908）翻覆擱淺",
+              "language": "zh-TW",
+              "category": "Env",
+              "event": "海洋污染",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "marinePollution"
+              },
+              "effective": "2026-08-04T07:36:00+08:00",
+              "expires": "2026-11-04T07:36:00+08:00",
+              "senderName": "海洋保育署",
+              "headline": "海洋污染事件",
+              "instruction": null,
+              "web": "",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": ""
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "叭嗡嗡守望哨前方岸際",
+                  "geocode": null,
+                  "circle": "23.0697222222222,121.351388888889 0.5",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:40829ddc9c2f192e5f7ee56bd5e2d3abc19de15b42920b7f927b7bfa57ccb818",
+      "signature": "t8bUR1KmO7zDLq9o+ZvlvXWcoUNhw0jS+KJ43+8JFKccvH0DhULByUWufdaaIN6Ty1m5XyE0PdmdisXZZJHFDg=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2789,
+  "chunk_hash": "sha256:92d8f0f480d8d0b64be3f906786f14b8ed75217d6aae011def92fb6fa9572e40",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "vK+/SegLtQDBDoJtDROE8o7wbQu1ESBVep4Zv6QyrWUQiCEGnT8FFHpGCF64vwWg4fVxbJIhqfGNSZncGSvXBA=="
+}

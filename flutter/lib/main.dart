@@ -80,7 +80,7 @@ class _MapAppHomeState extends State<_MapAppHome> {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
-              '無法載入內湖地圖資料\n${controller.loadError ?? '無資料'}',
+              '無法載入台灣地圖資料\n${controller.loadError ?? '無資料'}',
               textAlign: TextAlign.center,
             ),
           ),

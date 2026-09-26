@@ -4,6 +4,7 @@ import android.content.Context
 import com.resilientgeo.mesh.ingest.EventIngestor
 import com.resilientgeo.mesh.ingest.IngestResult
 import com.resilientgeo.mesh.protocol.ChunkVerifier
+import com.resilientgeo.mesh.protocol.LayerBundleVerifier
 import com.resilientgeo.mesh.trust.TrustedKeyStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -11,6 +12,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.IOException
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -46,6 +48,80 @@ class MeshRepository(context: Context) {
     }
 
     fun observeEvents(): Flow<List<EventEntity>> = db.eventDao().observeAll()
+
+    /**
+     * Loads optional nationwide static layers only after manifest, chunk and
+     * feature verification. Missing assets mean the build has not packaged a
+     * Taiwan layer yet and therefore return no static features; a present but
+     * invalid layer fails closed instead of falling back to unverified JSON.
+     */
+    suspend fun verifiedStaticFeatures(): List<Map<String, Any?>> = withContext(Dispatchers.IO) {
+        STATIC_LAYER_IDS.flatMap { layerId -> loadStaticLayer(layerId) }
+    }
+
+    private fun loadStaticLayer(layerId: String): List<Map<String, Any?>> {
+        val root = "$STATIC_LAYER_ROOT/$layerId"
+        val manifestText = try {
+            appContext.assets.open("$root/manifest.json").bufferedReader().use { it.readText() }
+        } catch (_: IOException) {
+            return emptyList()
+        }
+        val manifest = JSONObject(manifestText)
+        val chunkNames = appContext.assets.list("$root/chunks")
+            ?.filter { it.endsWith(".json") }
+            ?.sorted()
+            ?: emptyList()
+        val chunks = chunkNames.map { name ->
+            val text = appContext.assets.open("$root/chunks/$name").bufferedReader().use { it.readText() }
+            JSONObject(text)
+        }
+        val verified = LayerBundleVerifier.verify(manifest, chunks, trustStore)
+        if (!verified.valid) {
+            throw IllegalStateException("static layer $layerId verification failed: ${verified.errors.joinToString("; ")}")
+        }
+        return verified.features.map { it.toMapFeatureMessage() }
+    }
+
+    private fun JSONObject.toMapFeatureMessage(): Map<String, Any?> {
+        val properties = optJSONObject("properties")
+        val output = linkedMapOf<String, Any?>(
+            "id" to optString("feature_id"),
+            "kind" to when {
+                optString("layer_id") == "shelter" || optString("feature_type") == "SHELTER" -> "shelter"
+                optString("layer_id") == "medical" || optString("feature_type") in listOf("HOSPITAL", "CLINIC") -> "medical"
+                optString("layer_id") == "osm-road" -> "road"
+                else -> "poi"
+            },
+            "geometry" to get("geometry").toMessageValue(),
+            "source" to optString("source"),
+        )
+        for (field in listOf("name", "address", "phone", "departments", "capacity", "disaster_types", "administrative_area", "facility_type", "area_id", "county_code", "town_code", "village_code", "coverage", "coordinate_source", "osm_id")) {
+            if (properties?.has(field) == true) output[field] = properties.get(field).toMessageValue()
+        }
+        return output
+    }
+
+    private fun JSONObject.toMessageMap(): Map<String, Any?> {
+        val values = LinkedHashMap<String, Any?>()
+        val names = keys()
+        while (names.hasNext()) {
+            val name = names.next()
+            values[name] = get(name).toMessageValue()
+        }
+        return values
+    }
+
+    private fun JSONArray.toMessageList(): List<Any?> =
+        List(length()) { index -> get(index).toMessageValue() }
+
+    private fun Any?.toMessageValue(): Any? = when (this) {
+        null, JSONObject.NULL -> null
+        is JSONObject -> toMessageMap()
+        is JSONArray -> toMessageList()
+        is String, is Boolean, is Int, is Long, is Double, is Float, is ByteArray -> this
+        is Number -> toDouble()
+        else -> toString()
+    }
 
     /**
      * Ingests the bundled test-area event batch (real Ed25519 signatures,
@@ -311,6 +387,8 @@ class MeshRepository(context: Context) {
 
         private const val FIXTURE_ASSET = "fixtures/signed-events.json"
         private const val TRUSTED_KEYS_ASSET = "trust/trusted-keys.json"
+        private const val STATIC_LAYER_ROOT = "static/taiwan"
+        private val STATIC_LAYER_IDS = listOf("shelter", "medical", "osm-poi", "osm-road")
     }
 }
 

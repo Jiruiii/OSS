@@ -7,20 +7,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/map_bridge.dart';
 import '../data/map_models.dart';
+import '../data/ncdr_demo_events.dart';
 
 /// App-level presentation coordinator.
 ///
 /// Android remains the owner of Room and event writes. This controller only
 /// reads the verified event stream once and fans it out to the map and the
 /// notifications tab.
+typedef DemoEventLoader = Future<List<MeshEvent>> Function();
+
 class MapAppController extends ChangeNotifier {
-  MapAppController({MapBridge? bridge}) : bridge = bridge ?? MapBridge();
+  MapAppController({MapBridge? bridge, DemoEventLoader? demoEventLoader})
+    : bridge = bridge ?? MapBridge(),
+      _demoEventLoader = demoEventLoader ?? _loadBundledNcdrDemoEvents;
 
   static const _themePreference = 'map.theme_mode';
   static const _animationPreference = 'map.animation_enabled';
   static const _readEventKeysPreference = 'map.read_event_keys';
 
   final MapBridge bridge;
+  final DemoEventLoader _demoEventLoader;
   final StreamController<List<MeshEvent>> _eventUpdates =
       StreamController<List<MeshEvent>>.broadcast();
 
@@ -37,6 +43,7 @@ class MapAppController extends ChangeNotifier {
   bool nativeBridgeAvailable = false;
   bool isLoading = true;
   Object? loadError;
+  Object? demoEventLoadError;
   bool _disposed = false;
 
   Stream<List<MeshEvent>> get eventUpdates => _eventUpdates.stream;
@@ -59,9 +66,7 @@ class MapAppController extends ChangeNotifier {
 
   Future<void> load() async {
     try {
-      final rawStatic = await rootBundle.loadString(
-        'assets/data/neihu/static-features.json',
-      );
+      final rawStatic = await _loadPreferredStaticAsset();
       staticFeatures = StaticFeatureCollection.fromJson(
         Map<String, dynamic>.from(jsonDecode(rawStatic) as Map),
       );
@@ -72,15 +77,46 @@ class MapAppController extends ChangeNotifier {
         initialState = MapInitialState(
           events: verifiedEvents,
           emergencyModeEnabled: loadedState.emergencyModeEnabled,
+          staticFeatures: loadedState.staticFeatures,
         );
         persistedEvents = verifiedEvents;
         nativeBridgeAvailable = true;
+        if (loadedState.staticFeatures.isNotEmpty) {
+          staticFeatures = StaticFeatureCollection(
+            schemaVersion: 'feature-v0',
+            datasetId: 'resilientgeo-taiwan',
+            snapshotAt: null,
+            features: loadedState.staticFeatures,
+          );
+        } else {
+          // On an Android host, an absent nationwide layer means that no
+          // verified static bundle is installed yet. Do not fall back to the
+          // unverified preview JSON after the native bridge is available.
+          staticFeatures = const StaticFeatureCollection(
+            schemaVersion: 'feature-v0',
+            datasetId: 'resilientgeo-taiwan',
+            snapshotAt: null,
+            features: <StaticFeature>[],
+          );
+        }
       } on Object {
-        // Preview builds without the Android host still show the bundled map.
-        initialState = const MapInitialState(
-          events: <MeshEvent>[],
-          emergencyModeEnabled: false,
-        );
+        // Preview builds without the Android host use the real NCDR snapshot.
+        // Android remains authoritative when its bridge is available.
+        try {
+          final demoEvents = await _demoEventLoader();
+          persistedEvents = List<MeshEvent>.unmodifiable(demoEvents);
+          initialState = MapInitialState(
+            events: persistedEvents,
+            emergencyModeEnabled: false,
+          );
+        } on Object catch (error) {
+          demoEventLoadError = error;
+          persistedEvents = const <MeshEvent>[];
+          initialState = const MapInitialState(
+            events: <MeshEvent>[],
+            emergencyModeEnabled: false,
+          );
+        }
       }
 
       await _loadPreferences();
@@ -91,6 +127,10 @@ class MapAppController extends ChangeNotifier {
       isLoading = false;
       _notifyIfAlive();
     }
+  }
+
+  Future<String> _loadPreferredStaticAsset() async {
+    return rootBundle.loadString('assets/data/taiwan/static-features.json');
   }
 
   Future<void> _loadPreferences() async {
@@ -157,6 +197,9 @@ bool _isDemoEvent(MeshEvent event) =>
     event.namespace?.startsWith('demo.') == true ||
     event.eventId?.startsWith('demo:') == true ||
     event.attributes?['is_demo'] == true;
+
+Future<List<MeshEvent>> _loadBundledNcdrDemoEvents() =>
+    const NcdrDemoEventLoader().load();
 
 ThemeMode _themeModeFromName(String? value) => switch (value) {
   'light' => ThemeMode.light,

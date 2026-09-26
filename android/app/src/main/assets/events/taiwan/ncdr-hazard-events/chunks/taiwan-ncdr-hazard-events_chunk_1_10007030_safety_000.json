@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10007030:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 65,
+  "priority": "LOW",
+  "area_id": "tw.10007030",
+  "theme": "safety",
+  "bbox": [
+    120.493337,
+    24.114315,
+    120.493337,
+    24.114315
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090074",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.493337,
+          24.114315
+        ]
+      },
+      "severity": "MEDIUM",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.10007030",
+        "county_code": "10007",
+        "town_code": "10007030",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090074",
+        "affected_area": "彰化縣",
+        "source_description": "彰化縣,阿月歌友會,甲類-視聽歌唱場所（KTV等）,彰化縣和美鎮平等路82號,消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090074",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "彰化縣,阿月歌友會,甲類-視聽歌唱場所（KTV等）,彰化縣和美鎮平等路82號,消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090074",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "彰化縣,阿月歌友會,甲類-視聽歌唱場所（KTV等）,彰化縣和美鎮平等路82號,消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Moderate",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "彰化縣,阿月歌友會,甲類-視聽歌唱場所（KTV等）,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "彰化縣,阿月歌友會,甲類-視聽歌唱場所（KTV等）,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "彰化縣",
+                  "geocode": null,
+                  "circle": "24.114315,120.493337 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:24dbcde35f9dd84a906bb41211d0f065f8cdb0f42a875e59a5725205e8d2bb1b",
+      "signature": "OgJnyTbbIRQSQfMwRwrmLDWh2HzQNmYH0PrPPzqVG3KvdZEau1JXbax0/vfQDRxa4DoNZ6fCxF0lX8vUq0p0Dg=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2941,
+  "chunk_hash": "sha256:4d58470874710a066960144d8580cf745d59ab6bd4672d3a7e66bf836dcb7fde",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "NJq0awvDfLuvKeC1Xjyn6n/VFiwIFsPKDDXtqH41V53aD1uiyOz1vZoAFSaOc/6vUFOKbUfM3LOlxHFPt1s7CQ=="
+}

@@ -1,0 +1,1134 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000070:health:007",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 153,
+  "priority": "LOW",
+  "area_id": "tw.65000070",
+  "theme": "health",
+  "bbox": [
+    121.420043,
+    24.987174,
+    121.420043,
+    24.987174
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:hospitalreport_000194_20260926_20260925180000",
+      "event_type": "HEALTH_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.420043,
+          24.987174
+        ]
+      },
+      "severity": "LOW",
+      "source": "NCDR",
+      "source_version": "2026-09-25T18:00:00+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-25T10:00:00.000Z",
+      "expires_at": "2026-09-26T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.65000070",
+        "county_code": "65000",
+        "town_code": "65000070",
+        "village_code": null,
+        "theme": "health",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "HospitalReport_000194_20260926_20260925180000",
+        "affected_area": "新北市樹林區新北市樹林區文化街9號",
+        "source_description": "2026-09-26 仁愛醫院 下午、夜間停診，早上、急診正常",
+        "source_record": {
+          "capid": "HospitalReport_000194_20260926_20260925180000",
+          "capCode": "HospitalReport",
+          "effective": "2026-09-25T18:00:00",
+          "expires": "2026-09-27T00:00:00",
+          "description": "2026-09-26 宏仁醫院 早上、下午、夜間停診，急診正常",
+          "identifier": "HospitalReport_000194_20260926_20260925180000",
+          "sender": "醫院急門診服務通報系統",
+          "sent": "2026-09-25T18:00:00+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "2026-09-26 仁愛醫院 下午、夜間停診，早上、急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "http://www.rah.com.tw/",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "仁愛醫院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：正常"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市樹林區新北市樹林區文化街9號",
+                  "geocode": null,
+                  "circle": "24.987174,121.420043 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 天主教耕莘醫療財團法人永和耕莘醫院 下午、夜間停診，早上、急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "http://www.cthyh.org.tw/",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "天主教耕莘醫療財團法人永和耕莘醫院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：正常"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市永和區新北市永和區中興街80號、國光路123號",
+                  "geocode": null,
+                  "circle": "25.011875,121.517734 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 天主教耕莘醫療財團法人耕莘醫院 早上、下午、夜間、急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "http://www.cth.org.tw/",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "天主教耕莘醫療財團法人耕莘醫院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：正常"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：正常"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：正常"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市新店區新北市新店區中正路362號",
+                  "geocode": null,
+                  "circle": "24.976293,121.535752 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 天主教耕莘醫療財團法人耕莘醫院安康院區 下午、夜間停診，早上、急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "http://www.cth.org.tw/?aid=ankang",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "天主教耕莘醫療財團法人耕莘醫院安康院區"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：正常"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市新店區車子路15號",
+                  "geocode": null,
+                  "circle": "24.953422,121.503908 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 台灣基督長老教會馬偕醫療財團法人淡水馬偕紀念醫院 早上停診，下午週六無下午診，夜間週六無夜診，急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "http://www.mmh.org.tw/index_big5.html",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "台灣基督長老教會馬偕醫療財團法人淡水馬偕紀念醫院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：停診"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：週六無下午診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：週六無夜診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市淡水區新北市淡水區民生路45號、民權路47號",
+                  "geocode": null,
+                  "circle": "25.138886,121.461892 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 行天宮醫療志業醫療財團法人恩主公醫院 下午週六下午無開診，夜間週六夜間無開診，早上、急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "https://www.eck.org.tw/",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "行天宮醫療志業醫療財團法人恩主公醫院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：正常"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：週六下午無開診(週六下午無開診)"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：週六夜間無開診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常(急診24小時正常服務)"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市三峽區新北市三峽區復興路399號、中山路198、258號",
+                  "geocode": null,
+                  "circle": "24.938307,121.362904 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 佛教慈濟醫療財團法人台北慈濟醫院 下午、夜間停診，早上、急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "http://taipei.tzuchi.com.tw/162/",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "佛教慈濟醫療財團法人台北慈濟醫院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：正常"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常(※115年9月25日(五)中秋節及115年9月28日(一)教師節，本院門診全日暫停服務；115年9月26日(六)維持正常門診。)"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市新店區新北市新店區建國路289號",
+                  "geocode": null,
+                  "circle": "24.986063,121.535676 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 宏仁醫院 早上、下午、夜間停診，急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "https://www.hrh.com.tw/",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "宏仁醫院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：停診"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市三重區水漾路一段158號",
+                  "geocode": null,
+                  "circle": "25.053998,121.483784 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 國立臺灣大學醫學院附設醫院金山分院 早上、下午、夜間停診，急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "https://www.js.ntuh.gov.tw/",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "國立臺灣大學醫學院附設醫院金山分院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：停診"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市金山區新北市金山區五湖里玉爐路7號",
+                  "geocode": null,
+                  "circle": "25.219553,121.628399 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 國泰醫療財團法人汐止國泰綜合醫院 早上、下午、夜間停診，急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "http://sijhih.cgh.org.tw/",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "國泰醫療財團法人汐止國泰綜合醫院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：停診"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市汐止區建成路59巷2號",
+                  "geocode": null,
+                  "circle": "25.072537,121.661197 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 新北市立土城醫院（委託長庚醫療財團法人興建經營） 夜間週六本來就無夜間診，早上、下午、急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "https://www.cgmh.org.tw/tw/Systems/AreaInfo/19053115182588",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "新北市立土城醫院（委託長庚醫療財團法人興建經營）"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：正常"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：正常"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：週六本來就無夜間診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市土城區金城路2段6號",
+                  "geocode": null,
+                  "circle": "24.976869,121.448778 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 新北市立聯合醫院 早上、下午、夜間停診，急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "https://www.ntch.ntpc.gov.tw/",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "新北市立聯合醫院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：停診"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市三重區新北市三重區新北大道1段3號、3之1號",
+                  "geocode": null,
+                  "circle": "25.061166,121.484419 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 新北市立聯合醫院板橋院區 早上、下午、夜間、急診停診",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "https://www.ntch.ntpc.gov.tw/home.jsp?id=dc5b21213dfb17e5",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "新北市立聯合醫院板橋院區"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：停診"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：停診"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市板橋區新北市板橋區英士路198號",
+                  "geocode": null,
+                  "circle": "25.023583,121.457669 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 新泰綜合醫院 早上、下午、夜間停診，急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "http://www.sthosp.com.tw/",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "新泰綜合醫院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：停診"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市新莊區新北市新莊區新樹路176號",
+                  "geocode": null,
+                  "circle": "25.021455,121.434326 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 瑞芳礦工醫院 下午、夜間停診，早上、急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "http://www.xn--est231c6ldo0lrzs6og.tw/index.html",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "瑞芳礦工醫院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：正常(不分科1診)"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常(24小時作業)"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市瑞芳區新北市瑞芳區一坑路71之2號",
+                  "geocode": null,
+                  "circle": "25.108601,121.802175 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 衛生福利部臺北醫院 下午、夜間停診，早上、急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "https://www.tph.mohw.gov.tw/",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "衛生福利部臺北醫院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：正常"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市新莊區新北市新莊區思源路127號",
+                  "geocode": null,
+                  "circle": "25.042964,121.459589 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 衛生福利部樂生療養院 下午、夜間停診，早上、急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "https://www.lslp.mohw.gov.tw/web/index/index.jsp?lang=tw",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "衛生福利部樂生療養院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：正常"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市新莊區新北市新莊區中正路794號、桃園市龜山區萬壽路1段50巷2號",
+                  "geocode": null,
+                  "circle": "25.022265,121.409027 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 衛生福利部雙和醫院（委託臺北醫學大學興建經營） 下午、夜間無門診，早上、急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "https://shh.tmu.edu.tw/",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "衛生福利部雙和醫院（委託臺北醫學大學興建經營）"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：正常"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：無門診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：無門診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市中和區新北市中和區中正路291號",
+                  "geocode": null,
+                  "circle": "24.992699,121.493526 0.1",
+                  "polygon": null
+                }
+              ]
+            },
+            {
+              "sections": null,
+              "description": "2026-09-26 醫療財團法人徐元智先生醫藥基金會亞東紀念醫院 下午、夜間停診，早上、急診正常",
+              "language": "zh-TW",
+              "category": "Health",
+              "event": "急門診通報",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "HospitalReport"
+              },
+              "effective": "2026-09-25T18:00:00+08:00",
+              "expires": "2026-09-26T23:59:59+08:00",
+              "senderName": "衛生福利部",
+              "headline": "醫院急門診資訊",
+              "instruction": null,
+              "web": "https://www.femh.org.tw/mainpage/index.aspx",
+              "parameter": [
+                {
+                  "valueName": "hospital_name",
+                  "value": "醫療財團法人徐元智先生醫藥基金會亞東紀念醫院"
+                },
+                {
+                  "valueName": "hospital_date",
+                  "value": "2026-09-26"
+                },
+                {
+                  "valueName": "morning_text",
+                  "value": "上午診：正常"
+                },
+                {
+                  "valueName": "afternoon_text",
+                  "value": "下午診：停診"
+                },
+                {
+                  "valueName": "night_text",
+                  "value": "夜間診：停診"
+                },
+                {
+                  "valueName": "emergency_text",
+                  "value": "急診：正常"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市板橋區新北市板橋區南雅南路2段21號、高爾富路300號",
+                  "geocode": null,
+                  "circle": "25.0021,121.45413 0.1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:56a9e2190821c42e2af98f62bfdc100b5144e4f8479d8ab0aec3f807e73adc8e",
+      "signature": "rB8MyX7FaDDCzb5QdP1rWnEbennl4jcqPW0uJ0rjyaah2p0H6Jo6icYl6ZTA7iN6biD0mzgPJlDS2axB83iJAA=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 23162,
+  "chunk_hash": "sha256:33a50a7824b82cf2df7b7403bf5cf5a8002a42a11224861f9a00f992a1d475be",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "cEJb6X/BkkJ3mI6YTco0e5CYw2vnyzC1EZkX4ZyvmdNSg1DyP4DtQYYnQ9Xr0hTcLjHwJhlnOh9WGwoA1JAAAA=="
+}

@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015010:safety:001",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 91,
+  "priority": "HIGH",
+  "area_id": "tw.10015010",
+  "theme": "safety",
+  "bbox": [
+    121.609329,
+    23.979019,
+    121.609329,
+    23.979019
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090096",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.609329,
+          23.979019
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.10015010",
+        "county_code": "10015",
+        "town_code": "10015010",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090096",
+        "affected_area": "花蓮縣",
+        "source_description": "花蓮縣,卿蓬股份有限公司(花蓮潔西艾美渡假酒店 ),甲類(飯店,公共危險物品地下儲槽場所,液化石油氣串接場所),花蓮縣花蓮市中正路599號,消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090096",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "花蓮縣,卿蓬股份有限公司(花蓮潔西艾美渡假酒店 ),甲類(飯店,公共危險物品地下儲槽場所,液化石油氣串接場所),花蓮縣花蓮市中正路599號,消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090096",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "花蓮縣,卿蓬股份有限公司(花蓮潔西艾美渡假酒店 ),甲類(飯店,公共危險物品地下儲槽場所,液化石油氣串接場所),花蓮縣花蓮市中正路599號,消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "花蓮縣,卿蓬股份有限公司(花蓮潔西艾美渡假酒店 ),消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "花蓮縣,卿蓬股份有限公司(花蓮潔西艾美渡假酒店 ),甲類(飯店,公共危險物品地下儲槽場所,液化石油氣串接場所),消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "花蓮縣",
+                  "geocode": null,
+                  "circle": "23.979019,121.609329 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:3cfd671a4fe76ab6a78e1df51191d2b71878f21535a6fb87533d3868f7a3f6f8",
+      "signature": "ICye7/8rfbjpSQaLgkFQOUhPpt4TexVjGtsdTBo80uXSFKrSNOMJOCSIv8c1wTlZz02hEr5IIU6K8sAWFqwdAg=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 3281,
+  "chunk_hash": "sha256:2d31de42157378061ed5d11633e195e91dc482c12ca578077e4631c8418f973d",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "QAi1/AprjoL8q+rINIv2SPKbp+cK2zJQ3hKGy59pCj7l54UE1S3oGvYZ0nleWpwfwgFB+4Y+OuRRitYdeNJmCA=="
+}

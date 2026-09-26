@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
+  DEFAULT_TDX_NATIONWIDE_ENDPOINTS,
   TdxCredentialError,
   TdxSourceError,
   collectTdxRoadEvents,
@@ -121,6 +122,72 @@ test('fetches a TDX token and stores only safe Raw snapshot metadata', async () 
   assert.doesNotMatch(JSON.stringify(snapshot), /access-token-for-test/u);
 });
 
+test('fetches multiple TDX city endpoints for Taiwan scope and retains endpoint provenance', async () => {
+  const endpoints = [
+    'https://tdx.test/City/Taipei?$format=JSON',
+    'https://tdx.test/City/Hualien?$format=JSON',
+  ];
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    if (url.includes('/auth/realms/TDXConnect/')) {
+      return response({ payload: { access_token: 'access-token-for-test' } });
+    }
+    const city = url.includes('Hualien') ? 'Hualien' : 'Taipei';
+    return response({
+      headers: { ETag: `"${city.toLowerCase()}-1"` },
+      payload: { UpdateTime: UPDATE_TIME, Events: [{ EventID: `TDX-${city}-001` }] },
+    });
+  };
+
+  const snapshot = await fetchTdxRoadEvents({
+    clientId: 'client-id-for-test',
+    clientSecret: 'client-secret-for-test',
+    endpoints,
+    scope: 'taiwan',
+    fetchImpl,
+    retrievedAt: RETRIEVED_AT,
+  });
+
+  assert.deepEqual(calls, [
+    'https://tdx.transportdata.tw/auth/realms/TDXConnect/protocol/openid-connect/token',
+    ...endpoints,
+  ]);
+  assert.equal(snapshot.payload.Events.length, 2);
+  assert.deepEqual(snapshot.payload.sources.map((source) => source.endpoint), endpoints);
+  assert.deepEqual(DEFAULT_TDX_NATIONWIDE_ENDPOINTS.length > 10, true);
+  assert.doesNotMatch(JSON.stringify(snapshot), /access-token-for-test/u);
+});
+
+test('keeps successful Taiwan endpoints when one TDX city endpoint is unavailable', async () => {
+  const endpoints = [
+    'https://tdx.test/City/Taipei?$format=JSON',
+    'https://tdx.test/City/HualienCounty?$format=JSON',
+  ];
+  const snapshot = await fetchTdxRoadEvents({
+    clientId: 'client-id-for-test',
+    clientSecret: 'client-secret-for-test',
+    endpoints,
+    scope: 'taiwan',
+    fetchImpl: async (url) => {
+      if (url.includes('/auth/realms/TDXConnect/')) return response({ payload: { access_token: 'access-token-for-test' } });
+      if (url.includes('HualienCounty')) return {
+        status: 401,
+        headers: new Headers(),
+        async json() { return {}; },
+      };
+      return response({ payload: tdxPayload() });
+    },
+    retrievedAt: RETRIEVED_AT,
+  });
+
+  assert.equal(snapshot.payload.partial, true);
+  assert.equal(snapshot.payload.Events.length, 2);
+  assert.equal(snapshot.payload.sources[1].status, 401);
+  assert.equal(snapshot.payload.sources[1].error_code, 'HTTP_ERROR');
+  assert.doesNotMatch(JSON.stringify(snapshot), /access-token-for-test/u);
+});
+
 test('normalizes TDX events, preserves Raw outside Neihu, and keeps unmapped fields', () => {
   const raw = rawSnapshot();
   const events = normalizeTdxRoadEvents(raw, {
@@ -228,6 +295,59 @@ test('adapts the live TDX envelope and derives freshness expiry from UpdateInter
   assert.equal(events[0].source_version, '2026-09-04T00:00:00Z');
   assert.equal(events[0].issued_at, '2026-09-03T23:59:00Z');
   assert.equal(events[0].expires_at, '2026-09-04T00:01:00.000Z');
+});
+
+test('derives a marked source freshness TTL when a live TDX event has no end time', () => {
+  const raw = rawSnapshot({
+    UpdateTime: '2026-09-04T00:00:00Z',
+    Events: [{
+      EventID: 'TDX-NEIHU-LIVE-NO-END-001',
+      EventType: 2,
+      EffectiveTime: '2026-09-03T23:59:00Z',
+      LastUpdateTime: '2026-09-04T00:00:00Z',
+      Positions: 'POINT (121.58 25.08)',
+      Location: { Other: '內湖區瑞光路' },
+    }],
+  });
+  const events = normalizeTdxRoadEvents(raw, {
+    boundary: OFFICIAL_NEIHU_BOUNDARY,
+    freshnessSeconds: 900,
+  });
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].expires_at, '2026-09-04T00:15:00.000Z');
+  assert.equal(events[0].attributes.expiry_source, 'source_freshness_ttl');
+  assert.equal(events[0].attributes.freshness_ttl_seconds, 900);
+});
+
+test('keeps nationwide TDX collection running when one event has unresolved geometry', () => {
+  const raw = rawSnapshot({
+    UpdateTime: '2026-09-04T00:00:00Z',
+    Events: [
+      {
+        EventID: 'TDX-NEIHU-LIVE-VALID-001',
+        EventType: 2,
+        EffectiveTime: '2026-09-03T23:59:00Z',
+        Positions: 'POINT (121.58 25.08)',
+        Location: { Other: '臺北市-內湖區' },
+      },
+      {
+        EventID: 'TDX-TAICHUNG-LIVE-NO-GEOMETRY-001',
+        EventType: 3,
+        EffectiveTime: '2026-09-03T23:59:00Z',
+        Positions: 'POINT ( )',
+        Location: { Other: '臺中市-豐原區' },
+      },
+    ],
+  });
+  const events = normalizeTdxRoadEvents(raw, {
+    boundary: OFFICIAL_NEIHU_BOUNDARY,
+    scope: 'taiwan',
+    allowUnresolved: true,
+  });
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].event_id, 'tdx:tdx-neihu-live-valid-001');
 });
 
 test('rejects TDX records without stable identity, geometry, or valid source time', () => {

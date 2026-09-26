@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000140:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 131,
+  "priority": "HIGH",
+  "area_id": "tw.64000140",
+  "theme": "safety",
+  "bbox": [
+    120.382653,
+    22.589001,
+    120.382653,
+    22.589001
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090048",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.382653,
+          22.589001
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.64000140",
+        "county_code": "64000",
+        "town_code": "64000140",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090048",
+        "affected_area": "高雄市",
+        "source_description": "高雄市,大寮區農會內坑路連棟鐵皮屋,乙類-倉庫,高雄市大寮區內坑里內坑路145-8號,消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090048",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "高雄市,大寮區農會內坑路連棟鐵皮屋,乙類-倉庫,高雄市大寮區內坑里內坑路145-8號,消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090048",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "高雄市,大寮區農會內坑路連棟鐵皮屋,乙類-倉庫,高雄市大寮區內坑里內坑路145-8號,消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "高雄市,大寮區農會內坑路連棟鐵皮屋,乙類-倉庫,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "高雄市,大寮區農會內坑路連棟鐵皮屋,乙類-倉庫,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "高雄市",
+                  "geocode": null,
+                  "circle": "22.589001,120.382653 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:2399d3a66502d82baa90761d8580c0a7c21fe55e2c62499c665c83911ea885a0",
+      "signature": "na9Fzp76YMauX+KBq0zASjGTqLZTMpqsuA7V4Wjw4C3KEuTd88JQJRYqasyN+6TycadykK8BaNTit+JjUO0TCw=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2975,
+  "chunk_hash": "sha256:1c9c990e3147ded983f13713dc323d582eddf4532286d9b1ae05590fb28a2609",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "Pag4ilXGUJWEjwvPiH2tYOyYgSoBS4get6+OYoPuW1WniNGoM93MXH+PvqeXOmZEDK3kuEv9o0JHxHIWxYreCg=="
+}

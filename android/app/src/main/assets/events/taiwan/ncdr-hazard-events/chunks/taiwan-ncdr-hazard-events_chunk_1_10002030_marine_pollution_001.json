@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002030:marine_pollution:001",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 52,
+  "priority": "LOW",
+  "area_id": "tw.10002030",
+  "theme": "marine_pollution",
+  "bbox": [
+    121.819833,
+    24.462139,
+    121.819833,
+    24.462139
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:oca-marinepollution_3040",
+      "event_type": "MARINE_POLLUTION_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.819833333333,
+          24.4621388888889
+        ]
+      },
+      "severity": "LOW",
+      "source": "NCDR",
+      "source_version": "2026-07-03T00:00:08+08:00",
+      "event_version": 1,
+      "issued_at": "2026-07-02T16:00:08.000Z",
+      "expires_at": "2026-10-02T10:30:00.000Z",
+      "attributes": {
+        "area_id": "tw.10002030",
+        "county_code": "10002",
+        "town_code": "10002030",
+        "village_code": null,
+        "theme": "marine_pollution",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "OCA-marinePollution_3040",
+        "affected_area": "朝陽漁港",
+        "source_description": "地方單位\\宜蘭縣政府\\環境保護局：南澳漁港港區發現油污案",
+        "source_record": {
+          "capid": "OCA-marinePollution_3040",
+          "capCode": "marinePollution",
+          "effective": "2026-07-02T18:30:00",
+          "expires": "2026-10-02T18:30:00",
+          "description": "地方單位\\宜蘭縣政府\\環境保護局：南澳漁港港區發現油污案",
+          "identifier": "OCA-marinePollution_3040",
+          "sender": "https://iocean.oca.gov.tw",
+          "sent": "2026-07-03T00:00:08+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "地方單位\\宜蘭縣政府\\環境保護局：南澳漁港港區發現油污案",
+              "language": "zh-TW",
+              "category": "Env",
+              "event": "海洋污染",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "marinePollution"
+              },
+              "effective": "2026-07-02T18:30:00+08:00",
+              "expires": "2026-10-02T18:30:00+08:00",
+              "senderName": "海洋保育署",
+              "headline": "海洋污染事件",
+              "instruction": null,
+              "web": "",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": ""
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "朝陽漁港",
+                  "geocode": null,
+                  "circle": "24.4621388888889,121.819833333333 0.5",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:1d88fa35911c4be895c574f9699a5581a7ac421ba82461a56c850fdc5aed4e73",
+      "signature": "QHRNXfuaGESdfjLe6pL31e+JhCe1k+vag0G2R/bTW/srZ930fyLQNBUdNFUBD7o5X6kfYQA9ye4NZ5gjWB5BBQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2606,
+  "chunk_hash": "sha256:3d93b14293a9b798fb248843768f1f3c17984b614edd7d5f959d12b7ecd66196",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "iyqkrgbclU+6g0lNQ2MHerQelw14tnLcCHzuOYGQjTgoV1No+t1XKNIKGxjIOG4V9h5WAQ8q50ysqwt8SOayAg=="
+}
