@@ -32,6 +32,8 @@ class MapScreen extends StatefulWidget {
   const MapScreen({
     super.key,
     this.staticFeatures,
+    this.staticFeaturesPending = false,
+    this.staticFeaturesFailed = false,
     this.initialState,
     this.bridge,
     this.eventUpdates,
@@ -42,6 +44,12 @@ class MapScreen extends StatefulWidget {
 
   /// Optional deterministic inputs keep widget tests independent of channels.
   final StaticFeatureCollection? staticFeatures;
+
+  /// Android is still verifying the nationwide layers (first launch only).
+  final bool staticFeaturesPending;
+
+  /// Verification failed; nothing unverified is shown instead.
+  final bool staticFeaturesFailed;
   final MapInitialState? initialState;
   final MapBridge? bridge;
   final Stream<List<MeshEvent>>? eventUpdates;
@@ -123,6 +131,16 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void didUpdateWidget(covariant MapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final nextFeatures = widget.staticFeatures;
+    if (nextFeatures != null &&
+        !identical(oldWidget.staticFeatures, nextFeatures)) {
+      // Verified layers can arrive after the first frame (see
+      // MapAppController._loadVerifiedStaticFeatures).
+      setState(() {
+        _staticFeatures = nextFeatures;
+        _rebuildSearchIndex();
+      });
+    }
     final preferencesChanged =
         oldWidget.themeMode != widget.themeMode ||
         oldWidget.animationEnabled != widget.animationEnabled;
@@ -163,7 +181,8 @@ class _MapScreenState extends State<MapScreen> {
     final staticFeatures = await featureFuture;
     if (!mounted) return;
     setState(() {
-      _staticFeatures = staticFeatures;
+      // A newer collection may have arrived through didUpdateWidget meanwhile.
+      _staticFeatures = widget.staticFeatures ?? staticFeatures;
       _rebuildSearchIndex();
     });
     unawaited(
@@ -945,6 +964,8 @@ class _MapScreenState extends State<MapScreen> {
                             hasCurrentLocation:
                                 _runtimeState.currentLocation != null,
                             reportDeliveryEventId: _reportDeliveryEventId,
+                            staticFeaturesPending: widget.staticFeaturesPending,
+                            staticFeaturesFailed: widget.staticFeaturesFailed,
                           ),
                         ),
                       ),
@@ -1064,11 +1085,15 @@ class _StatusOverlay extends StatelessWidget {
     required this.snapshotAt,
     required this.hasCurrentLocation,
     required this.reportDeliveryEventId,
+    this.staticFeaturesPending = false,
+    this.staticFeaturesFailed = false,
   });
 
   final String? snapshotAt;
   final bool hasCurrentLocation;
   final String? reportDeliveryEventId;
+  final bool staticFeaturesPending;
+  final bool staticFeaturesFailed;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -1097,6 +1122,16 @@ class _StatusOverlay extends StatelessWidget {
             ),
           ),
           Text('目前位置：${hasCurrentLocation ? '已取得' : '尚未取得'}'),
+          if (staticFeaturesPending)
+            const Text(
+              '避難所資料驗證中…',
+              key: ValueKey<String>('static-features-pending'),
+            ),
+          if (staticFeaturesFailed)
+            const Text(
+              '避難所資料驗證失敗，未顯示',
+              key: ValueKey<String>('static-features-failed'),
+            ),
           if (reportDeliveryEventId != null) ...<Widget>[
             const Text('民眾告警：未驗證／待同步'),
             Text('告警編號：$reportDeliveryEventId'),

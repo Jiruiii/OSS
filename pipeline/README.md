@@ -325,6 +325,13 @@ node --test pipeline/test/neihu-replay.test.mjs
   byte-identical Android test copy). Fixed-seed, fixture-only keys.
 - `node pipeline/tools/generate-walk-graph.mjs` → `android/app/src/main/assets/routing/walk-roads.json`,
   the walkable Neihu OSM network the Android route engine loads.
+- Android ships the nationwide shelter layer at `android/app/src/main/assets/static/taiwan/shelter/`
+  (collected 2026-09-26 from data.gov.tw 73242, `build-layer --target-size-bytes 262144`, key
+  `taiwan-static-2026`, written as compact JSON). The private key stays with whoever built it;
+  a rebuild with a new key must also replace that entry in both `trusted-keys.json` copies.
+- `lib/geo.mjs` caches each boundary's validated geometry and envelope, so `collect --scope taiwan`
+  no longer re-validates the whole 390-area catalog per record (the shelter collection went from
+  not finishing in 5 minutes to about 6 seconds).
 - `node pipeline/tools/generate-evacuation-scenario.mjs` → `data/fixtures/neihu/evacuation-scenario.json`
   plus two signed demo chunks, adding the `evacuation-scenario-demo-2026` key to both
   `trusted-keys.json` copies. Events are synthetic and say so.

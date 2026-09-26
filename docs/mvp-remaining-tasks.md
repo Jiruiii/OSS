@@ -200,8 +200,8 @@
 
 - [x] **G1. 道路圖建構**：`pipeline/tools/generate-walk-graph.mjs` 從內湖 OSM 快照輸出 `assets/routing/walk-roads.json`（約 0.97 MB）；`RoadGraph` 建圖 28,954 節點、32,806 邊，最大連通分量 98.7%，JVM 建圖約 40 ms。最近節點查詢優先落在主路網（快照中有約 60 個零碎小段）。
 - [x] **G2. 災情覆蓋層**：`HazardOverlay`，規則表與測試一一對應。危險區改用事件類型白名單（`FLOOD_WARNING`、`LANDSLIDE_RISK`、`DEBRIS_FLOW_WARNING`）：打包的全台 NCDR 熱傷害、供水警戒，以及 SHELTER_STATUS／MEDICAL 事件也是 CRITICAL／HIGH 多邊形，照「任何 CRITICAL 多邊形」會封掉整片路網。
-- [x] **G3. 避難所目的地**：`ShelterState` 以位置（100 m 內或多邊形包含）比對 `SHELTER_STATUS`；未開設、額滿、位在 CRITICAL 危險區都回 `no_route` 並附原因；沒有狀態事件時照常規劃，但附「狀態未知」警告。災害類型過濾**未做**：`calculateEvacuationRoute` 契約只帶避難所 id 與座標，Android 端目前沒有已驗證的全台避難所圖層可查 `disaster_types`。
-- [x] **G4. 路線計算**：`EvacuationRouter`（單目標 Dijkstra，同成本依 node id）；每次請求一個避難所，前幾名由 Flutter 依 Android 距離排序。起點／避難所離路網超過 300 m、全部被封、起點在危險區內，都有明確狀態或警告；`blocked_event_ids` 列出被避開的封路。內湖五個生活圈的結果存成 golden 檔。
+- [x] **G3. 避難所目的地**：`ShelterState` 以位置（100 m 內或多邊形包含）比對 `SHELTER_STATUS`；未開設、額滿、位在 CRITICAL 危險區都回 `no_route` 並附原因；沒有狀態事件時照常規劃，但附「狀態未知」警告。災害類型過濾**未做**：`calculateEvacuationRoute` 契約只帶避難所 id 與座標；Android 已打包全台避難所圖層，之後可依 id 查 `disaster_types`。
+- [x] **G4. 路線計算**：`EvacuationRouter`（單目標 Dijkstra，同成本依 node id）；每次請求一個避難所，前幾名由 Flutter 依 Android 距離排序。起點離路網超過 300 m、避難所離路網超過 100 m（內湖以外的避難所）、全部被封、起點在危險區內，都有明確狀態或警告；`blocked_event_ids` 列出被避開的封路。內湖五個生活圈的結果存成 golden 檔。
 - [x] **G5. 重算**：Flutter 已在事件指紋改變時標示「路線資訊已變更，請重新計算」；Android 端覆蓋層依事件快照快取，事件一變就重建。
 - [x] **G6. UI**：已由 UI 計畫完成；目前 App 只有 MapLibre 離線底圖一種 renderer。
 - [x] **G7. Demo 情境**：`pipeline/tools/generate-evacuation-scenario.mjs` → `data/fixtures/neihu/evacuation-scenario.json` 與兩個簽章 chunk；`EvacuationScenarioTest` 重播三個步驟。實機演練尚未做。
@@ -213,7 +213,7 @@
 - 災害類型：自動推斷，還是讓使用者手動選擇。
 - 危險區加權倍率（實作採 PARTIAL ×3、HIGH ×5、UNVERIFIED ×2、起點在危險區內離開時 ×10）。
 - 起點本身在危險區內時的提示文字（實作：「你位於危險區域內，請盡快離開」）。
-- 靜態避難所圖層：Android 目前沒有打包 `assets/static/taiwan/shelter`，實機上地圖沒有避難所可選；demo 前要先用 `build-layer` 產生並放入（見 `experiments/demo.md`）。
+- 靜態避難所圖層：2026-09-27 已打包全台 5,907 處（`assets/static/taiwan/shelter`，金鑰 `taiwan-static-2026`，私鑰只在產生者本機）；驗證結果依內容雜湊快取（`VerifiedLayerCache`）。手機上的首次驗證耗時待實機量測。
 
 ---
 

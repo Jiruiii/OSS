@@ -48,9 +48,14 @@ class MeshRepository(context: Context) {
         File(appContext.filesDir, "chunk-cache").apply { mkdirs() }
     }
 
-    private val trustStore: TrustedKeyStore by lazy {
-        val json = appContext.assets.open(TRUSTED_KEYS_ASSET).bufferedReader().use { it.readText() }
-        TrustedKeyStore.fromJson(json)
+    private val trustStoreText: String by lazy {
+        appContext.assets.open(TRUSTED_KEYS_ASSET).bufferedReader().use { it.readText() }
+    }
+
+    private val trustStore: TrustedKeyStore by lazy { TrustedKeyStore.fromJson(trustStoreText) }
+
+    private val verifiedLayerCache: VerifiedLayerCache by lazy {
+        VerifiedLayerCache(File(appContext.noBackupFilesDir, "verified-layers"))
     }
 
     fun observeEvents(): Flow<List<EventEntity>> = db.eventDao().observeAll()
@@ -72,20 +77,29 @@ class MeshRepository(context: Context) {
         } catch (_: IOException) {
             return emptyList()
         }
-        val manifest = JSONObject(manifestText)
         val chunkNames = appContext.assets.list("$root/chunks")
             ?.filter { it.endsWith(".json") }
             ?.sorted()
             ?: emptyList()
-        val chunks = chunkNames.map { name ->
-            val text = appContext.assets.open("$root/chunks/$name").bufferedReader().use { it.readText() }
-            JSONObject(text)
+        val chunkTexts = chunkNames.map { name ->
+            appContext.assets.open("$root/chunks/$name").bufferedReader().use { it.readText() }
         }
-        val verified = LayerBundleVerifier.verify(manifest, chunks, trustStore)
-        if (!verified.valid) {
-            throw IllegalStateException("static layer $layerId verification failed: ${verified.errors.joinToString("; ")}")
+        val cacheKey = VerifiedLayerCache.key(trustStoreText, manifestText, chunkTexts)
+        memoizedLayers[layerId]?.takeIf { it.first == cacheKey }?.let { return it.second }
+
+        // Full verification only when these exact bytes have not passed before
+        // (see VerifiedLayerCache); the nationwide shelter layer takes seconds.
+        val features = verifiedLayerCache.read(layerId, cacheKey) ?: run {
+            val verified = LayerBundleVerifier.verify(JSONObject(manifestText), chunkTexts.map(::JSONObject), trustStore)
+            if (!verified.valid) {
+                throw IllegalStateException("static layer $layerId verification failed: ${verified.errors.joinToString("; ")}")
+            }
+            runCatching { verifiedLayerCache.write(layerId, cacheKey, verified.features) }
+            verified.features
         }
-        return verified.features.map { it.toMapFeatureMessage() }
+        val messages = features.map { it.toMapFeatureMessage() }
+        memoizedLayers[layerId] = cacheKey to messages
+        return messages
     }
 
     private fun JSONObject.toMapFeatureMessage(): Map<String, Any?> {
@@ -468,6 +482,9 @@ class MeshRepository(context: Context) {
 
         @Volatile
         private var sharedDeviceKey: DeviceSigningKey? = null
+
+        /** Verified static layers already converted for the bridge, per process. */
+        private val memoizedLayers = java.util.concurrent.ConcurrentHashMap<String, Pair<String, List<Map<String, Any?>>>>()
 
         /** One key per process: several MeshRepository instances must never race to create two. */
         private fun deviceSigningKey(context: Context): DeviceSigningKey =
