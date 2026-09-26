@@ -69,6 +69,15 @@ object EventShapeValidator {
 
         if (event.optString("signature_algorithm") != "Ed25519") errors.add("signature_algorithm must be Ed25519")
 
+        if (event.has("signer_public_key")) {
+            val signerKey = event.opt("signer_public_key")
+            if (signerKey !is String || signerKey.length < 4 || !BASE64_RE.matcher(signerKey).matches()) {
+                errors.add("signer_public_key must be base64")
+            }
+        } else if (DeviceKeys.isDeviceKeyId(event.opt("signing_key_id") as? String)) {
+            errors.add("signer_public_key is required for device-signed events")
+        }
+
         val provenance = event.opt("provenance")
         if (provenance !is JSONObject) {
             errors.add("provenance must be an object")

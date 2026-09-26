@@ -1,10 +1,16 @@
 package com.resilientgeo.mesh.data
 
 import android.content.Context
+import com.resilientgeo.mesh.ingest.ApplyState
 import com.resilientgeo.mesh.ingest.EventIngestor
 import com.resilientgeo.mesh.ingest.IngestResult
 import com.resilientgeo.mesh.protocol.ChunkVerifier
 import com.resilientgeo.mesh.protocol.LayerBundleVerifier
+import com.resilientgeo.mesh.report.CrowdChunkCodec
+import com.resilientgeo.mesh.report.CrowdReportFactory
+import com.resilientgeo.mesh.report.CrowdReportInput
+import com.resilientgeo.mesh.trust.DeviceSigningKey
+import com.resilientgeo.mesh.trust.KeystoreWrappedStorage
 import com.resilientgeo.mesh.trust.TrustedKeyStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -149,10 +155,10 @@ class MeshRepository(context: Context) {
      * [EventIngestor]/Room at all.
      */
     suspend fun ingestChunk(chunk: JSONObject): ChunkIngestResult = withContext(Dispatchers.IO) {
-        when (val verified = ChunkVerifier.verify(chunk, trustStore)) {
+        val now = Instant.now()
+        when (val verified = ChunkVerifier.verify(chunk, trustStore, now)) {
             is ChunkVerifier.Result.Invalid -> ChunkIngestResult.Rejected(verified.reason)
             is ChunkVerifier.Result.Valid -> {
-                val now = Instant.now()
                 val results = verified.events.map { event -> EventIngestor.ingest(store, event, trustStore, now) }
                 // Record the chunk itself, not just its events, so this node
                 // can later describe its own inventory in HELLO. Written only
@@ -160,6 +166,7 @@ class MeshRepository(context: Context) {
                 // advertise a chunk that failed the trust check.
                 chunkDao.upsertSync(chunk.toChunkEntity(now))
                 cacheChunkBytes(chunk)
+                if (chunk.optString("dataset_id") == CrowdChunkCodec.DATASET_ID) pruneCrowdInventory(now)
                 ChunkIngestResult.Applied(results)
             }
         }
@@ -208,6 +215,8 @@ class MeshRepository(context: Context) {
      * claim: only the latter tells a peer there is something to send).
      */
     suspend fun allLocalPeerSummaries(nodeId: String): JSONObject = withContext(Dispatchers.IO) {
+        // Expired crowd reports must not be advertised for relay.
+        pruneCrowdInventory(Instant.now())
         val heldPairs = chunkDao.allSync().map { it.datasetId to it.namespace }.distinct()
         val seen = mutableSetOf<Pair<String, String>>()
         val datasets = JSONArray()
@@ -337,6 +346,101 @@ class MeshRepository(context: Context) {
         .put("supports_resume", true)
         .put("max_chunk_bytes", MAX_CHUNK_BYTES)
 
+    /**
+     * Creates, signs and stores a report from this device.
+     *
+     * Flutter only supplies form fields; the event is assembled and signed
+     * here with the device key, then goes through exactly the same
+     * [EventIngestor] verification as a report received from a peer, with no
+     * DAO shortcut. The report is also wrapped in its own crowd chunk and
+     * cached, so the next HELLO advertises it for relay.
+     */
+    suspend fun createCrowdReport(input: CrowdReportInput): CrowdReportResult = withContext(Dispatchers.IO) {
+        val errors = CrowdReportFactory.validate(input)
+        if (errors.isNotEmpty()) return@withContext CrowdReportResult.Invalid(errors)
+        val key = try {
+            deviceSigningKey(appContext)
+        } catch (error: Exception) {
+            return@withContext CrowdReportResult.SigningUnavailable(error.message ?: error.javaClass.simpleName)
+        }
+        val now = Instant.now()
+        if (activeReportCount(key.keyId(), now) >= MAX_OWN_ACTIVE_CROWD_REPORTS) {
+            return@withContext CrowdReportResult.Invalid(
+                listOf("this device already has $MAX_OWN_ACTIVE_CROWD_REPORTS active reports"),
+            )
+        }
+        val event = CrowdReportFactory.create(input, key, now)
+        try {
+            when (val result = EventIngestor.ingest(store, event, trustStore, now)) {
+                is IngestResult.Inserted -> {
+                    val chunk = CrowdChunkCodec.build(event, key)
+                    chunkDao.upsertSync(chunk.toChunkEntity(now))
+                    cacheChunkBytes(chunk)
+                    CrowdReportResult.Created(event.getString("event_id"), result.state)
+                }
+                else -> CrowdReportResult.StorageUnavailable("report was not stored: $result")
+            }
+        } catch (error: Exception) {
+            CrowdReportResult.StorageUnavailable(error.message ?: error.javaClass.simpleName)
+        }
+    }
+
+    /**
+     * Every crowd report this node holds, own and relayed, as full signed
+     * events. Debug-only upstream path (see debug/CrowdDebugReceiver): the
+     * file is pulled over adb and handed to `pipeline/cli.mjs attest`.
+     */
+    suspend fun exportCrowdReports(): JSONObject = withContext(Dispatchers.IO) {
+        val events = JSONArray()
+        db.eventDao().forNamespaceSync(CrowdReportFactory.NAMESPACE)
+            .forEach { events.put(JSONObject(it.eventJson)) }
+        JSONObject()
+            .put("schema_version", "event-batch-v0")
+            .put("dataset_id", CrowdChunkCodec.DATASET_ID)
+            .put("exported_at", DateTimeFormatter.ISO_INSTANT.format(Instant.now().truncatedTo(ChronoUnit.SECONDS)))
+            .put("events", events)
+    }
+
+    /** Every stored event, for route planning (it re-derives apply state itself). */
+    suspend fun allEventsSnapshot(): List<EventEntity> = withContext(Dispatchers.IO) { db.eventDao().allSync() }
+
+    private fun activeReportCount(signingKeyId: String, now: Instant): Int =
+        db.eventDao().forNamespaceSync(CrowdReportFactory.NAMESPACE).count { entity ->
+            ApplyState.at(entity.namespace, entity.expiresAt, now) != ApplyState.EXPIRED &&
+                JSONObject(entity.eventJson).optString("signing_key_id") == signingKeyId
+        }
+
+    /**
+     * Bounded storage for relayed crowd reports: expired reports leave the
+     * relay inventory first (their event rows stay, shown as EXPIRED), then the
+     * oldest reports from other devices are dropped entirely until at most
+     * [MAX_OTHER_CROWD_REPORTS] remain. This node's own reports never count
+     * against, or get evicted by, that cap.
+     */
+    private fun pruneCrowdInventory(now: Instant) {
+        val ownKeyId = runCatching { deviceSigningKey(appContext).keyId() }.getOrNull()
+        val live = mutableListOf<Pair<ChunkEntity, String?>>()
+        for (chunk in chunkDao.forDatasetSync(CrowdChunkCodec.DATASET_ID, CrowdChunkCodec.NAMESPACE)) {
+            val eventId = CrowdChunkCodec.eventIdFor(chunk.chunkId)
+            val event = eventId?.let { db.eventDao().findSync(chunk.namespace, it) }
+            if (event == null || ApplyState.at(event.namespace, event.expiresAt, now) == ApplyState.EXPIRED) {
+                dropChunk(chunk)
+                continue
+            }
+            live += chunk to JSONObject(event.eventJson).optString("signing_key_id")
+        }
+        val others = live.filter { (_, signer) -> signer != ownKeyId }.sortedBy { it.first.receivedAtEpochMillis }
+        others.take((others.size - MAX_OTHER_CROWD_REPORTS).coerceAtLeast(0)).forEach { (chunk, _) ->
+            dropChunk(chunk)
+            CrowdChunkCodec.eventIdFor(chunk.chunkId)?.let { db.eventDao().deleteSync(chunk.namespace, it) }
+        }
+    }
+
+    private fun dropChunk(chunk: ChunkEntity) {
+        chunkDao.deleteSync(chunk.datasetId, chunk.namespace, chunk.chunkId)
+        chunkCacheFile(chunk.datasetId, chunk.namespace, chunk.chunkId).delete()
+    }
+
     /** How many verified chunks this node currently holds — for status UI/logs. */
     suspend fun heldChunkCount(): Int = withContext(Dispatchers.IO) { chunkDao.countSync() }
 
@@ -356,6 +460,22 @@ class MeshRepository(context: Context) {
     )
 
     companion object {
+        /** Reports this device may have active at once; bounds what it can push onto neighbours. */
+        const val MAX_OWN_ACTIVE_CROWD_REPORTS = 20
+
+        /** Reports from other devices this node keeps and relays. */
+        const val MAX_OTHER_CROWD_REPORTS = 200
+
+        @Volatile
+        private var sharedDeviceKey: DeviceSigningKey? = null
+
+        /** One key per process: several MeshRepository instances must never race to create two. */
+        private fun deviceSigningKey(context: Context): DeviceSigningKey =
+            sharedDeviceKey ?: synchronized(this) {
+                sharedDeviceKey ?: DeviceSigningKey.loadOrCreate(KeystoreWrappedStorage(context))
+                    .also { sharedDeviceKey = it }
+            }
+
         /** Schema caps this at 5; ADR-001's contact windows make 4 the practical limit. */
         private const val MAX_PEER_COUNT = 4
 
@@ -383,6 +503,15 @@ class MeshRepository(context: Context) {
                 fallbackManifestId = "resilientgeo-demo:manifest:136",
                 fallbackDatasetVersion = 136,
             ),
+            // Crowd reports: one device-signed chunk per report, no manifest
+            // (docs/peer-sync-v0.md). Declared even when empty so a fresh
+            // node asks its neighbours for their reports.
+            KnownDataset(
+                datasetId = CrowdChunkCodec.DATASET_ID,
+                namespace = CrowdChunkCodec.NAMESPACE,
+                fallbackManifestId = CrowdChunkCodec.MANIFEST_ID,
+                fallbackDatasetVersion = CrowdChunkCodec.DATASET_VERSION,
+            ),
         )
 
         private const val FIXTURE_ASSET = "fixtures/signed-events.json"
@@ -398,6 +527,13 @@ private data class KnownDataset(
     val fallbackManifestId: String,
     val fallbackDatasetVersion: Int,
 )
+
+sealed class CrowdReportResult {
+    data class Created(val eventId: String, val applyState: ApplyState) : CrowdReportResult()
+    data class Invalid(val errors: List<String>) : CrowdReportResult()
+    data class SigningUnavailable(val message: String) : CrowdReportResult()
+    data class StorageUnavailable(val message: String) : CrowdReportResult()
+}
 
 sealed class ChunkIngestResult {
     data class Applied(val eventResults: List<IngestResult>) : ChunkIngestResult()

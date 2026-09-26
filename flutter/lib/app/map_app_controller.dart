@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../data/attestation_index.dart';
 import '../data/map_bridge.dart';
 import '../data/map_models.dart';
 import '../data/ncdr_demo_events.dart';
@@ -58,7 +59,10 @@ class MapAppController extends ChangeNotifier {
     return byId.values.toList(growable: false);
   }
 
+  /// Attestations are surfaced through the crowd report they verify, so they
+  /// never count as a notification of their own.
   List<MeshEvent> get unreadEvents => events
+      .where((event) => !isAttestationEvent(event))
       .where((event) => !_readEventKeys.contains(meshEventIdentity(event)))
       .toList(growable: false);
 

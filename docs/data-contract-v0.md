@@ -45,6 +45,46 @@ Chunk 的 `chunk_hash` 覆蓋 canonical chunk content（dataset metadata、prior
 
 `provenance.original_source`、`provenance.received_at` 與 `provenance.transport_source` 是傳播稽核資料，不參與 payload hash，也不能被 peer 改寫成原始來源。
 
+## 群眾回報簽章（crowd.*）
+
+民眾回報由手機自己簽章，不經過任何伺服器，因此不能依賴內建的 `trusted-keys.json`。做法是讓金鑰「自我證明」：
+
+- 每台裝置第一次回報時產生自己的 Ed25519 金鑰（Android：Bouncy Castle 產生，種子以 Android Keystore 的 AES-GCM 金鑰加密後存在 app 私有目錄；私鑰不進 log、bridge 回傳值、HELLO 或事件）。
+- 事件新增選填欄位 `signer_public_key`（base64 SPKI DER），並且 `signing_key_id = "device:" + sha256(SPKI DER) 的前 32 個 hex`。
+- 驗證端（`pipeline/lib/contract.mjs` 的 `verifyEvent` 與 Android 的 `EventVerifier`，逐條對應）在 trust 階段分兩條路：
+  - `signing_key_id` 以 `device:` 開頭：namespace 必須是 `crowd.*`，`signer_public_key` 必須是 Ed25519 SPKI，且指紋必須等於 key id；之後用這把公鑰驗章。
+  - 其他 key id：維持原本規則，只接受內建信任清單中的金鑰。`device:` 金鑰永遠走不到這條路，所以加入群眾回報**不會**放寬 `official.*` 的信任規則；兩端都有反向測試釘住「裝置金鑰簽的 `official.*` 必須在 trust 階段被拒」。
+- `signing_key_id` 以 `device:` 開頭但缺少 `signer_public_key`，在 schema 階段就被拒（`event-v0.schema.json` 以 `if/then` 表達）。
+- 既有以內建 demo 金鑰簽章的 `crowd.*` fixture（`data/fixtures/neihu`、Android `signed-events.json`）仍然有效：規則以「金鑰種類」而不是 namespace 觸發，避免改寫所有既有 fixture。
+
+**裝置簽章證明什麼：** 內容從簽章後沒有被竄改；所有帶同一個 `device:` key id 的回報出自同一台裝置。**不證明什麼：** 回報內容屬實、回報者身分、或不同 key id 背後是不同的人。因此 crowd 事件一律以 `UNVERIFIED` 儲存與顯示，路線規劃也只把它當成加權、不當成封鎖。
+
+回報事件格式（`pipeline/lib/crowd-report.mjs` 與 Android `CrowdReportFactory` 產出位元相同的結果，`fixtures/crowd-reports-v0.json` 釘住兩者）：
+
+| 欄位 | 值 |
+|---|---|
+| `namespace` | `crowd.reports` |
+| `event_id` | `report:<key id 後 8 碼>:<UUID>` |
+| `event_type` | `CROWD_REPORT`，`geometry` 為 Point（座標取到小數點後 6 位） |
+| `severity` | 依類別：`ROAD_BLOCKAGE` MEDIUM、`FLOOD` HIGH、`FIRE_SMOKE` HIGH、`TRAPPED_INJURED` CRITICAL、`OTHER` LOW |
+| `expires_at` | `issued_at` + 6 小時 |
+| `attributes` | `category`、`description`（trim 後最多 160 字元）、`location_source`（`CURRENT_LOCATION`／`MAP_PICK`）、選填 `location_hint`（本機搜尋索引的提示，不是權威地址）、`area_id: crowd`、`theme: report` |
+| `provenance.transport_source.kind` | `local_report`（新增的 enum 值；轉傳時不改寫，因為 provenance 不在簽章範圍） |
+
+座標必須落在台灣含離島的範圍（經度 116.5–122.5、緯度 20.5–26.8）。每台裝置同時最多 20 筆有效的自己的回報。
+
+## 官方查證事件（official.verified）
+
+政府查證是一筆獨立的官方事件，**不修改**原回報：
+
+- `namespace = official.verified`，`event_id = attest:<原回報 event_id>`，`event_type = ATTESTATION`，`geometry` 複製原回報。
+- `attributes`：`target_namespace`、`target_event_id`、`target_event_version`、`target_payload_hash`、`target_signing_key_id`、`verdict`（`CONFIRMED`／`REFUTED`）、選填 `note`。
+- `expires_at` 等於原回報的 `expires_at`；已過期的回報不能被查證。
+- 以官方金鑰簽章（必須在手機的 `trusted-keys.json` 裡），走既有的 `build` → 分片 → mesh 下行路徑。
+- 改判：對同一筆回報再次 attest 時 `event_version` 遞增，一般的「新版本覆蓋舊版本」規則就會生效。
+- 手機端（Flutter `attestation_index.dart`）只在確認事件本身仍有效、`target_payload_hash` 等於回報的 `payload_hash`、且 namespace 確實是 `official.verified` 時套用；多筆時取 `event_version` 最高者。Android 的 `ApplyState` 不因此改變。
+- 產生方式：`node pipeline/cli.mjs attest --report <匯出檔> --verdict CONFIRMED --private-key <pem> --key-id <官方 key id>`。
+
 ## 地區與主題（area_id / theme）
 
 每筆事件用 `attributes.area_id`（生活圈，例 `neihu.donghu`）與 `attributes.theme`（`road`、`shelter`、`flood`、`landslide`、`medical`、`transit`）標記它屬於哪個地理與主題切片。這兩個欄位刻意放在 `attributes` 內，理由是：

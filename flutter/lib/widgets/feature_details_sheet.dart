@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../data/attestation_index.dart';
+import '../data/crowd_report_models.dart';
 import '../data/display_time.dart';
 import '../data/map_models.dart';
 import 'map_layers.dart';
@@ -12,12 +14,14 @@ class FeatureDetailsSheet extends StatelessWidget {
     required this.onClose,
     this.onPlanEvacuationRoute,
   }) : _feature = feature,
-       _event = null;
+       _event = null,
+       corroboration = null;
 
   const FeatureDetailsSheet.event({
     super.key,
     required MeshEvent event,
     required this.onClose,
+    this.corroboration,
   }) : _event = event,
        _feature = null,
        snapshotAt = null,
@@ -28,6 +32,9 @@ class FeatureDetailsSheet extends StatelessWidget {
   final String? snapshotAt;
   final VoidCallback onClose;
   final VoidCallback? onPlanEvacuationRoute;
+
+  /// 「N 人回報」 for a crowd report several devices agree on; never a verdict.
+  final String? corroboration;
 
   @override
   Widget build(BuildContext context) {
@@ -128,6 +135,12 @@ class FeatureDetailsSheet extends StatelessWidget {
   }
 
   List<Widget> _eventBody(MeshEvent event) => <Widget>[
+    if (isCrowdEvent(event)) ...<Widget>[
+      _VerificationNotice(event.verification ?? CrowdVerification.unverified),
+      _DetailLine('回報類別', crowdCategoryLabel(event.attributes?['category'])),
+      _DetailLine('描述', _text(event.attributes?['description'])),
+      if (corroboration != null) _DetailLine('附近回報', corroboration!),
+    ],
     _DetailLine('事件類型', _text(event.eventType)),
     _DetailLine('嚴重度', _text(event.severity)),
     _DetailLine('位置／範圍', _geometryText(event.geometry)),
@@ -160,6 +173,45 @@ String _text(Object? value) {
 String _peopleText(Object? value) {
   final text = _text(value);
   return text == '無資料' ? text : '$text人';
+}
+
+/// Crowd reports always carry a visible verification line, so an unverified
+/// report can never read like official data.
+class _VerificationNotice extends StatelessWidget {
+  const _VerificationNotice(this.verification);
+
+  final CrowdVerification verification;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (verification) {
+      CrowdVerification.confirmed => confirmedCrowdEventColor,
+      CrowdVerification.refuted => Theme.of(context).colorScheme.error,
+      CrowdVerification.unverified => unverifiedEventColor,
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      child: Row(
+        children: <Widget>[
+          Icon(
+            verification == CrowdVerification.confirmed
+                ? Icons.verified_outlined
+                : Icons.info_outline,
+            size: 18,
+            color: color,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              crowdVerificationLabel(verification),
+              key: const ValueKey<String>('crowd-verification-notice'),
+              style: TextStyle(color: color, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 String _eventState(MeshEvent event) => switch (event.applyState) {

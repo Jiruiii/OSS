@@ -16,6 +16,7 @@ import {
   buildBundle,
 } from './lib/bundle.mjs';
 import { rawRecordCount } from './lib/collection.mjs';
+import { attestationEventId, buildAttestation, reportsFromInput } from './lib/attest.mjs';
 import {
   signEvent,
   verifyBundle,
@@ -311,6 +312,44 @@ async function build(options) {
     signing_key_id: keyId,
   });
   console.log(JSON.stringify({ out_dir: outDir, manifest: bundle.manifest.manifest_id, chunks: bundle.chunks.length }, null, 2));
+}
+
+async function attestCommand(options) {
+  const reports = reportsFromInput(await readJson(requireOption(options, 'report')));
+  const selected = options.event_id
+    ? reports.filter((report) => report.event_id === options.event_id)
+    : reports;
+  if (selected.length !== 1) {
+    throw new Error(`--report must resolve to exactly one report, found ${selected.length}; pass --event-id to choose`);
+  }
+  const [report] = selected;
+  let previous;
+  if (options.previous) {
+    previous = reportsFromInput(await readJson(options.previous))
+      .find((event) => event.event_id === attestationEventId(report.event_id));
+    if (!previous) throw new Error('--previous does not contain an attestation for this report');
+  }
+  const privateKey = readPrivateKey(await readFile(requirePrivateKeyPath(options)));
+  const attestation = buildAttestation({
+    report,
+    verdict: requireOption(options, 'verdict').toUpperCase(),
+    privateKey,
+    keyId: requireOption(options, 'key_id'),
+    issuedAt: options.issued_at ? new Date(options.issued_at) : new Date(),
+    previous,
+    note: options.note,
+  });
+  const batch = {
+    schema_version: 'event-batch-v0',
+    dataset_id: options.dataset_id ?? 'official-verified',
+    events: [attestation],
+  };
+  if (options.out) {
+    await writeJson(options.out, batch);
+    console.log(JSON.stringify({ out: options.out, event_id: attestation.event_id, event_version: attestation.event_version }, null, 2));
+  } else {
+    console.log(JSON.stringify(batch, null, 2));
+  }
 }
 
 function isEventBatch(raw) {
@@ -899,6 +938,12 @@ function printHelp() {
   node pipeline/cli.mjs verify --manifest <manifest.json> --chunks-dir <dir> --public-key <pem> [--now <time>]
   node pipeline/cli.mjs build-layer --input <features.json> --out-dir <dir> --private-key <pem> [options]
   node pipeline/cli.mjs verify-layer --manifest <manifest.json> --chunks-dir <dir> --public-key <pem> [--now <time>]
+  node pipeline/cli.mjs attest --report <reports.json> [--event-id <id>] --verdict CONFIRMED|REFUTED
+                               --private-key <pem> --key-id <official id> [--previous <attestation.json>]
+                               [--note <text>] [--out <attestation.json>]
+
+attest writes an event-batch-v0 holding one official.verified event; package it
+for the phones with: build --input <attestation.json> --key-id <same id> ...
 
 Taiwan-scoped commands require --scope taiwan and either --boundary pointing to
 an AreaCatalog or TAIWAN_BOUNDARY_PATH / AREA_CATALOG_PATH. Create an AreaCatalog
@@ -939,6 +984,7 @@ async function main() {
   if (command === 'verify') return verifyBundleCommand(options);
   if (command === 'build-layer') return buildLayer(options);
   if (command === 'verify-layer') return verifyLayerCommand(options);
+  if (command === 'attest') return attestCommand(options);
   printHelp();
   if (command) throw new Error(`unknown command: ${command}`);
 }

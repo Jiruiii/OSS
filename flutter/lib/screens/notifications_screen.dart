@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/attestation_index.dart';
 import '../data/map_models.dart';
 import '../widgets/map_layers.dart';
 
@@ -8,15 +9,30 @@ class NotificationsScreen extends StatelessWidget {
     super.key,
     required this.events,
     required this.onEventRead,
+    this.attestationSource = const <MeshEvent>[],
   });
 
   final List<MeshEvent> events;
+
+  /// Every known event, read or not, so an attestation already marked read
+  /// still labels the report it verifies.
+  final List<MeshEvent> attestationSource;
   final ValueChanged<MeshEvent> onEventRead;
 
   @override
   Widget build(BuildContext context) {
-    final sorted = List<MeshEvent>.of(events)
-      ..sort((a, b) => (b.issuedAt ?? '').compareTo(a.issuedAt ?? ''));
+    // Attestations are shown through the report they verify, not on their own;
+    // refuted reports stay listed here so the verdict remains visible.
+    final index = AttestationIndex.fromEvents(<MeshEvent>[
+      ...attestationSource,
+      ...events,
+    ]);
+    final sorted =
+        events
+            .where((event) => !isAttestationEvent(event))
+            .map(index.withVerification)
+            .toList()
+          ..sort((a, b) => (b.issuedAt ?? '').compareTo(a.issuedAt ?? ''));
     return Scaffold(
       appBar: AppBar(title: const Text('通知')),
       body:
@@ -77,7 +93,9 @@ class _EventCard extends StatelessWidget {
               '事件類型：${event.eventType ?? '無資料'}',
               '來源：${event.source ?? '無資料'}',
               '嚴重度：${event.severity ?? '無資料'}',
-              '狀態：${_applyStateLabel(event.applyState)}',
+              isCrowdEvent(event) && !event.isExpired
+                  ? '狀態：${crowdVerificationLabel(event.verification ?? CrowdVerification.unverified)}'
+                  : '狀態：${_applyStateLabel(event.applyState)}',
               '發布：${event.issuedAt ?? '無資料'}',
               '有效期限：${event.expiresAt ?? '無資料'}',
             ].join('\n'),

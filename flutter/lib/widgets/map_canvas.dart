@@ -1331,6 +1331,8 @@ bool _sameEventSnapshot(List<MeshEvent> left, List<MeshEvent> right) {
         first.issuedAt != second.issuedAt ||
         first.expiresAt != second.expiresAt ||
         first.severity != second.severity ||
+        first.applyState != second.applyState ||
+        first.verification != second.verification ||
         first.attributes?['map_visible'] != second.attributes?['map_visible'] ||
         meshEventFocusPoint(first) != meshEventFocusPoint(second)) {
       return false;

@@ -12,6 +12,7 @@ function readJson(relativePath) {
 }
 
 const schemas = new Map([
+  ['event-v0.schema.json', readJson('schemas/event-v0.schema.json')],
   ['feature-v0.schema.json', readJson('schemas/feature-v0.schema.json')],
   ['layer-manifest-v0.schema.json', readJson('schemas/layer-manifest-v0.schema.json')],
   ['layer-chunk-v0.schema.json', readJson('schemas/layer-chunk-v0.schema.json')],
@@ -55,6 +56,13 @@ function validate(value, schema, rootSchema = schema, location = '$') {
   }
 
   const errors = [];
+  for (const subschema of schema.allOf ?? []) {
+    errors.push(...validate(value, subschema, rootSchema, location));
+  }
+  if (schema.if) {
+    const branch = validate(value, schema.if, rootSchema, location).length === 0 ? schema.then : schema.else;
+    if (branch) errors.push(...validate(value, branch, rootSchema, location));
+  }
   if (schema.oneOf) {
     const matches = schema.oneOf.filter((candidate) => validate(value, candidate, rootSchema, location).length === 0);
     if (matches.length !== 1) errors.push(`${location} must match exactly one schema`);
@@ -293,4 +301,36 @@ test('advertised transports name only what ADR-001 actually adopted', () => {
     assert.deepEqual(capabilities.discovery_transports, ['BLE']);
     assert.deepEqual(capabilities.transfer_transports, ['BLE_GATT']);
   }
+});
+
+// Device-signed crowd reports (docs/data-contract-v0.md「群眾回報簽章」).
+const eventSchema = schemas.get('event-v0.schema.json');
+const crowdFixture = readJson('fixtures/crowd-reports-v0.json');
+const crowdCase = (name) => crowdFixture.event_cases.find((entry) => entry.name === name).event;
+
+test('a device-signed crowd report conforms to event-v0', () => {
+  assert.deepEqual(validate(crowdCase('valid_report'), eventSchema), []);
+});
+
+test('event-v0 requires signer_public_key when the signing key is a device key', () => {
+  assert.ok(validate(crowdCase('missing_signer_public_key'), eventSchema)
+    .some((error) => error.includes('signer_public_key')));
+});
+
+test('event-v0 forbids device keys outside crowd.* namespaces', () => {
+  assert.ok(validate(crowdCase('device_key_official_namespace'), eventSchema)
+    .some((error) => error.includes('namespace')));
+});
+
+test('official attestations conform to event-v0', () => {
+  for (const attestation of crowdFixture.attestations) {
+    assert.deepEqual(validate(attestation, eventSchema), []);
+  }
+});
+
+test('crowd-reports-v0.json is byte-identical to the copy the Android tests read', () => {
+  assert.equal(
+    readFileSync(path.join(ROOT, 'fixtures/crowd-reports-v0.json'), 'utf8'),
+    readFileSync(path.join(ROOT, 'android/app/src/test/resources/fixtures/crowd-reports-v0.json'), 'utf8'),
+  );
 });

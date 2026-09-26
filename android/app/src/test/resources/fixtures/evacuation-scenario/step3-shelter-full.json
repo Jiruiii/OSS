@@ -1,0 +1,70 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "evacuation-demo-shelter:chunk:1:xihu:shelter:000",
+  "manifest_id": "evacuation-demo-shelter:manifest:1",
+  "dataset_id": "evacuation-demo-shelter",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 0,
+  "priority": "HIGH",
+  "area_id": "neihu.xihu",
+  "theme": "shelter",
+  "bbox": [
+    121.5657,
+    25.0838,
+    121.5657,
+    25.0838
+  ],
+  "created_at": "2026-09-26T08:00:00Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.fire",
+      "event_id": "shelter:5582-xihu-demo",
+      "event_type": "SHELTER_STATUS",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.5657,
+          25.0838
+        ]
+      },
+      "severity": "HIGH",
+      "source": "FIRE_AGENCY",
+      "source_version": "evacuation-demo-1",
+      "event_version": 1,
+      "issued_at": "2026-09-26T08:00:00Z",
+      "expires_at": "2099-01-01T00:00:00Z",
+      "attributes": {
+        "status": "OPEN",
+        "site_name": "西湖國小",
+        "capacity": 81,
+        "available": 0,
+        "synthetic_notice": "合成模擬資料，不代表真實災況",
+        "area_id": "neihu.xihu",
+        "theme": "shelter"
+      },
+      "signing_key_id": "evacuation-scenario-demo-2026",
+      "provenance": {
+        "original_source": "evacuation-scenario-demo",
+        "received_at": "2026-09-26T08:00:00Z",
+        "transport_source": {
+          "kind": "local_fixture",
+          "node_id": "evacuation-scenario"
+        }
+      },
+      "payload_hash": "sha256:5c9f52a2c10efc5706c902635ee577411fbab8d2905aee2f0d8b8cd9cc39780d",
+      "signature_algorithm": "Ed25519",
+      "signature": "ee/cvr70433zATB6LylxkEEyRg/sQ0nQYdZrGen/bO4oIXjF6BwJrbozRq/OeoBQgtuV1a2QYbVuUsMgb+LWBQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "evacuation-scenario-demo-2026",
+  "byte_length": 1262,
+  "chunk_hash": "sha256:64c903995a3a70f32d26924985ac7c27dd436fee2f3e17eb519211de60f070a3",
+  "manifest_hash": "sha256:8a78243ad49e097da31cff7e59b2d1e8fc4a4ebf871bc7f53474ffe4d909ab74",
+  "signature": "WHP//k8xS3ioWXH0VvNm4A/deZXm0v84ZqK0NvN4zVHEIAD+vsMuEbJTqpdOX1jQle1lYScTCR37Xlrbjs3PBQ=="
+}

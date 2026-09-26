@@ -110,9 +110,10 @@
 
 ---
 
-## F. 新功能規劃：民眾回報 + 政府驗證（2026-09-24 規劃，尚未實作）
+## F. 新功能：民眾回報 + 政府驗證（2026-09-24 規劃，2026-09-26 實作）
 
-> 狀態：只有規劃，還沒動程式碼。本段不屬於 MVP 通過條件，是 MVP 之後的功能擴充。
+> 狀態：程式與自動化測試完成（JS、Kotlin JVM、Flutter）；**實機驗證（F2 三機、F3 demo）尚未做**。本段不屬於 MVP 通過條件，是 MVP 之後的功能擴充。
+> 回報表單沿用已合併的 Flutter UI（`docs/superpowers/plans/2026-09-24-flutter-crowd-alert-evacuation-ui.md`）：五個類別、描述 160 字、沒有嚴重度欄位（改由類別對應）。
 > 實作計畫（逐步驟、含檔案清單與測試）：`docs/superpowers/plans/2026-09-24-crowd-report-verification.md`
 
 ### 目標
@@ -137,27 +138,29 @@
 ### 任務拆分
 
 **F1. 本機回報（不需要伺服器）**
-- [ ] `event-v0` schema 與資料契約：定義 crowd 事件如何攜帶裝置公鑰（例如 `signing_key_id = device:<公鑰指紋>` 加上公鑰欄位），同步更新 `docs/data-contract-v0.md`。
-- [ ] `EventVerifier`（Kotlin）與 `pipeline/lib/contract.mjs`（JS）：`crowd.*` 走裝置金鑰驗證；補「用裝置金鑰偽造 `official.*` 必須被拒」的反向測試。
-- [ ] Android：裝置金鑰產生與保存、`MeshRepository` 新增建立並 ingest 本機回報的方法。
-- [ ] Bridge：`FlutterMapBridge` 新增送出回報的 method，並寫 `MapBridgeProtocol` 測試。
-- [ ] Flutter UI：回報入口（長按地圖選位置和／或浮動按鈕用目前位置，**待決定**）；表單包含類型、嚴重度、備註；加上防誤觸確認。
-- [ ] TTL 預設值：群眾回報的 `expires_at` 要比官方短（**待決定**，例如 6 小時）。
+- [x] `event-v0` schema 與資料契約：`signer_public_key` 欄位、`device:` key id 規則、`local_report` transport kind；`docs/data-contract-v0.md`「群眾回報簽章」。
+- [x] `EventVerifier`（Kotlin）與 `contract.mjs`（JS）兩條 trust 路徑，共用 `fixtures/crowd-reports-v0.json`（兩份副本位元相同，有測試）；反向測試：裝置金鑰簽的 `official.*` 即使被放進信任清單仍在 trust 階段被拒。
+- [x] Android：`DeviceSigningKey`（Keystore AES-GCM 包裝）、`CrowdReportFactory`、`MeshRepository.createCrowdReport`（走 `EventIngestor`，不直寫 DAO）。
+- [x] Bridge：`submitCrowdReport`，`MapBridgeProtocol` 測試；錯誤碼 `invalid_input`／`signing_unavailable`／`storage_unavailable`。
+- [x] Flutter UI：已由 UI 計畫完成（浮動按鈕＋目前位置或地圖選點＋本機地址搜尋，送出前確認）。本次補上：`UNVERIFIED` 回報會顯示在地圖上（紫色），詳情頁固定顯示「未經查證，僅供參考」。
+- [x] TTL：6 小時。每台裝置同時最多 20 筆有效回報。
+- [ ] 實機手動驗證：關網路回報 → 強制結束 → 重開仍在（`CrowdReportRepositoryInstrumentedTest` 已寫好，尚未在裝置上跑）。
 
 **F2. crowd 回報經 mesh 轉傳**
-- [ ] 目前的 chunk 以伺服器簽章的 manifest 為單位，crowd 回報要另開路徑：例如每筆回報單獨成一個小分片、由裝置金鑰簽章，列進 HELLO 的獨立 dataset（`crowd.reports`）。
-- [ ] `AutoPeerSyncEngine` 與 `computeDiff`／`buildRequest`（JS／Kotlin 兩版）支援這個 dataset，simulator 共用同一套邏輯。
-- [ ] 防濫用：單一裝置的回報數量上限、單筆大小上限，避免有人灌爆鄰居的儲存空間和接觸窗頻寬。
+- [x] 一筆回報一個 chunk（`crowd-reports`／`crowd.reports`，`manifest_id = crowd:none`），由原回報者裝置金鑰簽章、中繼不重簽；格式見 `docs/peer-sync-v0.md`「群眾回報分片」。
+- [x] `computeDiff`／`buildRequest` 不需修改（同 manifest 逐 chunk 比對）；`AutoPeerSyncEngineTest` 新增 A→B→C 轉傳與竄改拒收。simulator 不受影響（`npm run sim:check` PASS）。
+- [x] 防濫用：單一 chunk 上限 4 KB（規劃 2 KB 放不下最長的合法回報，見 peer-sync 文件）；他人回報最多保存 200 筆，先淘汰過期、再淘汰最舊。
 - [ ] 實機驗證：A 回報 → B 轉傳 → C 收到並顯示 `UNVERIFIED`。
 
 **F3. 政府驗證**
-- [ ] 上行：有網路的節點把收到的 crowd 回報上傳到政府端（新 API，或 demo 時先用檔案匯出）。
-- [ ] 政府端：`pipeline/cli.mjs` 新增 `attest` 指令，讀取回報、驗證裝置簽章，再用官方金鑰簽發確認或否定事件。demo 時用筆電跑 CLI 充當政府端即可，不必架真的伺服器。
-- [ ] 手機端：收到確認事件後，地圖上的原回報顯示為「已查證」或「查證為假」（顯示邏輯要能把兩筆事件關聯起來）。
+- [x] 上行（demo 版）：debug-only `CrowdDebugReceiver`，`adb shell am broadcast` 匯出 crowd 回報 JSON；真的上傳 API 仍是後續工作。
+- [x] 政府端：`pipeline/cli.mjs attest`（`pipeline/lib/attest.mjs`），驗證裝置簽章、拒絕過期回報、改判時 `event_version` 遞增；輸出可直接交給 `build` 打包。
+- [x] 下行（demo 版）：同一個 debug receiver 可匯入官方 chunk（走完整 `ChunkVerifier` + `EventIngestor`），之後由 Emergency Mode 正常轉傳。
+- [x] 手機端：Flutter `attestation_index.dart`；`CONFIRMED` 顯示「已查證（官方確認）」並改色，`REFUTED` 從地圖隱藏、在通知頁顯示「查證為假」。
 - [ ] 實機 demo：A 回報 → mesh → 筆電簽發確認 → mesh 傳回 → A、B、C 都顯示已查證。
 
 **F4. 多裝置佐證（選做）**
-- [ ] 同一地點、一定時間內 N 台不同裝置回報同類事件，就顯示「N 人回報」。這不需要伺服器，但**不等於驗證**，UI 文字要清楚區分。已知弱點：一個人用多支手機就能灌票。
+- [x] `flutter/lib/data/corroboration.dart`：同類別、150 m 內、2 小時內、不同 `signing_key_id` ≥ 2 顯示「N 人回報」，文字不含「驗證」「查證」；弱點寫在 `experiments/limitations.md`。
 
 ### 待討論
 
@@ -168,9 +171,10 @@
 
 ---
 
-## G. 新功能規劃：離線逃生路線（2026-09-24 規劃，尚未實作）
+## G. 新功能：離線逃生路線（2026-09-24 規劃，2026-09-26 實作）
 
-> 狀態：只有規劃，還沒動程式碼。和 F 段一樣屬於 MVP 之後的功能擴充，兩者可以獨立開發。
+> 狀態：路線引擎、bridge 與 demo 情境完成，JVM 測試通過；**實機演練（G6 Step 3、G7 Step 3）尚未做**。
+> **與原計畫的差異**：路線改在 **Android（Kotlin，`routing/`）** 計算，不是 Flutter 純 Dart。已合併的 Flutter UI 計畫規定「Flutter 不計算路線，只呈現 Android 回傳的 `calculateEvacuationRoute` 結果」，UI 與測試都已照這個契約完成；Android 也本來就持有已驗證事件。演算法、封鎖／加權規則、決定性要求都照原計畫。
 > 實作計畫：`docs/superpowers/plans/2026-09-24-evacuation-routing.md`
 
 ### 目標
@@ -194,21 +198,22 @@
 
 ### 任務拆分
 
-- [ ] **G1. 道路圖建構**：從 static features 建出步行圖，含最近節點查詢；建圖在 isolate 執行，目標不超過 1 秒。
-- [ ] **G2. 災情覆蓋層**：把事件轉成邊的封鎖或加權，並列出警告。
-- [ ] **G3. 避難所目的地**：用狀態事件、剩餘容量、災害類型過濾；名稱對不上時，改用距離備援比對。
-- [ ] **G4. 路線計算**：回傳前 3 名路線；無解、起點不在路網上、起點在危險區內，都要有明確的狀態。
-- [ ] **G5. 事件或位置更新時自動重算**，並發出「路線變更」通知與原因。
-- [ ] **G6. UI**：入口、路線折線、選項面板，Google 與 OSM 兩種底圖都要支援。
-- [ ] **G7. Demo 情境**：mesh 送來封路事件 → 路線改道；再送來避難所額滿 → 目的地更換。
-- [ ] **G8. 文件與限制說明。**
+- [x] **G1. 道路圖建構**：`pipeline/tools/generate-walk-graph.mjs` 從內湖 OSM 快照輸出 `assets/routing/walk-roads.json`（約 0.97 MB）；`RoadGraph` 建圖 28,954 節點、32,806 邊，最大連通分量 98.7%，JVM 建圖約 40 ms。最近節點查詢優先落在主路網（快照中有約 60 個零碎小段）。
+- [x] **G2. 災情覆蓋層**：`HazardOverlay`，規則表與測試一一對應。危險區改用事件類型白名單（`FLOOD_WARNING`、`LANDSLIDE_RISK`、`DEBRIS_FLOW_WARNING`）：打包的全台 NCDR 熱傷害、供水警戒，以及 SHELTER_STATUS／MEDICAL 事件也是 CRITICAL／HIGH 多邊形，照「任何 CRITICAL 多邊形」會封掉整片路網。
+- [x] **G3. 避難所目的地**：`ShelterState` 以位置（100 m 內或多邊形包含）比對 `SHELTER_STATUS`；未開設、額滿、位在 CRITICAL 危險區都回 `no_route` 並附原因；沒有狀態事件時照常規劃，但附「狀態未知」警告。災害類型過濾**未做**：`calculateEvacuationRoute` 契約只帶避難所 id 與座標，Android 端目前沒有已驗證的全台避難所圖層可查 `disaster_types`。
+- [x] **G4. 路線計算**：`EvacuationRouter`（單目標 Dijkstra，同成本依 node id）；每次請求一個避難所，前幾名由 Flutter 依 Android 距離排序。起點／避難所離路網超過 300 m、全部被封、起點在危險區內，都有明確狀態或警告；`blocked_event_ids` 列出被避開的封路。內湖五個生活圈的結果存成 golden 檔。
+- [x] **G5. 重算**：Flutter 已在事件指紋改變時標示「路線資訊已變更，請重新計算」；Android 端覆蓋層依事件快照快取，事件一變就重建。
+- [x] **G6. UI**：已由 UI 計畫完成；目前 App 只有 MapLibre 離線底圖一種 renderer。
+- [x] **G7. Demo 情境**：`pipeline/tools/generate-evacuation-scenario.mjs` → `data/fixtures/neihu/evacuation-scenario.json` 與兩個簽章 chunk；`EvacuationScenarioTest` 重播三個步驟。實機演練尚未做。
+- [x] **G8. 文件與限制說明。**
 
 ### 待討論
 
 - 入口形式：按鈕用目前位置，是否也要能長按指定起點。
 - 災害類型：自動推斷，還是讓使用者手動選擇。
-- 危險區加權倍率（暫定 PARTIAL ×3、HIGH ×5、UNVERIFIED ×2）。
-- 起點本身在危險區內時的提示文字。
+- 危險區加權倍率（實作採 PARTIAL ×3、HIGH ×5、UNVERIFIED ×2、起點在危險區內離開時 ×10）。
+- 起點本身在危險區內時的提示文字（實作：「你位於危險區域內，請盡快離開」）。
+- 靜態避難所圖層：Android 目前沒有打包 `assets/static/taiwan/shelter`，實機上地圖沒有避難所可選；demo 前要先用 `build-layer` 產生並放入（見 `experiments/demo.md`）。
 
 ---
 

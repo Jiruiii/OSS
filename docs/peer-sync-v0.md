@@ -27,6 +27,25 @@ sequenceDiagram
 - `TRANSFER` 未列入本時段的固定 exchange，下一步才加入分段 framing、checksum、超時與 Peer 上限測試。
 - 任何驗證失敗都不得進入 APPLY；失敗結果要記錄原因，但不覆蓋原有資料。
 
+## 群眾回報分片（crowd-reports，2026-09-26 實作）
+
+官方資料以伺服器簽章的 manifest 為單位；群眾回報沒有伺服器，所以另開一條路：**一筆回報就是一個 chunk-v0**，由回報者的裝置金鑰簽章。
+
+| 欄位 | 值 |
+|---|---|
+| `dataset_id` / `namespace` | `crowd-reports` / `crowd.reports` |
+| `chunk_id` | `crowd:<event_id>` |
+| `manifest_id` / `manifest_hash` | 固定 `crowd:none` / 等於事件的 `payload_hash` |
+| `dataset_version` | 固定 1（不走官方的整組版本覆蓋規則） |
+| `priority` | 事件 severity 為 CRITICAL／HIGH 時 `HIGH`，否則 `NORMAL` |
+| `signing_key_id` | 必須等於內含事件的 `device:` key id |
+
+- 中繼節點原封不動轉傳，**不重新簽章**，所以任何一跳都能追溯到原回報裝置。中繼節點改寫內容會讓 `chunk_hash` 不符；用自己的金鑰重簽則因 `signing_key_id` 與事件不符而被拒（`crowd_chunk_signer_mismatch`）。
+- 驗證（JS `verifyCrowdChunk`、Kotlin `CrowdChunkCodec.verify`，錯誤字串與檢查順序一致）：形狀 → 綁定（chunk_id、manifest、單一事件）→ 大小 → 簽章者 → 裝置公鑰指紋 → bbox → hash → byte_length → chunk 簽章 → 事件驗章。
+- 大小上限：canonical payload 4 KB。規劃時寫 2 KB，但最長的合法回報（160 個中文字加 80+80 字的地址提示）約 2.4 KB，所以放寬到 4 KB。
+- HELLO 永遠宣告 `crowd-reports` dataset（沒有回報時 chunk 清單為空），所以新節點也會向鄰居要回報；因為所有節點的 `manifest_id` 都是 `crowd:none`，`computeDiff` 走同 manifest 的逐 chunk 比對，不需要改動。
+- 儲存上限：自己的有效回報最多 20 筆；他人的回報最多 200 筆。每次收到 crowd chunk 與每次組 HELLO 時，已過期的回報先退出轉傳清單（事件列仍保留，顯示為 EXPIRED），之後超過上限的部分由最舊的他人回報開始整筆刪除。
+
 ## bbox 相關性過濾（資料層已支援，排程器屬階段 3）
 
 每個 chunk 與 manifest 條目都帶 `area_id` 與 `bbox`（`[minLon, minLat, maxLon, maxLat]`）。節點在 `DIFF` 之後、`REQUEST` 之前可以先做地理過濾：

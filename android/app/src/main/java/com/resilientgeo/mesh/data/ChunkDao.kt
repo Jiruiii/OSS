@@ -27,4 +27,7 @@ interface ChunkDao {
 
     @Query("SELECT COUNT(*) FROM chunks")
     fun countSync(): Int
+
+    @Query("DELETE FROM chunks WHERE datasetId = :datasetId AND namespace = :namespace AND chunkId = :chunkId")
+    fun deleteSync(datasetId: String, namespace: String, chunkId: String)
 }

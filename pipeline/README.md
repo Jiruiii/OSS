@@ -312,6 +312,23 @@ Run the replay checks directly:
 node --test pipeline/test/neihu-replay.test.mjs
 ```
 
+## Crowd reports, attestation and routing assets（2026-09-26）
+
+- `lib/device-key.mjs`、`lib/crowd-report.mjs`：device-signed `crowd.reports` events and their
+  one-report-per-chunk envelope; `verifyEvent` accepts a `device:` key only for `crowd.*`
+  (see `docs/data-contract-v0.md`「群眾回報簽章」and `docs/peer-sync-v0.md`「群眾回報分片」).
+- `node pipeline/cli.mjs attest --report <reports.json> [--event-id <id>] --verdict CONFIRMED|REFUTED
+  --private-key <pem> --key-id <official id> [--previous <attestation.json>] [--out <file>]`
+  verifies the report's device signature and writes an event batch with one `official.verified`
+  ATTESTATION; package it for phones with the normal `build` command.
+- `node pipeline/tools/generate-crowd-fixture.mjs` → `fixtures/crowd-reports-v0.json` (and the
+  byte-identical Android test copy). Fixed-seed, fixture-only keys.
+- `node pipeline/tools/generate-walk-graph.mjs` → `android/app/src/main/assets/routing/walk-roads.json`,
+  the walkable Neihu OSM network the Android route engine loads.
+- `node pipeline/tools/generate-evacuation-scenario.mjs` → `data/fixtures/neihu/evacuation-scenario.json`
+  plus two signed demo chunks, adding the `evacuation-scenario-demo-2026` key to both
+  `trusted-keys.json` copies. Events are synthetic and say so.
+
 ## Existing signed bundle flow
 
 1. `sources/tdx-fixture.json` is a TDX-shaped input record (a real 內湖區 road).
