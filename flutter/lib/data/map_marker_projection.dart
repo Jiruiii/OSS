@@ -21,6 +21,35 @@ class MapCameraProjectionFrameGate<T> {
   }
 }
 
+/// Caches the expensive marker layout separately from its screen projection.
+///
+/// Panning changes marker positions but not the data grouping/layout. Callers
+/// invalidate this cache when data, filters, or a settled zoom level changes.
+class MapMarkerLayoutCache<T> {
+  T? _value;
+  bool _hasValue = false;
+  bool _dirty = true;
+
+  T getOrBuild(T Function() builder) {
+    if (_hasValue && !_dirty) return _value!;
+    final value = builder();
+    _value = value;
+    _hasValue = true;
+    _dirty = false;
+    return value;
+  }
+
+  void invalidate() {
+    _dirty = true;
+  }
+
+  void clear() {
+    _value = null;
+    _hasValue = false;
+    _dirty = true;
+  }
+}
+
 /// Guards asynchronous screen-coordinate conversions made through the
 /// MapLibre platform channel. A camera move can finish after a newer move;
 /// stale results must never overwrite the latest marker positions.

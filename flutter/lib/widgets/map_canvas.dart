@@ -115,6 +115,9 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   final MapZoomRequestGate _zoomRequestGate = MapZoomRequestGate();
   final MapMarkerProjectionGate _markerProjectionGate =
       MapMarkerProjectionGate();
+  final MapMarkerLayoutCache<List<MapMarkerData>> _markerLayoutCache =
+      MapMarkerLayoutCache<List<MapMarkerData>>();
+  bool _markerLayoutReady = false;
   bool _initialOverviewApplied = false;
   int _lastFocusRequestId = -1;
   int _focusOperationToken = 0;
@@ -148,8 +151,10 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     if (oldWidget.runtimeState.themeMode != widget.runtimeState.themeMode) {
       _loadStyle();
     }
-    if (oldWidget.visibleEvents != widget.visibleEvents ||
-        oldWidget.showEvents != widget.showEvents) {
+    final eventsChanged =
+        !_sameEventSnapshot(oldWidget.visibleEvents, widget.visibleEvents);
+    if (eventsChanged || oldWidget.showEvents != widget.showEvents) {
+      _markerLayoutCache.invalidate();
       unawaited(_updateEventSource());
       _queueMarkerRefresh();
     }
@@ -162,6 +167,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
         oldWidget.administrativeIndex != widget.administrativeIndex ||
         oldWidget.runtimeState.currentLocation !=
             widget.runtimeState.currentLocation) {
+      _markerLayoutCache.invalidate();
       _queueMarkerRefresh();
     }
     final focusingNewEvent = _recordNewEvents(oldWidget.visibleEvents);
@@ -218,6 +224,8 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
         _styleJson = style;
         _styleError = null;
         _styleLoaded = false;
+        _markerLayoutReady = false;
+        _markerLayoutCache.invalidate();
         _eventSourceReady = false;
         _routeSourceReady = false;
         _routeLayerReady = false;
@@ -399,9 +407,10 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   }
 
   void _onMapSettled() {
-    _queueMarkerRefresh();
     _cameraBoundsCorrectionPending = false;
     _cameraIsMoving = false;
+    _markerLayoutCache.invalidate();
+    _queueMarkerRefresh();
     final position = _cameraPosition;
     if (position == null) return;
     widget.onReportCameraIdle?.call(
@@ -554,60 +563,95 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   }
 
   List<MapMarkerData> _markers({double? zoom}) {
+    if (_usesPlatformMap &&
+        (!_styleLoaded || _mapController == null || _mapViewportSize == null)) {
+      return const <MapMarkerData>[];
+    }
     final currentZoom = zoom ?? _cameraPosition?.zoom;
-    final zoomPercentage =
-        currentZoom == null
-            ? null
-            : ZoomPercentage.fromZoom(
-              zoom: currentZoom,
-              minZoom: MapCanvas.minZoom,
-              maxZoom: MapCanvas.maxZoom,
-              overviewZoom: _overviewReferenceZoom,
-            );
-    final revealAllAtZoom =
-        currentZoom == null
-            ? null
-            : ZoomPercentage.toZoom(
-              percentage: MapLibreMapConfig.revealAllPercentage,
-              minZoom: MapCanvas.minZoom,
-              maxZoom: MapCanvas.maxZoom,
-              overviewZoom: _overviewReferenceZoom,
-            );
-    final focusDataMarkerOnTap =
-        zoomPercentage != null &&
-        zoomPercentage >= MapLibreMapConfig.revealAllPercentage &&
-        zoomPercentage < MapLibreMapConfig.fullMarkerPercentage;
-    void selectStaticFeature(List<StaticFeature> features) {
-      if (focusDataMarkerOnTap && features.isNotEmpty) {
-        final geometry = features.first.geometry;
-        if (geometry is PointGeometry) _focusDataMarker(geometry.point);
+    return _markerLayoutCache.getOrBuild(() {
+      final zoomPercentage =
+          currentZoom == null
+              ? null
+              : ZoomPercentage.fromZoom(
+                zoom: currentZoom,
+                minZoom: MapCanvas.minZoom,
+                maxZoom: MapCanvas.maxZoom,
+                overviewZoom: _overviewReferenceZoom,
+              );
+      final revealAllAtZoom =
+          currentZoom == null
+              ? null
+              : ZoomPercentage.toZoom(
+                percentage: MapLibreMapConfig.revealAllPercentage,
+                minZoom: MapCanvas.minZoom,
+                maxZoom: MapCanvas.maxZoom,
+                overviewZoom: _overviewReferenceZoom,
+              );
+      final focusDataMarkerOnTap =
+          zoomPercentage != null &&
+          zoomPercentage >= MapLibreMapConfig.revealAllPercentage &&
+          zoomPercentage < MapLibreMapConfig.fullMarkerPercentage;
+      void selectStaticFeature(List<StaticFeature> features) {
+        if (focusDataMarkerOnTap && features.isNotEmpty) {
+          final geometry = features.first.geometry;
+          if (geometry is PointGeometry) _focusDataMarker(geometry.point);
+        }
+        widget.onStaticFeatureSelected(features);
       }
-      widget.onStaticFeatureSelected(features);
+
+      void selectEvent(MeshEvent event) {
+        if (focusDataMarkerOnTap) {
+          final point = meshEventFocusPoint(event);
+          if (point != null) _focusDataMarker(point);
+        }
+        widget.onEventSelected(event);
+      }
+
+      return MapLayers.buildMarkers(
+        features: _featuresForMarkerLayout(currentZoom, revealAllAtZoom),
+        events: widget.visibleEvents,
+        showShelters: widget.showShelters,
+        showMedical: widget.showMedical,
+        showEvents: widget.showEvents,
+        onStaticFeatureSelected: selectStaticFeature,
+        onEventSelected: selectEvent,
+        onClusterSelected: _focusCluster,
+        administrativeIndex: widget.administrativeIndex,
+        revealAllAtZoom: revealAllAtZoom,
+        currentLocation: widget.runtimeState.currentLocation,
+        zoom: currentZoom,
+        zoomPercentage: zoomPercentage,
+      );
+    });
+  }
+
+  List<StaticFeature> _featuresForMarkerLayout(
+    double? zoom,
+    double? revealAllAtZoom,
+  ) {
+    final viewport = _mapViewportSize;
+    final camera = _cameraPosition;
+    if (zoom == null ||
+        revealAllAtZoom == null ||
+        zoom < revealAllAtZoom ||
+        viewport == null ||
+        camera == null) {
+      return widget.staticFeatures;
     }
 
-    void selectEvent(MeshEvent event) {
-      if (focusDataMarkerOnTap) {
-        final point = meshEventFocusPoint(event);
-        if (point != null) _focusDataMarker(point);
-      }
-      widget.onEventSelected(event);
-    }
-
-    return MapLayers.buildMarkers(
-      features: widget.staticFeatures,
-      events: widget.visibleEvents,
-      showShelters: widget.showShelters,
-      showMedical: widget.showMedical,
-      showEvents: widget.showEvents,
-      onStaticFeatureSelected: selectStaticFeature,
-      onEventSelected: selectEvent,
-      onClusterSelected: _focusCluster,
-      administrativeIndex: widget.administrativeIndex,
-      revealAllAtZoom: revealAllAtZoom,
-      currentLocation: widget.runtimeState.currentLocation,
-      zoom: currentZoom,
-      zoomPercentage: zoomPercentage,
+    final bounds = MapCameraProjection.viewportBounds(
+      cameraTarget: _geoPointFromCamera(camera),
+      zoom: zoom,
+      viewportSize: viewport,
+      paddingPixels: 128,
     );
+    return widget.staticFeatures
+        .where((feature) {
+          final geometry = feature.geometry;
+          if (geometry is! PointGeometry) return true;
+          return bounds.contains(geometry.point);
+        })
+        .toList(growable: false);
   }
 
   void _focusDataMarker(GeoPoint point) {
@@ -664,6 +708,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   final Map<Key, Offset> _markerPositions = <Key, Offset>{};
 
   bool _projectMarkersSynchronously(CameraPosition position) {
+    if (_usesPlatformMap && !_markerLayoutReady) return false;
     final viewportSize = _mapViewportSize;
     if (viewportSize == null || viewportSize.isEmpty) return false;
 
@@ -717,6 +762,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   void _updateMapViewportSize(Size size) {
     if (!mounted || size.isEmpty || _mapViewportSize == size) return;
     _mapViewportSize = size;
+    _markerLayoutCache.invalidate();
     final camera = _cameraPosition;
     if (camera == null || !_projectMarkersSynchronously(camera)) {
       _queueMarkerRefresh();
@@ -779,12 +825,14 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
     final controller = _mapController;
     try {
       if (controller == null) return;
+      if (_usesPlatformMap && !_styleLoaded) return;
       final markers = _markers(zoom: _cameraPosition?.zoom);
       if (markers.isEmpty) {
-        if (_markerProjectionGate.isCurrent(request) &&
-            _markerPositions.isNotEmpty &&
-            mounted) {
-          setState(_markerPositions.clear);
+        if (_markerProjectionGate.isCurrent(request) && mounted) {
+          setState(() {
+            _markerPositions.clear();
+            _markerLayoutReady = true;
+          });
         }
         return;
       }
@@ -808,6 +856,7 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
         _markerPositions
           ..clear()
           ..addAll(next);
+        _markerLayoutReady = true;
       });
       final radarPoint = _radarEventPoint;
       if (radarPoint != null) {
@@ -826,6 +875,8 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
 
   Future<void> _onStyleLoaded() async {
     _styleLoaded = true;
+    _markerLayoutReady = false;
+    _markerLayoutCache.invalidate();
     await _ensureEventLayers();
     await _ensureRouteLayer();
     _queueMarkerRefresh();
@@ -951,7 +1002,10 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
       );
       return;
     }
-    final markers = _markers(zoom: _cameraPosition?.zoom);
+    final markers =
+        !_usesPlatformMap || _markerLayoutReady
+            ? _markers(zoom: _cameraPosition?.zoom)
+            : const <MapMarkerData>[];
     final markerHits = hitTestMapMarkers(
       markers: markers,
       positions: _markerPositions,
@@ -1052,6 +1106,27 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
           fit: StackFit.expand,
           children: <Widget>[
             baseMap,
+            if (_usesPlatformMap &&
+                _styleJson != null &&
+                _styleError == null &&
+                !_markerLayoutReady)
+              const Positioned.fill(
+                child: IgnorePointer(
+                  child: ColoredBox(
+                    color: Color.fromRGBO(248, 252, 255, 0.72),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          CircularProgressIndicator(),
+                          SizedBox(height: 12),
+                          Text('正在準備全台地圖資料…'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             if (_usesPlatformMap && _animationsAllowed && _radarVisible)
               Positioned.fill(
                 child: ValueListenableBuilder<Offset?>(
@@ -1245,6 +1320,23 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
 
   static LatLng _latLng(GeoPoint point) =>
       LatLng(point.latitude, point.longitude);
+}
+
+bool _sameEventSnapshot(List<MeshEvent> left, List<MeshEvent> right) {
+  if (left.length != right.length) return false;
+  for (var index = 0; index < left.length; index += 1) {
+    final first = left[index];
+    final second = right[index];
+    if (eventKey(first) != eventKey(second) ||
+        first.issuedAt != second.issuedAt ||
+        first.expiresAt != second.expiresAt ||
+        first.severity != second.severity ||
+        first.attributes?['map_visible'] != second.attributes?['map_visible'] ||
+        meshEventFocusPoint(first) != meshEventFocusPoint(second)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 class _RadarPulsePainter extends CustomPainter {

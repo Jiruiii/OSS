@@ -2,16 +2,28 @@
   "catalog_version": "source-catalog-v0",
   "scope": {
     "country": "TW",
-    "county": "臺北市",
-    "district": "內湖區",
+    "coverage": "TW",
+    "county": null,
+    "district": null,
     "target_coordinate_system": "EPSG:4326",
-    "boundary_source": {
-      "name": "臺北市區界圖",
-      "dataset_url": "https://data.taipei/dataset/detail?id=1601ef3a-c253-4988-b047-943d9e786143",
-      "resource_url": "https://data.taipei/api/frontstage/tpeod/dataset/resource.download?rid=d8b7eb29-136f-49fc-b14b-3489d3656122",
-      "source_coordinate_system": "TWD97",
-      "district_filter": "TNAME=內湖區",
-      "normalization_required": "Convert the selected district geometry to EPSG:4326 before spatial filtering."
+    "boundary_sources": [
+      {
+        "name": "直轄市、縣市界線(TWD97經緯度)",
+        "dataset_url": "https://data.gov.tw/dataset/7442",
+        "source_coordinate_system": "TWD97 geographic",
+        "normalization_required": "Convert the downloaded GeoJSON/SHP-derived geometry to EPSG:4326 before spatial filtering."
+      },
+      {
+        "name": "鄉鎮市區界線(TWD97經緯度)",
+        "dataset_url": "https://data.gov.tw/dataset/7441",
+        "source_coordinate_system": "TWD97 geographic",
+        "normalization_required": "Combine with the county layer, convert to EPSG:4326, then generate area-catalog-v0."
+      }
+    ],
+    "area_catalog_output": "pipeline/data/area-catalog.json",
+    "legacy_neihu_scope": {
+      "boundary_source": "pipeline/sources/boundaries/taipei-neihu.geojson",
+      "district": "內湖區"
     },
     "osm_boundary_reference": {
       "relation_id": 2905065,
@@ -50,7 +62,7 @@
       "endpoint_or_url": "https://overpass-api.de/api/interpreter",
       "documentation_url": "https://wiki.openstreetmap.org/wiki/Overpass_API/Overpass_QL",
       "format": "OSM JSON or XML",
-      "coverage": "roads and selected POIs within the Neihu administrative area",
+      "coverage": "legacy roads and selected POIs within the Neihu administrative area",
       "update_frequency": "community-maintained continuously; store versioned scheduled snapshots",
       "auth_required": false,
       "license": "Open Data Commons Open Database License (ODbL); attribution required",
@@ -65,6 +77,27 @@
       }
     },
     {
+      "source_id": "osm-taiwan",
+      "category": "OpenStreetMap",
+      "data_product": "static_feature",
+      "access_mode": "scheduled_download",
+      "endpoint_or_url": "https://overpass-api.de/api/interpreter",
+      "documentation_url": "https://wiki.openstreetmap.org/wiki/Overpass_API/Overpass_QL",
+      "format": "OSM JSON",
+      "coverage": "Taiwan hospitals, clinics and shelters needed as POI/coordinate-support data; roads remain in the existing PMTiles basemap",
+      "update_frequency": "community-maintained continuously; store versioned snapshots",
+      "auth_required": false,
+      "license": "Open Data Commons Open Database License (ODbL); attribution required",
+      "coordinate_system": "EPSG:4326",
+      "ttl_policy": "versioned_snapshot; refresh before a data release",
+      "integration_stage": "P1",
+      "taiwan_filter": "Use the Taiwan bbox query, then validate every geometry against the AreaCatalog union.",
+      "verification": {
+        "status": "adapter_and_query_defined",
+        "note": "The collector intentionally does not download a full Taiwan routing graph."
+      }
+    },
+    {
       "source_id": "tdx-road-events",
       "category": "TDX",
       "data_product": "dynamic_event",
@@ -72,14 +105,15 @@
       "endpoint_or_url": "https://tdx.transportdata.tw/api/basic/v1/Traffic/RoadEvent/LiveEvent/City/Taipei?$format=JSON",
       "documentation_url": "https://tdx.transportdata.tw/api-service/swagger/basic/60abfa19-ffe3-4eef-a4b1-0539435dfca9",
       "format": "JSON or XML",
-      "coverage": "Taipei City live traffic accidents, construction, congestion, control, weather, disaster and abnormal events",
+      "coverage": "Taiwan city/county live traffic accidents, construction, congestion, control, weather, disaster and abnormal events",
       "update_frequency": "event-driven live API",
       "auth_required": true,
       "license": "TDX terms of service and data licensing terms",
       "coordinate_system": "event Positions or Geometry; normalize and validate as EPSG:4326",
-      "ttl_policy": "use ExpireTime when supplied; otherwise apply a source-specific freshness policy",
+      "ttl_policy": "use ExpireTime when supplied; otherwise use source UpdateInterval or the default 900-second freshness TTL (TDX_EVENT_FRESHNESS_SECONDS)",
       "integration_stage": "P1",
       "neihu_filter": "Request City/Taipei, retain records whose Location.Address.Town or Location.CityRoad.Roadways[].Town is 內湖區, and use geometry intersection as the final check.",
+      "taiwan_filter": "Request the configured city/county endpoint list, retain all records whose WGS84 geometry intersects the AreaCatalog union, and mark partial endpoint failure in Raw metadata.",
       "verification": {
         "status": "oas_verified_credentials_required",
         "verified_at": "2026-09-04",
@@ -102,6 +136,7 @@
       "ttl_policy": "retain as an immutable event report; version by EarthquakeNo and IssueTime",
       "integration_stage": "P1",
       "neihu_filter": "Keep reports that contain a Taipei City intensity area or an observation point intersecting Neihu. If only city-level intensity exists, label coverage_level=city and do not claim district precision.",
+      "taiwan_filter": "Keep all records whose observation/epicenter geometry or affected administrative area resolves to the AreaCatalog.",
       "verification": {
         "status": "official_metadata_and_preview_verified",
         "verified_at": "2026-09-04",
@@ -124,6 +159,7 @@
       "ttl_policy": "use warning effective and end times; replace or cancel by message update",
       "integration_stage": "P1",
       "neihu_filter": "Select 臺北市 warnings. Treat them as city-scope warnings applicable to Neihu, not as Neihu-specific observations.",
+      "taiwan_filter": "Retain all county/city warnings and preserve coverage_level=area or city when no point geometry is provided.",
       "verification": {
         "status": "official_metadata_and_preview_verified",
         "verified_at": "2026-09-04",
@@ -146,20 +182,21 @@
       "data_product": "dynamic_event",
       "access_mode": "live_api",
       "endpoint_or_url": "https://alerts.ncdr.nat.gov.tw/api/datastore",
-      "documentation_url": "https://datahub.ncdr.nat.gov.tw/paradigm",
+      "documentation_url": "https://alerts.ncdr.nat.gov.tw/api_swagger/index.html",
       "format": "JSON",
       "coverage": "nationwide multi-agency warnings, including flood, rainfall, debris-flow and large-landslide alerts",
       "update_frequency": "depends on the selected NCDR datastore; retain retrieved_at and source update fields",
       "auth_required": true,
       "license": "NCDR platform terms or source-agency license; record per resource",
-      "coordinate_system": "CAP polygon or point; normalize to EPSG:4326",
+      "coordinate_system": "CAP polygon, circle or point; normalize to EPSG:4326",
       "ttl_policy": "use CAP sent, effective, onset and expires fields; preserve cancel and update messages",
       "integration_stage": "P1",
-      "neihu_filter": "Prefer CAP polygons or district geocodes intersecting Neihu. If a warning only names 臺北市, label coverage_level=city. Keep citizen reports in an unverified namespace.",
+      "neihu_filter": "Legacy fixture compatibility only; the first-stage collector uses Taiwan scope and AreaCatalog.",
+      "taiwan_filter": "Prefer CAP polygons or administrative geocodes resolved through AreaCatalog. Keep citizen reports in an unverified namespace.",
       "verification": {
-        "status": "official_api_contract_verified_access_setup_required",
-        "verified_at": "2026-09-04",
-        "result": "The official NCDR API documentation confirms HTTP GET, JSON or XML responses and Token or Authorization authentication. The concrete datastore route and permitted datasets are account-configured, so NCDR_API_ENDPOINT remains required at runtime."
+        "status": "live_smoke_verified",
+        "verified_at": "2026-09-26",
+        "result": "The official API returns a capid index from /api/datastore and a complete CAP document from /api/dump/datastore. A local Taiwan smoke run retrieved 196 details, normalized 196 events, resolved 21 counties and kept the API key out of Raw."
       },
       "demo_policy": {
         "status": "optional_for_demo",
@@ -259,6 +296,80 @@
         "verified_at": "2026-09-04",
         "result": "The current hospital resource returned 4 records whose addresses contain 內湖區."
       }
+    },
+    {
+      "source_id": "taiwan-shelter",
+      "category": "消防署避難所",
+      "data_product": "static_feature",
+      "access_mode": "scheduled_download",
+      "endpoint_or_url": "https://opdadm.moi.gov.tw/api/v1/no-auth/resource/api/dataset/ED6CF735-6C03-4573-A882-72C1BEC799CB/resource/54550E2F-4567-4C8F-BD2E-E54E9D0386B8/download",
+      "documentation_url": "https://data.gov.tw/dataset/73242",
+      "format": "CSV",
+      "coverage": "Taiwan shelter points with address, capacity, disaster types and coordinates",
+      "update_frequency": "irregular scheduled download",
+      "auth_required": false,
+      "license": "政府資料開放授權條款第1版",
+      "coordinate_system": "EPSG:4326 coordinates supplied by the source; validate before use",
+      "ttl_policy": "versioned_snapshot",
+      "integration_stage": "P1",
+      "taiwan_filter": "No Neihu text filter; retain records inside the AreaCatalog union and preserve unresolved source values as null.",
+      "verification": {
+        "status": "adapter_defined",
+        "note": "The opening status is collected separately from the XML feed."
+      }
+    },
+    {
+      "source_id": "taiwan-shelter-status",
+      "category": "消防署避難所開設情形",
+      "data_product": "dynamic_event",
+      "access_mode": "event_feed",
+      "endpoint_or_url": "https://portal2.emic.gov.tw/Pub/EEA2/OpenData/Shelter.xml",
+      "documentation_url": "https://data.gov.tw/dataset/12849",
+      "format": "XML",
+      "coverage": "Taiwan shelter opening state",
+      "update_frequency": "source-dependent event feed",
+      "auth_required": false,
+      "license": "政府資料開放授權條款第1版",
+      "coordinate_system": "EPSG:4326 lat/lon in the feed",
+      "ttl_policy": "status event expiry is assigned by the pipeline; missing status is UNKNOWN, not CLOSED",
+      "integration_stage": "P1",
+      "taiwan_filter": "Join by shelterCode/shelterId where available and retain UNKNOWN when the source omits openstatus.",
+      "verification": {
+        "status": "adapter_defined"
+      }
+    },
+    {
+      "source_id": "taiwan-medical",
+      "category": "醫療資料",
+      "data_product": "static_feature",
+      "access_mode": "scheduled_download",
+      "endpoint_or_url": "https://www.mohw.gov.tw/dl-96581-66dbb751-f83a-416a-a998-893222e20fef.html",
+      "documentation_url": "https://data.gov.tw/dataset/15393",
+      "format": "ODS",
+      "coverage": "Taiwan medical institution master records with name, phone, county/town, address, department and staffing fields",
+      "update_frequency": "annual",
+      "auth_required": false,
+      "license": "政府資料開放授權條款第1版",
+      "coordinate_system": "No coordinates in the master; supplement only from validated NLSC/OSM point matches",
+      "ttl_policy": "versioned_snapshot; unresolved records remain in the report and are not drawn as points",
+      "integration_stage": "P1",
+      "taiwan_filter": "No Neihu filter; retain all nationwide records and add county_code/town_code/area_id when resolved.",
+      "verification": {
+        "status": "official_ods_parser_verified",
+        "note": "The collector parses content.xml from the official ODS ZIP and keeps records without inventing coordinates."
+      },
+      "related_resources": [
+        {
+          "purpose": "coordinate supplement",
+          "url": "https://data.gov.tw/dataset/139250",
+          "auth": false
+        },
+        {
+          "purpose": "OSM coordinate cross-check",
+          "url": "https://overpass-api.de/api/interpreter",
+          "auth": false
+        }
+      ]
     },
     {
       "source_id": "dem-dsm-neihu",

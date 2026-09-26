@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:63000020:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 117,
+  "priority": "LOW",
+  "area_id": "tw.63000020",
+  "theme": "safety",
+  "bbox": [
+    121.573123,
+    25.03329,
+    121.573123,
+    25.03329
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090011",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.573123,
+          25.03329
+        ]
+      },
+      "severity": "MEDIUM",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.63000020",
+        "county_code": "63000",
+        "town_code": "63000020",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090011",
+        "affected_area": "臺北市",
+        "source_description": "臺北市,謙匯普樂室旅館經營管理顧問股份有限公司,甲類-旅館,臺北市信義區信義路5段109號地下1樓,消防設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090011",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "臺北市,謙匯普樂室旅館經營管理顧問股份有限公司,甲類-旅館,臺北市信義區信義路5段109號地下1樓,消防設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090011",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "臺北市,謙匯普樂室旅館經營管理顧問股份有限公司,甲類-旅館,臺北市信義區信義路5段109號地下1樓,消防設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Moderate",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "臺北市,謙匯普樂室旅館經營管理顧問股份有限公司,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "臺北市,謙匯普樂室旅館經營管理顧問股份有限公司,甲類-旅館,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "臺北市",
+                  "geocode": null,
+                  "circle": "25.033290,121.573123 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:0cafe19b93681a427363e4d96bf4237065e3b7179beb99e8f5251aeef47b42e0",
+      "signature": "LU98RnJMlFUAOz7bCGoc3y6O2hqjwCLhwC5XyM7/gFj+k7Qi3CA6pNB1vic0G2k+Fafn7CF05EJRf4okjcsNBg=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 3042,
+  "chunk_hash": "sha256:c900fd3bda22627d7be35a2b27f9835db5f165dc0da0288daf51021725a4c191",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "9HerhXk1n6IT2HnO9vOuUu/P+dIcwqKgQQzA2TStGSDc9zA5VMcy4IpDOr7oB0McEdhTjA+dAYMPRxO48gCOBw=="
+}

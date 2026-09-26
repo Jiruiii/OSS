@@ -12,9 +12,11 @@ object MapBridgeProtocol {
     fun initialState(
         events: List<EventEntity>,
         emergencyModeEnabled: Boolean,
+        staticFeatures: List<Map<String, Any?>> = emptyList(),
     ): Map<String, Any?> = mapOf(
         "events" to eventSnapshot(events),
         "emergency_mode_enabled" to emergencyModeEnabled,
+        "static_features" to staticFeatures,
     )
 
     fun fixtureLoadSummary(results: List<IngestResult>): Map<String, Int> {

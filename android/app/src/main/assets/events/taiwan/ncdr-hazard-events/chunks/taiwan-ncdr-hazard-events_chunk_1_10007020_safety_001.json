@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10007020:safety:001",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 64,
+  "priority": "LOW",
+  "area_id": "tw.10007020",
+  "theme": "safety",
+  "bbox": [
+    120.461564,
+    24.08743,
+    120.461564,
+    24.08743
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090077",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.461564,
+          24.08743
+        ]
+      },
+      "severity": "LOW",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.10007020",
+        "county_code": "10007",
+        "town_code": "10007020",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090077",
+        "affected_area": "彰化縣",
+        "source_description": "彰化縣,帝寶工業股份有限公司,危險物品類(公共危險物品室內儲存場所),彰化縣鹿港鎮頭南里南勢巷20-3號,消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090077",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "彰化縣,帝寶工業股份有限公司,危險物品類(公共危險物品室內儲存場所),彰化縣鹿港鎮頭南里南勢巷20-3號,消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090077",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "彰化縣,帝寶工業股份有限公司,危險物品類(公共危險物品室內儲存場所),彰化縣鹿港鎮頭南里南勢巷20-3號,消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Minor",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "彰化縣,帝寶工業股份有限公司,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "彰化縣,帝寶工業股份有限公司,危險物品類(公共危險物品室內儲存場所),消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "彰化縣",
+                  "geocode": null,
+                  "circle": "24.087430,120.461564 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:587de2280b90ab0f11ce3a871e9a38b1fa61c94288e6d37c5bfecfb4f5ba9ab4",
+      "signature": "UtEY8O1oW/QVA3FI6AaY0MbZ5vp63gMwkThWh60t+6DTUxKHNEjlJit8SdfyWAUVGYUw8QZqmD4mizCyZAnvAw=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 3066,
+  "chunk_hash": "sha256:88506a666a31d3a56a09e126329752f1c6cca339df2baf0052897a3a68a46de1",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "WXfWGXsgV4LNDyAXwQ5USFV4IrT09HqFcQQIz7EOmEqciwKAHsmK4xg14WAcockKOri+0oM6sHyCBMj5l/H3Aw=="
+}

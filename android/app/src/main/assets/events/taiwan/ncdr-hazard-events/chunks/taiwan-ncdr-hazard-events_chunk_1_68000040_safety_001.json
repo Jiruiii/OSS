@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000040:safety:001",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 191,
+  "priority": "HIGH",
+  "area_id": "tw.68000040",
+  "theme": "safety",
+  "bbox": [
+    121.103103,
+    24.930543,
+    121.103103,
+    24.930543
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090022",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.103103,
+          24.930543
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.68000040",
+        "county_code": "68000",
+        "town_code": "68000040",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090022",
+        "affected_area": "桃園市",
+        "source_description": "桃園市,優美彩藝包裝股份有限公司楊梅廠,危險物品,桃園市楊梅區員本里民富路三段142巷16號,違反危險物品規定\t 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090022",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "桃園市,優美彩藝包裝股份有限公司楊梅廠,危險物品,桃園市楊梅區員本里民富路三段142巷16號,違反危險物品規定\t 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090022",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "桃園市,優美彩藝包裝股份有限公司楊梅廠,危險物品,桃園市楊梅區員本里民富路三段142巷16號,違反危險物品規定\t 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "桃園市,優美彩藝包裝股份有限公司楊梅廠,危險物品,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "桃園市,優美彩藝包裝股份有限公司楊梅廠,危險物品,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "桃園市",
+                  "geocode": null,
+                  "circle": "24.930543,121.103103 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:9813bea71ec188bf8bf799f4b706509310b74e5919f803adbcfb2691f53c6fb8",
+      "signature": "aYxkt+I/rFNFcHtamQeAiDZUPIhPw4804n61EKYWL94ckPMrHalSo0u8ob/tWIoevTBwA08m7dhwwJEpXitlDQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 3051,
+  "chunk_hash": "sha256:81ddbe9d3e36e769aadc4828da2003631ba49692ce2e47268feb3bf98dd3c793",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "6fT3C6LFrwHZR7EsJ6UCIpaA80yv+c/kVK2F8geclN6DIpXhcQds0hj3C/vJrfP9eLRW2pemnA4F4BOsfUaiAw=="
+}

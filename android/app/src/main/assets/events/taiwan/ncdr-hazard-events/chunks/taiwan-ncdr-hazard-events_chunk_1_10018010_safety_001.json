@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10018010:safety:001",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 111,
+  "priority": "LOW",
+  "area_id": "tw.10018010",
+  "theme": "safety",
+  "bbox": [
+    120.990576,
+    24.802033,
+    120.990576,
+    24.802033
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090110",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.990576,
+          24.802033
+        ]
+      },
+      "severity": "MEDIUM",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.10018010",
+        "county_code": "10018",
+        "town_code": "10018010",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090110",
+        "affected_area": "新竹市",
+        "source_description": "新竹市,品飯屋事業有限公司新竹馬偕店(市招：千農一等米便當),危險物品類(液化石油氣串接場所),新竹市東區忠孝路39號,位置、構造、設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090110",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "新竹市,品飯屋事業有限公司新竹馬偕店(市招：千農一等米便當),危險物品類(液化石油氣串接場所),新竹市東區忠孝路39號,位置、構造、設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090110",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "新竹市,品飯屋事業有限公司新竹馬偕店(市招：千農一等米便當),危險物品類(液化石油氣串接場所),新竹市東區忠孝路39號,位置、構造、設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Moderate",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "新竹市,品飯屋事業有限公司新竹馬偕店,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "新竹市,品飯屋事業有限公司新竹馬偕店(市招：千農一等米便當),危險物品類(液化石油氣串接場所),消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新竹市",
+                  "geocode": null,
+                  "circle": "24.802033,120.990576 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:10ca40ec33febbc9001d1dc0d2b3826dbab74a557846ef1b9ceefb32b3a0de3d",
+      "signature": "7HHTwsvu0+KzsdmzBx62A/hhOR3q3MpScdEMxkV2L7ol2GSGGQvZjWv0DhHT7feHZa/TC7qlv+vZXJW2t46bBA=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 3204,
+  "chunk_hash": "sha256:204ba7447d86e3967a7aa81c2d3378e9db467fdfe03c67e152300c52b28e6cd9",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "MP7obxXYJs4TVhUScqt3ZUfSnRC46r8R0betZFGuZbVTy5zUnhdK3tn1xLzJ0TAVZ4Bb9XgsoHvLYMPoMGGJAw=="
+}

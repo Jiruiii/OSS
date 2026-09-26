@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10009060:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 72,
+  "priority": "HIGH",
+  "area_id": "tw.10009060",
+  "theme": "safety",
+  "bbox": [
+    120.300752,
+    23.568645,
+    120.300752,
+    23.568645
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090082",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.300752,
+          23.568645
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.10009060",
+        "county_code": "10009",
+        "town_code": "10009060",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090082",
+        "affected_area": "雲林縣",
+        "source_description": "雲林縣,北港圓環大樓(10)(亞),乙類-集合住宅,雲林縣北港鎮西勢里13鄰文化路37-2號(等),消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090082",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "雲林縣,北港圓環大樓(10)(亞),乙類-集合住宅,雲林縣北港鎮西勢里13鄰文化路37-2號(等),消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090082",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "雲林縣,北港圓環大樓(10)(亞),乙類-集合住宅,雲林縣北港鎮西勢里13鄰文化路37-2號(等),消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "雲林縣,北港圓環大樓(10)(亞),乙類-集合住宅,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "雲林縣,北港圓環大樓(10)(亞),乙類-集合住宅,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "雲林縣",
+                  "geocode": null,
+                  "circle": "23.568645,120.300752 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:0ea03ace6c2c490a8f8ec60c2c431e3e9ca1e51f3d3b330c8c2287cd6e8e8ec0",
+      "signature": "RSpzXZBOA2FBouh5ZpPn0bwo5EvkMRM3CZdhcXDfNvrOQMnmNI55wxxpVTHZEL/dpz3g4l1FTMp1udblDhpvBA=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2971,
+  "chunk_hash": "sha256:cc0b2d78656c1b25ea7522ac938f04e38aa7d4f811fb6f80fe673d9c3f549ed1",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "uWmWE09hdJ3I7ECZjKxS46h9wzs+2e5FQ2XdFticGnSDDxTAgJamsChhwdOZd3Gx1wdAyxxaqljcSSSXd7CuCw=="
+}

@@ -11,6 +11,10 @@
 /data/live/
 /data/derived/
 
+# Generated nationwide administrative-area catalog. Recreate locally from
+# data/boundaries/geojson with `node pipeline/cli.mjs area-catalog`.
+/data/area-catalog.json
+
 # Local API credentials. Never commit real values.
 .env
 .env.*

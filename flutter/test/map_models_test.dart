@@ -128,6 +128,43 @@ void main() {
     expect(event.isExpired, isFalse);
   });
 
+  test(
+    'treats an event without Android state as current from its time window',
+    () {
+      final current = MeshEvent.fromJson(<String, dynamic>{
+        'namespace': 'official.ncdr',
+        'event_id': 'ncdr:current',
+        'event_version': 1,
+        'issued_at': '2026-09-26T03:00:00Z',
+        'expires_at': '2026-09-26T05:00:00Z',
+      });
+      final expired = MeshEvent.fromJson(<String, dynamic>{
+        'namespace': 'official.ncdr',
+        'event_id': 'ncdr:expired',
+        'event_version': 1,
+        'issued_at': '2026-09-26T01:00:00Z',
+        'expires_at': '2026-09-26T02:00:00Z',
+      });
+
+      final now = DateTime.utc(2026, 9, 26, 4);
+
+      expect(current.isCurrentAt(now), isTrue);
+      expect(expired.isCurrentAt(now), isFalse);
+    },
+  );
+
+  test('does not treat an event issued in the future as current', () {
+    final event = MeshEvent.fromJson(<String, dynamic>{
+      'namespace': 'official.ncdr',
+      'event_id': 'ncdr:future',
+      'event_version': 1,
+      'issued_at': '2026-09-26T05:00:00Z',
+      'expires_at': '2026-09-26T06:00:00Z',
+    });
+
+    expect(event.isCurrentAt(DateTime.utc(2026, 9, 26, 4)), isFalse);
+  });
+
   test('preserves real shelter root metadata and nullable availability', () {
     final shelter = StaticFeature.fromJson(<String, dynamic>{
       'id': 'shelter:5427',

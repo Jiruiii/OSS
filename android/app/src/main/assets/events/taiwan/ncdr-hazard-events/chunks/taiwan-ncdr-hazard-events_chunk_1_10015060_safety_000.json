@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10015060:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 101,
+  "priority": "HIGH",
+  "area_id": "tw.10015060",
+  "theme": "safety",
+  "bbox": [
+    121.53888,
+    23.905557,
+    121.53888,
+    23.905557
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090098",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.53888,
+          23.905557
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.10015060",
+        "county_code": "10015",
+        "town_code": "10015060",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090098",
+        "affected_area": "花蓮縣",
+        "source_description": "花蓮縣,村上春宿企業,乙類-寄宿舍,花蓮縣壽豐鄉志學村中正路238號,消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090098",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "花蓮縣,村上春宿企業,乙類-寄宿舍,花蓮縣壽豐鄉志學村中正路238號,消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090098",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "花蓮縣,村上春宿企業,乙類-寄宿舍,花蓮縣壽豐鄉志學村中正路238號,消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "花蓮縣,村上春宿企業,乙類-寄宿舍,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "花蓮縣,村上春宿企業,乙類-寄宿舍,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "花蓮縣",
+                  "geocode": null,
+                  "circle": "23.905557,121.538880 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:34bdd7be752ebbf1d436316d8de2417d46bade3153d8e8dec6d581502888a96b",
+      "signature": "7kkY4uG13o4pA0Z0Uh2nzimGBo4XZfBtaM8iy1op0VI184+ioxu+ypFwKJVHJB/BwQnsBzM15OGNsbOA5nF2CA=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2876,
+  "chunk_hash": "sha256:e3bbae9adbd0a4f49cf815207d57f7209c38be763693b52240f8cc93518fcfbf",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "SgiBf7HS/i/Izs1J/9FKG/jtdyVsiCifpS/h8WaX+O4u2VO+9tUrppWNGaz2bJhdMEz8S/toFk0pbAT7spn4Bg=="
+}

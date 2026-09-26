@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000100:safety:001",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 201,
+  "priority": "HIGH",
+  "area_id": "tw.68000100",
+  "theme": "safety",
+  "bbox": [
+    121.197475,
+    24.901529,
+    121.197475,
+    24.901529
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090020",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.197475,
+          24.901529
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.68000100",
+        "county_code": "68000",
+        "town_code": "68000100",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090020",
+        "affected_area": "桃園市",
+        "source_description": "桃園市,新綜工業股份有限公司平鎮廠,危險物品,桃園市平鎮區湧豐里工業五路7號,違反危險物品規定\t 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090020",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "桃園市,新綜工業股份有限公司平鎮廠,危險物品,桃園市平鎮區湧豐里工業五路7號,違反危險物品規定\t 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090020",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "桃園市,新綜工業股份有限公司平鎮廠,危險物品,桃園市平鎮區湧豐里工業五路7號,違反危險物品規定\t 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "桃園市,新綜工業股份有限公司平鎮廠,危險物品,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "桃園市,新綜工業股份有限公司平鎮廠,危險物品,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "桃園市",
+                  "geocode": null,
+                  "circle": "24.901529,121.197475 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:35669a03a3ae4cc91c1f6f4d9a5475d8b544d720e285f49f32b0b30219c2d425",
+      "signature": "gykIKSIWCKCuhApKiWJNtq01ySZx/UgMynF/t79RVjNvEcks47W6gV72jEQKSTLSYCUd3BuzjkLlLBBHj3BOBQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2991,
+  "chunk_hash": "sha256:cdca53f6a0534897bd73aa5b41dfbbd7abbc30e4e8a53427ec0d16caae838bc8",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "doHGLV+76CoN5Q2jdv9WPjVW6XYA29Q3rgDZQ4+yk7Ju8bU7x9jWZ0qE0c8dMgK3EJyyKAtO9dEnOCg3gyt3DQ=="
+}

@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000260:marine_pollution:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 134,
+  "priority": "LOW",
+  "area_id": "tw.64000260",
+  "theme": "marine_pollution",
+  "bbox": [
+    120.211111,
+    22.877222,
+    120.211111,
+    22.877222
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:oca-marinepollution_3145",
+      "event_type": "MARINE_POLLUTION_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.211111111111,
+          22.8772222222222
+        ]
+      },
+      "severity": "LOW",
+      "source": "NCDR",
+      "source_version": "2026-09-08T00:00:05+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-07T16:00:05.000Z",
+      "expires_at": "2026-12-07T02:50:00.000Z",
+      "attributes": {
+        "area_id": "tw.64000260",
+        "county_code": "64000",
+        "town_code": "64000260",
+        "village_code": null,
+        "theme": "marine_pollution",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "OCA-marinePollution_3145",
+        "affected_area": "茄萣安檢所旁邊情人碼頭",
+        "source_description": "地方單位\\高雄市政府\\海洋局：茄萣安檢所情人碼頭海上油膜案件",
+        "source_record": {
+          "capid": "OCA-marinePollution_3145",
+          "capCode": "marinePollution",
+          "effective": "2026-09-07T10:50:00",
+          "expires": "2026-12-07T10:50:00",
+          "description": "地方單位\\高雄市政府\\海洋局：茄萣安檢所情人碼頭海上油膜案件",
+          "identifier": "OCA-marinePollution_3145",
+          "sender": "https://iocean.oca.gov.tw",
+          "sent": "2026-09-08T00:00:05+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "地方單位\\高雄市政府\\海洋局：茄萣安檢所情人碼頭海上油膜案件",
+              "language": "zh-TW",
+              "category": "Env",
+              "event": "海洋污染",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "marinePollution"
+              },
+              "effective": "2026-09-07T10:50:00+08:00",
+              "expires": "2026-12-07T10:50:00+08:00",
+              "senderName": "海洋保育署",
+              "headline": "海洋污染事件",
+              "instruction": null,
+              "web": "",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": ""
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "茄萣安檢所旁邊情人碼頭",
+                  "geocode": null,
+                  "circle": "22.8772222222222,120.211111111111 0.5",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:b8e242c3da86ac0ac802b9017e8581c797af5187ee98322bd4f0f0be65917280",
+      "signature": "6zZ410Flyb8KISKGZ+JJW9cMJ4p6kS608WjxUsowf4mvB/B1socBuW6DcMhOlqwW/G5CKvAQemFr+BKf2C3eDQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2667,
+  "chunk_hash": "sha256:974e2e3404e4b61072e3fc2997ac8ac09fab086f255d66adbf5e4809b81496eb",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "lwyyWx+Tu9H6pbl5UImp9MK0joCpCTBTViFMts+d+UrkzKxhFva4Q/wiLesUj+rKwBkhqH9wx4rr0BL6Zxk+DA=="
+}

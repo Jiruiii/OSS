@@ -252,7 +252,7 @@ function pointInGeometry(point, geometry) {
   return false;
 }
 
-export function isGeometryInNeihu(geometryInput, boundaryInput) {
+export function isGeometryInBoundary(geometryInput, boundaryInput) {
   const geometry = asGeometry(geometryInput);
   validateGeometry(geometry, 'geometry');
   const boundaries = collectGeometries(boundaryInput);
@@ -262,11 +262,19 @@ export function isGeometryInNeihu(geometryInput, boundaryInput) {
   return boundaries.some((boundary) => envelopesIntersect(geometryEnvelope, envelope(boundary)));
 }
 
-export function filterRecordsToNeihu(records, boundary, getGeometry = (record) => record?.geometry) {
+export function isGeometryInNeihu(geometryInput, boundaryInput) {
+  return isGeometryInBoundary(geometryInput, boundaryInput);
+}
+
+export function filterRecordsToBoundary(records, boundary, getGeometry = (record) => record?.geometry) {
   if (!Array.isArray(records)) throw new GeoValidationError('records must be an array');
   return records.filter((record, index) => {
     const geometry = getGeometry(record);
     if (!geometry) throw new GeoValidationError(`record ${index} geometry is required`);
-    return isGeometryInNeihu(geometry, boundary);
+    return isGeometryInBoundary(geometry, boundary);
   });
+}
+
+export function filterRecordsToNeihu(records, boundary, getGeometry = (record) => record?.geometry) {
+  return filterRecordsToBoundary(records, boundary, getGeometry);
 }

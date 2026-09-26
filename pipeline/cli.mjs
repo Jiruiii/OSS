@@ -15,20 +15,25 @@ import {
 import {
   buildBundle,
 } from './lib/bundle.mjs';
+import { rawRecordCount } from './lib/collection.mjs';
 import {
   signEvent,
   verifyBundle,
 } from './lib/contract.mjs';
 import { buildFeatureBundle, verifyFeatureBundle } from './lib/feature-bundle.mjs';
 import { signFeature } from './lib/feature-contract.mjs';
+import { exportMapData } from './lib/map-export.mjs';
 import { normalizeSource } from './lib/normalize.mjs';
 import {
   DEFAULT_CWA_EARTHQUAKE_ENDPOINT,
   DEFAULT_CWA_WARNING_ENDPOINT,
+  DEFAULT_CWA_TYPHOON_ENDPOINT,
   fetchCwaEarthquakes,
   fetchCwaWarnings,
+  fetchCwaTyphoonWarnings,
   normalizeCwaEarthquakes,
   normalizeCwaWarnings,
+  normalizeCwaTyphoonWarnings,
 } from './sources/cwa.mjs';
 import {
   DEFAULT_NCDR_ENDPOINT,
@@ -37,24 +42,37 @@ import {
 } from './sources/ncdr.mjs';
 import {
   DEFAULT_TDX_ENDPOINT,
+  DEFAULT_TDX_NATIONWIDE_ENDPOINTS,
   collectTdxRoadEvents,
   normalizeTdxRoadEvents,
 } from './sources/tdx.mjs';
 import {
   DEFAULT_MEDICAL_ENDPOINT,
   fetchMedicalFacilities,
+  mergeMedicalCoordinates,
+  normalizeMedicalFacilitiesReport,
   normalizeMedicalFacilities,
 } from './sources/medical.mjs';
 import {
   DEFAULT_OSM_ENDPOINT,
   fetchOsmNeihu,
+  fetchOsmTaiwan,
   normalizeOsmFeatures,
 } from './sources/osm.mjs';
 import {
   DEFAULT_SHELTER_ENDPOINT,
+  DEFAULT_SHELTER_STATUS_ENDPOINT,
   fetchShelters,
+  fetchShelterStatuses,
+  fetchTaiwanShelters,
+  normalizeShelterStatuses,
   normalizeShelters,
 } from './sources/shelter.mjs';
+import {
+  areaBoundary,
+  createAreaResolvers,
+  normalizeAreaCatalog,
+} from './sources/areas.mjs';
 
 const NEIHU_BOUNDARY_PATH = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -87,6 +105,12 @@ function requireOption(options, name) {
   return options[name];
 }
 
+function requirePrivateKeyPath(options) {
+  const value = options.private_key ?? process.env.PIPELINE_SIGNING_PRIVATE_KEY;
+  if (!value) throw new Error('missing --private-key or PIPELINE_SIGNING_PRIVATE_KEY');
+  return value;
+}
+
 async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, 'utf8'));
 }
@@ -99,14 +123,62 @@ async function readNeihuBoundary() {
   return readJson(NEIHU_BOUNDARY_PATH);
 }
 
+async function readScope(options = {}) {
+  const scope = options.scope ?? process.env.DATA_SCOPE ?? 'neihu';
+  if (scope !== 'taiwan') {
+    return {
+      scope: 'neihu',
+      boundary: await readNeihuBoundary(),
+    };
+  }
+  const boundaryPath = options.boundary
+    ?? process.env.TAIWAN_BOUNDARY_PATH
+    ?? process.env.AREA_CATALOG_PATH;
+  if (!boundaryPath) {
+    throw new Error('Taiwan scope requires --boundary <area-catalog.json|boundary.geojson> or TAIWAN_BOUNDARY_PATH');
+  }
+  const input = await readJson(boundaryPath);
+  if (input?.schema_version === 'area-catalog-v0') {
+    const resolvers = createAreaResolvers(input);
+    return {
+      scope: 'taiwan',
+      coverage: 'TW',
+      boundary: areaBoundary(input),
+      areaResolver: resolvers.areaResolver,
+      areaIdResolver: resolvers.areaIdResolver,
+      boundaryResolver: resolvers.boundaryResolver,
+      areaCatalogPath: boundaryPath,
+    };
+  }
+  return {
+    scope: 'taiwan',
+    coverage: 'TW',
+    boundary: input,
+    areaCatalogPath: boundaryPath,
+  };
+}
+
 function isTdxRawSnapshot(raw) {
   return raw?.schema_version === 'raw-snapshot-v0' && raw?.source_id === 'tdx-road-events';
 }
 
-const STATIC_SOURCES = new Set(['osm-neihu', 'taipei-shelter', 'taipei-medical']);
+const STATIC_SOURCES = new Set([
+  'osm-neihu',
+  'osm-taiwan',
+  'taipei-shelter',
+  'taiwan-shelter',
+  'taiwan-shelter-status',
+  'taipei-medical',
+  'taiwan-medical',
+]);
 
 function isStaticSource(source) {
   return STATIC_SOURCES.has(source);
+}
+
+async function readCoordinateFeatures(options) {
+  if (!options.coordinate_input) return undefined;
+  return staticFeaturesFromInput(await readJson(options.coordinate_input));
 }
 
 function tdxSourceVersion(raw) {
@@ -136,24 +208,70 @@ async function keygen(options) {
   const { privateKey, publicKey } = generateEd25519KeyPair();
   await writeFile(privatePath, exportPrivateKeyPem(privateKey), 'utf8');
   await writeFile(publicPath, exportPublicKeyPem(publicKey), 'utf8');
+  const publicKeySpkiBase64 = publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
   await writeJson(path.join(outDir, 'key-metadata.json'), {
     key_id: keyId,
     algorithm: 'Ed25519',
     public_key_file: 'public-key.pem',
+    public_key_spki_base64: publicKeySpkiBase64,
     private_key_file: 'private-key.pem',
     warning: 'Keep private-key.pem on the server. Never ship it in the Android app or fixtures.',
   });
   console.log(JSON.stringify({ key_id: keyId, public_key: publicPath, private_key: privatePath }, null, 2));
 }
 
+async function areaCatalogCommand(options) {
+  const inputPath = requireOption(options, 'input');
+  const outPath = requireOption(options, 'out');
+  const inputPaths = inputPath.split(',').map((value) => value.trim()).filter(Boolean);
+  const inputs = await Promise.all(inputPaths.map((filePath) => readJson(filePath)));
+  const input = inputs.length === 1
+    ? inputs[0]
+    : inputs.flatMap((value) => {
+      if (value?.type === 'FeatureCollection') return value.features ?? [];
+      if (value?.type === 'Feature') return [value];
+      if (Array.isArray(value)) return value;
+      throw new Error('area-catalog inputs must be GeoJSON features or feature collections');
+    });
+  const retrievedAt = options.retrieved_at ?? new Date().toISOString();
+  const catalog = normalizeAreaCatalog(input, {
+    retrievedAt,
+    source: options.source ?? 'NLSC',
+    sourceVersion: options.source_version ?? retrievedAt,
+  });
+  await mkdir(path.dirname(outPath), { recursive: true });
+  await writeJson(outPath, catalog);
+  console.log(JSON.stringify({ out: outPath, area_count: catalog.area_count, coverage: catalog.coverage }, null, 2));
+}
+
+async function exportMapCommand(options) {
+  const inputValue = requireOption(options, 'input');
+  const outPath = requireOption(options, 'out');
+  const inputPaths = inputValue.split(',').map((value) => value.trim()).filter(Boolean);
+  const inputs = await Promise.all(inputPaths.map((inputPath) => readJson(inputPath)));
+  const features = inputs.flatMap((input) => staticFeaturesFromInput(input));
+  const output = exportMapData(features, {
+    datasetId: options.dataset_id,
+    coverage: options.coverage,
+    snapshotAt: options.snapshot_at,
+  });
+  await mkdir(path.dirname(outPath), { recursive: true });
+  await writeJson(outPath, output);
+  console.log(JSON.stringify({ out: outPath, feature_count: output.features.length, bounds: output.bounds }, null, 2));
+}
+
 async function build(options) {
   const inputPath = requireOption(options, 'input');
   const outDir = requireOption(options, 'out_dir');
-  const privateKeyPath = requireOption(options, 'private_key');
+  const privateKeyPath = requirePrivateKeyPath(options);
   const raw = await readJson(inputPath);
   const privateKey = readPrivateKey(await readFile(privateKeyPath));
   const keyId = options.key_id ?? 'stage2-ed25519-2026';
-  const normalized = await normalizeBuildInput(raw, { keyId, namespace: options.namespace });
+  const normalized = await normalizeBuildInput(raw, {
+    keyId,
+    namespace: options.namespace,
+    scopeOptions: isEventBatch(raw) ? undefined : await readScope(options),
+  });
   const events = normalized.map((event) => signEvent({ ...event, signing_key_id: keyId }, privateKey));
   const datasetVersion = Number(options.dataset_version ?? raw.dataset_version ?? 1);
   if (!Number.isInteger(datasetVersion) || datasetVersion < 1) throw new Error('dataset version must be a positive integer');
@@ -207,18 +325,19 @@ function eventExpiresAt(events) {
     .at(-1);
 }
 
-async function normalizeBuildInput(raw, { keyId, namespace }) {
+async function normalizeBuildInput(raw, { keyId, namespace, scopeOptions }) {
   if (isEventBatch(raw)) return raw.events;
-  const boundary = await readNeihuBoundary();
+  const resolvedScope = scopeOptions ?? await readScope({});
   const options = {
     namespace,
     signingKeyId: keyId,
-    boundary,
+    ...resolvedScope,
     receivedAt: raw.retrieved_at,
   };
   if (isTdxRawSnapshot(raw)) return normalizeTdxRoadEvents(raw, options);
   if (raw.source_id === 'cwa-earthquake') return normalizeCwaEarthquakes(raw, options);
   if (raw.source_id === 'cwa-weather-warning') return normalizeCwaWarnings(raw, options);
+  if (raw.source_id === 'cwa-typhoon-warning') return normalizeCwaTyphoonWarnings(raw, options);
   if (raw.source_id === 'ncdr-hazard-events') return normalizeNcdrHazards(raw, options);
   return normalizeSource(raw, options);
 }
@@ -227,7 +346,7 @@ async function collect(options) {
   const source = requireOption(options, 'source');
   if (source === 'tdx-road-events') return collectTdx(options);
   if (isStaticSource(source)) return collectStaticSource(source, options);
-  if (!['cwa-earthquake', 'cwa-weather-warning', 'ncdr-hazard-events'].includes(source)) {
+  if (!['cwa-earthquake', 'cwa-weather-warning', 'cwa-typhoon-warning', 'ncdr-hazard-events'].includes(source)) {
     throw new Error(`unsupported source: ${source}`);
   }
   const outDir = requireOption(options, 'out_dir');
@@ -247,7 +366,7 @@ async function collect(options) {
       schema_version: 'collection-metadata-v0',
       source_id: source,
       mode: 'live',
-      source_status: 'ok',
+      source_status: sourceStatusForSnapshot(result.rawSnapshot),
       retrieved_at: result.rawSnapshot.retrieved_at,
       raw_file: path.basename(rawFile),
       events_file: path.basename(eventsFile),
@@ -274,8 +393,11 @@ async function collectStaticSource(source, options) {
   await mkdir(outDir, { recursive: true });
   try {
     const rawSnapshot = await fetchStaticSource(source, options);
+    const scopeOptions = await readScope(options);
+    const coordinateFeatures = source === 'taiwan-medical' ? await readCoordinateFeatures(options) : undefined;
     const normalized = normalizeStaticSource(source, rawSnapshot, {
-      boundary: await readNeihuBoundary(),
+      ...scopeOptions,
+      coordinateFeatures,
       namespace: options.namespace,
       signingKeyId: options.key_id,
       datasetId: options.dataset_id,
@@ -285,24 +407,40 @@ async function collectStaticSource(source, options) {
     });
     const rawFile = path.join(outDir, `${source}.raw.json`);
     const featuresFile = path.join(outDir, `${source}.features.json`);
+    const statusEventsFile = source === 'taiwan-shelter-status'
+      ? path.join(outDir, `${source}.events.json`)
+      : undefined;
     await writeJson(rawFile, rawSnapshot);
     await writeJson(featuresFile, normalized);
+    if (statusEventsFile) {
+      await writeJson(statusEventsFile, {
+        schema_version: 'event-batch-v0',
+        source_id: source,
+        retrieved_at: rawSnapshot.retrieved_at,
+        event_count: normalized.status_events.length,
+        events: normalized.status_events,
+      });
+    }
     await writeJson(path.join(outDir, 'collection-metadata.json'), {
       schema_version: 'collection-metadata-v0',
       source_id: source,
       mode: 'live',
-      source_status: 'ok',
+      source_status: sourceStatusForSnapshot(rawSnapshot),
       retrieved_at: rawSnapshot.retrieved_at,
       raw_file: path.basename(rawFile),
       features_file: path.basename(featuresFile),
+      ...(statusEventsFile ? { events_file: path.basename(statusEventsFile) } : {}),
       raw_record_count: rawRecordCount(rawSnapshot.payload),
       curated_feature_count: normalized.feature_count,
       curated_status_event_count: normalized.status_event_count,
+      unresolved_status_count: normalized.unresolved_status_count ?? 0,
+      unresolved_medical_count: normalized.unresolved_medical_count ?? 0,
     });
     console.log(JSON.stringify({
       out_dir: outDir,
       raw: rawFile,
       features: featuresFile,
+      ...(statusEventsFile ? { events: statusEventsFile } : {}),
       feature_count: normalized.feature_count,
       status_event_count: normalized.status_event_count,
     }, null, 2));
@@ -322,12 +460,15 @@ async function collectStaticSource(source, options) {
 
 async function normalizeCommand(options) {
   const source = requireOption(options, 'source');
+  const scopeOptions = await readScope(options);
   if (isStaticSource(source)) {
     const inputPath = requireOption(options, 'input');
     const outPath = requireOption(options, 'out');
     const raw = await readJson(inputPath);
+    const coordinateFeatures = source === 'taiwan-medical' ? await readCoordinateFeatures(options) : undefined;
     const normalized = normalizeStaticSource(source, raw, {
-      boundary: await readNeihuBoundary(),
+      ...scopeOptions,
+      coordinateFeatures,
       namespace: options.namespace,
       signingKeyId: options.key_id,
       datasetId: options.dataset_id,
@@ -336,11 +477,25 @@ async function normalizeCommand(options) {
       receivedAt: options.received_at ?? raw.retrieved_at,
     });
     await mkdir(path.dirname(outPath), { recursive: true });
-    await writeJson(outPath, normalized);
-    console.log(JSON.stringify({ out: outPath, feature_count: normalized.feature_count, status_event_count: normalized.status_event_count }, null, 2));
+    const output = source === 'taiwan-shelter-status'
+      ? {
+        schema_version: 'event-batch-v0',
+        source_id: source,
+        retrieved_at: raw.retrieved_at,
+        event_count: normalized.status_events.length,
+        events: normalized.status_events,
+      }
+      : normalized;
+    await writeJson(outPath, output);
+    console.log(JSON.stringify({
+      out: outPath,
+      feature_count: normalized.feature_count,
+      status_event_count: normalized.status_event_count,
+      ...(source === 'taiwan-shelter-status' ? { event_count: output.event_count } : {}),
+    }, null, 2));
     return;
   }
-  if (!['tdx-road-events', 'cwa-earthquake', 'cwa-weather-warning', 'ncdr-hazard-events'].includes(source)) {
+  if (!['tdx-road-events', 'cwa-earthquake', 'cwa-weather-warning', 'cwa-typhoon-warning', 'ncdr-hazard-events'].includes(source)) {
     throw new Error(`unsupported source: ${source}`);
   }
   const inputPath = requireOption(options, 'input');
@@ -349,7 +504,7 @@ async function normalizeCommand(options) {
   const events = normalizeSourceSpecific(source, raw, {
     namespace: options.namespace,
     signingKeyId: options.key_id,
-    boundary: await readNeihuBoundary(),
+    ...scopeOptions,
     receivedAt: options.received_at ?? raw.retrieved_at,
   });
   await mkdir(path.dirname(outPath), { recursive: true });
@@ -369,12 +524,40 @@ async function fetchStaticSource(source, options) {
   if (source === 'osm-neihu') {
     return fetchOsmNeihu({
       endpoint: process.env.OSM_API_ENDPOINT ?? DEFAULT_OSM_ENDPOINT,
+      timeoutMs: Number(process.env.OSM_TIMEOUT_MS ?? 120000),
+      retrievedAt,
+    });
+  }
+  if (source === 'osm-taiwan') {
+    return fetchOsmTaiwan({
+      endpoint: process.env.OSM_API_ENDPOINT ?? DEFAULT_OSM_ENDPOINT,
+      timeoutMs: Number(process.env.OSM_TIMEOUT_MS ?? 120000),
       retrievedAt,
     });
   }
   if (source === 'taipei-shelter') {
     return fetchShelters({
       endpoint: process.env.SHELTER_DATA_ENDPOINT ?? DEFAULT_SHELTER_ENDPOINT,
+      retrievedAt,
+    });
+  }
+  if (source === 'taiwan-shelter') {
+    return fetchTaiwanShelters({
+      endpoint: process.env.SHELTER_DATA_ENDPOINT ?? DEFAULT_SHELTER_ENDPOINT,
+      retrievedAt,
+    });
+  }
+  if (source === 'taiwan-shelter-status') {
+    return fetchShelterStatuses({
+      endpoint: process.env.SHELTER_STATUS_ENDPOINT ?? DEFAULT_SHELTER_STATUS_ENDPOINT,
+      retrievedAt,
+    });
+  }
+  if (source === 'taipei-medical' || source === 'taiwan-medical') {
+    return fetchMedicalFacilities({
+      sourceId: source,
+      endpoint: process.env.MEDICAL_DATA_ENDPOINT ?? DEFAULT_MEDICAL_ENDPOINT,
+      format: process.env.MEDICAL_DATA_FORMAT,
       retrievedAt,
     });
   }
@@ -385,8 +568,8 @@ async function fetchStaticSource(source, options) {
 }
 
 function normalizeStaticSource(source, raw, options) {
-  if (source === 'osm-neihu') {
-    const features = normalizeOsmFeatures(raw, options);
+  if (source === 'osm-neihu' || source === 'osm-taiwan') {
+    const features = normalizeOsmFeatures(raw, { ...options, sourceId: source });
     return {
       schema_version: 'static-normalized-v0',
       source_id: source,
@@ -397,8 +580,8 @@ function normalizeStaticSource(source, raw, options) {
       status_events: [],
     };
   }
-  if (source === 'taipei-shelter') {
-    const normalized = normalizeShelters(raw, options);
+  if (source === 'taipei-shelter' || source === 'taiwan-shelter') {
+    const normalized = normalizeShelters(raw, { ...options, sourceId: source });
     return {
       schema_version: 'static-normalized-v0',
       source_id: source,
@@ -409,7 +592,40 @@ function normalizeStaticSource(source, raw, options) {
       status_events: normalized.statusEvents,
     };
   }
-  const features = normalizeMedicalFacilities(raw, options);
+  if (source === 'taiwan-shelter-status') {
+    const statusEvents = normalizeShelterStatuses(raw, { ...options, sourceId: source });
+    return {
+      schema_version: 'static-normalized-v0',
+      source_id: source,
+      retrieved_at: raw.retrieved_at,
+      feature_count: 0,
+      status_event_count: statusEvents.length,
+      unresolved_status_count: statusEvents.unresolved_count ?? 0,
+      features: [],
+      status_events: statusEvents,
+    };
+  }
+  if (source === 'taiwan-medical') {
+    const report = normalizeMedicalFacilitiesReport(raw, { ...options, sourceId: source });
+    const enriched = options.coordinateFeatures
+      ? mergeMedicalCoordinates(report, options.coordinateFeatures, { ...options, rawSnapshot: raw })
+      : report;
+    return {
+      schema_version: 'static-normalized-v0',
+      source_id: source,
+      retrieved_at: raw.retrieved_at,
+      feature_count: enriched.features.length,
+      status_event_count: 0,
+      unresolved_medical_count: enriched.unresolved.length,
+      unresolved_medical: enriched.unresolved,
+      features: enriched.features,
+      status_events: [],
+    };
+  }
+  if (source !== 'taipei-medical') {
+    throw new Error(`unsupported static source: ${source}`);
+  }
+  const features = normalizeMedicalFacilities(raw, { ...options, sourceId: source });
   return {
     schema_version: 'static-normalized-v0',
     source_id: source,
@@ -423,13 +639,19 @@ function normalizeStaticSource(source, raw, options) {
 
 async function collectTdx(options) {
   const outDir = requireOption(options, 'out_dir');
+  const scopeOptions = await readScope(options);
   const result = await collectTdxRoadEvents({
     clientId: process.env.TDX_CLIENT_ID,
     clientSecret: process.env.TDX_CLIENT_SECRET,
     endpoint: process.env.TDX_API_ENDPOINT ?? DEFAULT_TDX_ENDPOINT,
+    endpoints: scopeOptions.scope === 'taiwan'
+      ? (process.env.TDX_API_ENDPOINTS?.split(',').map((value) => value.trim()).filter(Boolean)
+        ?? DEFAULT_TDX_NATIONWIDE_ENDPOINTS)
+      : undefined,
     tokenEndpoint: process.env.TDX_TOKEN_ENDPOINT,
+    freshnessSeconds: process.env.TDX_EVENT_FRESHNESS_SECONDS,
     retrievedAt: options.retrieved_at,
-    boundary: await readNeihuBoundary(),
+    ...scopeOptions,
     namespace: options.namespace,
     signingKeyId: options.key_id,
   });
@@ -447,40 +669,33 @@ async function collectTdx(options) {
     schema_version: 'collection-metadata-v0',
     source_id: 'tdx-road-events',
     mode: 'live',
-    source_status: 'ok',
+    source_status: result.unresolved?.length > 0 ? 'partial' : sourceStatusForSnapshot(result.rawSnapshot),
     retrieved_at: result.rawSnapshot.retrieved_at,
     raw_file: path.basename(rawFile),
     events_file: path.basename(eventsFile),
     raw_record_count: rawRecordCount(result.rawSnapshot.payload),
     curated_event_count: result.events.length,
+    unresolved_event_count: result.unresolved?.length ?? 0,
+    ...(result.unresolved?.length > 0 ? { unresolved_events: result.unresolved } : {}),
   });
   console.log(JSON.stringify({ out_dir: outDir, raw: rawFile, events: eventsFile, event_count: result.events.length }, null, 2));
 }
 
-function rawRecordCount(payload) {
-  if (Array.isArray(payload)) return payload.length;
-  if (!payload || typeof payload !== 'object') return null;
-  const records = payload.LiveEvents
-    ?? payload.Events
-    ?? payload.events
-    ?? payload.result?.records
-    ?? payload.result?.data
-    ?? payload.data
-    ?? payload.records
-    ?? payload.items
-    ?? payload.alerts;
-  return Array.isArray(records) ? records.length : null;
-}
-
 function sourceStatusForError(error) {
   if (error?.code?.includes('CREDENTIAL') || error?.status === 401 || error?.status === 403) {
-    return 'blocked_by_access';
+    return 'blocked_by_auth';
   }
   return 'unavailable';
 }
 
+function sourceStatusForSnapshot(rawSnapshot) {
+  if (rawSnapshot?.payload?.stale === true) return 'stale';
+  if (rawSnapshot?.payload?.partial === true) return 'partial';
+  return 'ok';
+}
+
 async function collectDynamicSource(source, options) {
-  const boundary = await readNeihuBoundary();
+  const scopeOptions = await readScope(options);
   const common = {
     retrievedAt: options.retrieved_at,
   };
@@ -493,23 +708,27 @@ async function collectDynamicSource(source, options) {
     return {
       rawSnapshot,
       events: normalizeCwaEarthquakes(rawSnapshot, {
-        boundary,
+        ...scopeOptions,
         namespace: options.namespace,
         signingKeyId: options.key_id,
         receivedAt: rawSnapshot.retrieved_at,
       }),
     };
   }
-  if (source === 'cwa-weather-warning') {
-    const rawSnapshot = await fetchCwaWarnings({
+  if (source === 'cwa-weather-warning' || source === 'cwa-typhoon-warning') {
+    const fetcher = source === 'cwa-typhoon-warning' ? fetchCwaTyphoonWarnings : fetchCwaWarnings;
+    const normalizer = source === 'cwa-typhoon-warning' ? normalizeCwaTyphoonWarnings : normalizeCwaWarnings;
+    const rawSnapshot = await fetcher({
       ...common,
       apiKey: process.env.CWA_API_KEY,
-      endpoint: process.env.CWA_WARNING_ENDPOINT ?? DEFAULT_CWA_WARNING_ENDPOINT,
+      endpoint: source === 'cwa-typhoon-warning'
+        ? process.env.CWA_TYPHOON_ENDPOINT ?? DEFAULT_CWA_TYPHOON_ENDPOINT
+        : process.env.CWA_WARNING_ENDPOINT ?? DEFAULT_CWA_WARNING_ENDPOINT,
     });
     return {
       rawSnapshot,
-      events: normalizeCwaWarnings(rawSnapshot, {
-        boundary,
+      events: normalizer(rawSnapshot, {
+        ...scopeOptions,
         namespace: options.namespace,
         signingKeyId: options.key_id,
         receivedAt: rawSnapshot.retrieved_at,
@@ -518,13 +737,13 @@ async function collectDynamicSource(source, options) {
   }
   const rawSnapshot = await fetchNcdrHazards({
     ...common,
-    credentials: { apiKey: process.env.NCDR_API_KEY },
-    endpoint: process.env.NCDR_API_ENDPOINT ?? DEFAULT_NCDR_ENDPOINT,
+    credentials: { apiKey: process.env.NCDR_ALERT_API_KEY ?? process.env.NCDR_API_KEY },
+    endpoint: process.env.NCDR_ALERT_ENDPOINT ?? process.env.NCDR_API_ENDPOINT ?? DEFAULT_NCDR_ENDPOINT,
   });
   return {
     rawSnapshot,
     events: normalizeNcdrHazards(rawSnapshot, {
-      boundary,
+      ...scopeOptions,
       namespace: options.namespace,
       signingKeyId: options.key_id,
       receivedAt: rawSnapshot.retrieved_at,
@@ -536,11 +755,14 @@ function normalizeSourceSpecific(source, raw, options) {
   if (source === 'tdx-road-events') return normalizeTdxRoadEvents(raw, options);
   if (source === 'cwa-earthquake') return normalizeCwaEarthquakes(raw, options);
   if (source === 'cwa-weather-warning') return normalizeCwaWarnings(raw, options);
+  if (source === 'cwa-typhoon-warning') return normalizeCwaTyphoonWarnings(raw, options);
   return normalizeNcdrHazards(raw, options);
 }
 
 function staticFeaturesFromInput(input) {
-  const features = input?.schema_version === 'static-normalized-v0' ? input.features : input;
+  const features = ['static-normalized-v0', 'feature-batch-v0', 'layer-chunk-v0'].includes(input?.schema_version)
+    ? input.features
+    : input;
   if (!Array.isArray(features) || features.length === 0) {
     throw new Error('static build input must contain a non-empty features array');
   }
@@ -562,7 +784,7 @@ function maxTimestamp(values, field) {
 async function buildLayer(options) {
   const inputPath = requireOption(options, 'input');
   const outDir = requireOption(options, 'out_dir');
-  const privateKeyPath = requireOption(options, 'private_key');
+  const privateKeyPath = requirePrivateKeyPath(options);
   const input = await readJson(inputPath);
   const inputFeatures = staticFeaturesFromInput(input);
   const unsignedFeatures = options.layer_id
@@ -667,28 +889,40 @@ async function verifyLayerCommand(options) {
 function printHelp() {
   console.log(`Usage:
   node pipeline/cli.mjs keygen --out-dir <dir> [--key-id <id>]
+  node pipeline/cli.mjs area-catalog --input <county.geojson,town.geojson> --out <area-catalog.json>
+  node pipeline/cli.mjs export-map --input <features.json[,more.json]> --out <static-features.json>
   node pipeline/cli.mjs collect --source tdx-road-events --out-dir <dir>
-  node pipeline/cli.mjs collect --source cwa-earthquake|cwa-weather-warning|ncdr-hazard-events --out-dir <dir>
-  node pipeline/cli.mjs collect --source osm-neihu|taipei-shelter|taipei-medical --out-dir <dir>
+  node pipeline/cli.mjs collect --source cwa-earthquake|cwa-weather-warning|cwa-typhoon-warning|ncdr-hazard-events --out-dir <dir>
+  node pipeline/cli.mjs collect --source osm-neihu|osm-taiwan|taipei-shelter|taiwan-shelter|taiwan-shelter-status|taipei-medical|taiwan-medical --out-dir <dir>
   node pipeline/cli.mjs normalize --source <source> --input <raw.json> --out <events-or-features.json>
   node pipeline/cli.mjs build --input <tdx.json> --out-dir <dir> --private-key <pem> [options]
   node pipeline/cli.mjs verify --manifest <manifest.json> --chunks-dir <dir> --public-key <pem> [--now <time>]
   node pipeline/cli.mjs build-layer --input <features.json> --out-dir <dir> --private-key <pem> [options]
   node pipeline/cli.mjs verify-layer --manifest <manifest.json> --chunks-dir <dir> --public-key <pem> [--now <time>]
 
+Taiwan-scoped commands require --scope taiwan and either --boundary pointing to
+an AreaCatalog or TAIWAN_BOUNDARY_PATH / AREA_CATALOG_PATH. Create an AreaCatalog
+from the official boundary GeoJSON export with the area-catalog command first.
+
 Live TDX collection reads TDX_CLIENT_ID, TDX_CLIENT_SECRET, and optional
-TDX_API_ENDPOINT / TDX_TOKEN_ENDPOINT from the process environment.
+TDX_API_ENDPOINT / TDX_API_ENDPOINTS / TDX_TOKEN_ENDPOINT from the process environment.
+Taiwan scope requests TDX_API_ENDPOINTS, or the built-in Taiwan city/county list;
+the built-in list remains subject to the endpoint and quota permissions of the TDX account.
 
 Live CWA collection reads CWA_API_KEY and optional CWA_EARTHQUAKE_ENDPOINT /
-CWA_WARNING_ENDPOINT. Live NCDR collection reads NCDR_API_KEY and optional
-NCDR_API_ENDPOINT. Missing or unauthorized access writes collection metadata
-with source_status=blocked_by_access and exits non-zero.
+CWA_WARNING_ENDPOINT / CWA_TYPHOON_ENDPOINT. Live NCDR collection reads
+NCDR_ALERT_API_KEY (legacy NCDR_API_KEY is accepted), then calls the configured
+NCDR_ALERT_ENDPOINT list route and NCDR_ALERT_DETAIL_ENDPOINT CAP detail route
+(the `/api/datastore` to `/api/dump/datastore` route is derived automatically).
+Missing or unauthorized access writes collection metadata with
+source_status=blocked_by_auth and exits non-zero.
 
 Static source collection reads optional OSM_API_ENDPOINT, SHELTER_DATA_ENDPOINT,
-and MEDICAL_DATA_ENDPOINT. Static features are signed only by build-layer; the
+SHELTER_STATUS_ENDPOINT, and MEDICAL_DATA_ENDPOINT. Static features are signed only by build-layer; the
 phone receives the resulting manifest and chunks, never the private key.
 
 Build options:
+  --private-key (or PIPELINE_SIGNING_PRIVATE_KEY),
   --key-id, --namespace, --manifest-namespace, --dataset-id,
   --dataset-version, --created-at, --expires-at, --target-size-bytes
 `);
@@ -697,6 +931,8 @@ Build options:
 async function main() {
   const { command, options } = parseArgs(process.argv.slice(2));
   if (command === 'keygen') return keygen(options);
+  if (command === 'area-catalog') return areaCatalogCommand(options);
+  if (command === 'export-map') return exportMapCommand(options);
   if (command === 'collect') return collect(options);
   if (command === 'normalize') return normalizeCommand(options);
   if (command === 'build') return build(options);

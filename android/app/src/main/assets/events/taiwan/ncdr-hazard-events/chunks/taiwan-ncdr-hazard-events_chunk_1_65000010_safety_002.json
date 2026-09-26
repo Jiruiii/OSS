@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:65000010:safety:002",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 139,
+  "priority": "HIGH",
+  "area_id": "tw.65000010",
+  "theme": "safety",
+  "bbox": [
+    121.48076,
+    25.030633,
+    121.48076,
+    25.030633
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090007",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.48076,
+          25.030633
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.65000010",
+        "county_code": "65000",
+        "town_code": "65000010",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090007",
+        "affected_area": "新北市",
+        "source_description": "新北市,福臨門社區B區公寓大廈,集合住宅,新北市板橋區懷德街139巷20弄50號,消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090007",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "新北市,福臨門社區B區公寓大廈,集合住宅,新北市板橋區懷德街139巷20弄50號,消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090007",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "新北市,福臨門社區B區公寓大廈,集合住宅,新北市板橋區懷德街139巷20弄50號,消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "新北市,福臨門社區B區公寓大廈,集合住宅,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "新北市,福臨門社區B區公寓大廈,集合住宅,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新北市",
+                  "geocode": null,
+                  "circle": "25.030633,121.480760 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:d228ce37c6fb28e2c49be7becbd89d15c54d72b67ad8d90ec532342061fc76ea",
+      "signature": "N+kQmrYguvilhEtPbYffqaFxVtc4AXne5LQtsA2uPiiyQNcPk+7ASEm9vmgRa9yItnuCwHy9U+vnVOo1bzH/BA=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2924,
+  "chunk_hash": "sha256:d5d1d26cc9fbacf40e6e3bb9d00dbabe05d3ae09c06c7ec1f308deb8a2734a28",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "2AXhHUshhJPJ+Sn44SL2MREmrhzEFEqzKLsnOViydynE/uOBH/ta1MEnoz3TQVYhenL393pOAKtvA7DspVnQAA=="
+}

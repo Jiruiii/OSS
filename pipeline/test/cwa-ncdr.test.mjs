@@ -9,12 +9,14 @@ import {
   CwaSourceError,
   fetchCwaEarthquakes,
   fetchCwaWarnings,
+  normalizeCwaTyphoonWarnings,
   normalizeCwaEarthquakes,
   normalizeCwaWarnings,
 } from '../sources/cwa.mjs';
 import {
   NcdrCredentialError,
   NcdrSourceError,
+  classifyNcdrOperationalRelevance,
   fetchNcdrHazards,
   normalizeNcdrHazards,
 } from '../sources/ncdr.mjs';
@@ -25,11 +27,34 @@ const OFFICIAL_NEIHU_BOUNDARY = JSON.parse(readFileSync(
   path.join(ROOT, 'pipeline/sources/boundaries/taipei-neihu.geojson'),
   'utf8',
 ));
+const TAIWAN_SCOPE = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: { level: 'county' },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[[121.0, 24.0], [121.5, 24.0], [121.5, 24.5], [121.0, 24.5], [121.0, 24.0]]],
+      },
+    },
+    {
+      type: 'Feature',
+      properties: { level: 'county' },
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[[121.5, 24.0], [122.0, 24.0], [122.0, 24.5], [121.5, 24.5], [121.5, 24.0]]],
+      },
+    },
+  ],
+};
 
 const CWA_EARTHQUAKE_ENDPOINT = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001';
 const CWA_WARNING_ENDPOINT = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0033-001';
 const NCDR_ENDPOINT = 'https://alerts.ncdr.nat.gov.tw/api/datastore';
+const NCDR_DETAIL_ENDPOINT = 'https://alerts.ncdr.nat.gov.tw/api/dump/datastore';
 const RETRIEVED_AT = '2026-09-04T04:00:00Z';
+const NCDR_EXPIRES_AT = '2026-09-04T05:00:00Z';
 
 function response({ status = 200, payload = {}, headers = {} } = {}) {
   return {
@@ -308,6 +333,45 @@ test('normalizes the CWA warning API shape with records grouped under location',
   assert.equal(events[0].attributes.source_record.hazard.info.phenomena, '豪雨');
 });
 
+test('normalizes the official CWA typhoon records.info shape as one nationwide warning', () => {
+  const raw = rawSnapshot('cwa-typhoon-warning', 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0034-001', {
+    success: true,
+    result: { resource_id: 'W-C0034-001' },
+    records: {
+      info: [{
+        language: 'zh-TW',
+        category: 'Met',
+        event: '颱風警報',
+        urgency: 'Immediate',
+        severity: 'Severe',
+        certainty: 'Observed',
+        effective: RETRIEVED_AT,
+        expires: '2026-09-05T04:00:00Z',
+        headline: '颱風警報測試',
+        description: { section: [{ title: '概況', value: '測試' }] },
+        area: [
+          { areaDesc: '臺北市', geocode: { valueName: 'TWD97', value: '63000' } },
+          { areaDesc: '花蓮縣', geocode: { valueName: 'TWD97', value: '10015' } },
+        ],
+      }],
+    },
+  });
+  const events = normalizeCwaTyphoonWarnings(raw, {
+    boundary: TAIWAN_SCOPE,
+    scope: 'taiwan',
+    coverage: 'TW',
+  });
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].event_type, 'TYPHOON_WARNING');
+  assert.equal(events[0].attributes.theme, 'typhoon');
+  assert.equal(events[0].attributes.coverage_level, 'nationwide');
+  assert.equal(events[0].attributes.area_id, 'tw');
+  assert.equal(events[0].geometry.type, 'MultiPolygon');
+  assert.equal(events[0].attributes.affected_area, '臺北市、花蓮縣');
+  assert.equal(events[0].attributes.source_description, '颱風警報測試');
+});
+
 test('rejects a CWA warning with malformed time or an invalid source id', () => {
   const malformed = rawSnapshot('cwa-weather-warning', CWA_WARNING_ENDPOINT, {
     result: { records: [{ ...cwaWarningPayload().result.records[0], EndTime: 'not-a-time' }] },
@@ -368,6 +432,191 @@ test('fetches NCDR data with a token header and keeps the token out of Raw', asy
   assert.doesNotMatch(JSON.stringify(snapshot), /ncdr-token-for-test/u);
 });
 
+test('does not retain the NCDR query key in request errors', async () => {
+  const key = 'real-alert-key-for-error-test';
+  await assert.rejects(
+    fetchNcdrHazards({
+      credentials: { apiKey: key },
+      endpoint: NCDR_ENDPOINT,
+      authMode: 'query',
+      fetchImpl: async () => response({ status: 401, payload: { error: 'unauthorized' } }),
+      retrievedAt: RETRIEVED_AT,
+    }),
+    (error) => !JSON.stringify({
+      message: error.message,
+      cause: error.cause,
+      cause_url: error.cause?.url,
+    }).includes(key),
+  );
+});
+
+test('fetches the official NCDR index and then dumps each CAP detail', async () => {
+  const calls = [];
+  const key = 'real-alert-key-for-test';
+  const detail = {
+    identifier: 'CAP-HUALIEN-001',
+    sender: 'ncdr@example.test',
+    sent: RETRIEVED_AT,
+    status: 'Actual',
+    msgType: 'Alert',
+    scope: 'Public',
+    info: {
+      language: 'zh-TW',
+      event: '土石流警戒',
+      urgency: 'Immediate',
+      severity: 'Severe',
+      effective: RETRIEVED_AT,
+      expires: NCDR_EXPIRES_AT,
+      description: '花蓮縣土石流警戒',
+      area: {
+        areaDesc: '花蓮縣花蓮市',
+        polygon: '24.0000,121.6000 24.0000,121.6200 24.0200,121.6200 24.0200,121.6000 24.0000,121.6000',
+      },
+    },
+  };
+  const snapshot = await fetchNcdrHazards({
+    credentials: { apiKey: key },
+    endpoint: NCDR_ENDPOINT,
+    authMode: 'query',
+    detailConcurrency: 1,
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init });
+      const parsed = new URL(url);
+      if (parsed.pathname === '/api/datastore') {
+        return response({
+          payload: {
+            success: true,
+            result: [{
+              capid: 'CAP-HUALIEN-001',
+              capCode: 'HUALIEN-LANDSLIDE',
+              effective: RETRIEVED_AT,
+              expires: NCDR_EXPIRES_AT,
+              description: '花蓮縣土石流警戒',
+            }],
+          },
+        });
+      }
+      assert.equal(parsed.pathname, '/api/dump/datastore');
+      assert.equal(parsed.searchParams.get('capid'), 'CAP-HUALIEN-001');
+      return response({ payload: detail });
+    },
+    retrievedAt: RETRIEVED_AT,
+  });
+
+  assert.equal(calls.length, 2);
+  assert.match(calls[0].url, /\/api\/datastore\?[^#]*apikey=real-alert-key-for-test/u);
+  assert.match(calls[1].url, /\/api\/dump\/datastore\?[^#]*apikey=real-alert-key-for-test/u);
+  assert.equal(snapshot.payload.index.result.length, 1);
+  assert.equal(snapshot.payload.details.length, 1);
+  assert.deepEqual(snapshot.payload.details[0].payload, detail);
+  assert.equal(snapshot.payload.partial, false);
+  assert.doesNotMatch(JSON.stringify(snapshot), /real-alert-key-for-test/u);
+});
+
+test('normalizes the official nested NCDR CAP detail shape nationwide', async () => {
+  const snapshot = await fetchNcdrHazards({
+    credentials: { apiKey: 'real-alert-key-for-test' },
+    endpoint: NCDR_ENDPOINT,
+    authMode: 'query',
+    fetchImpl: async (url) => {
+      const parsed = new URL(url);
+      if (parsed.pathname === '/api/datastore') {
+        return response({
+          payload: {
+            success: true,
+            result: [{ capid: 'CAP-HUALIEN-001' }],
+          },
+        });
+      }
+      assert.equal(parsed.pathname, NCDR_DETAIL_ENDPOINT.replace('https://alerts.ncdr.nat.gov.tw', ''));
+      return response({
+        payload: {
+          identifier: 'CAP-HUALIEN-001',
+          sender: 'ncdr@example.test',
+          sent: RETRIEVED_AT,
+          status: 'Actual',
+          msgType: 'Alert',
+          scope: 'Public',
+          references: 'ncdr@example.test,CAP-HUALIEN-000,1',
+          info: {
+            language: 'zh-TW',
+            event: '土石流警戒',
+            urgency: 'Immediate',
+            severity: 'Severe',
+            effective: RETRIEVED_AT,
+            expires: NCDR_EXPIRES_AT,
+            description: '花蓮縣土石流警戒',
+            area: {
+              areaDesc: '花蓮縣花蓮市',
+              polygon: '24.0000,121.6000 24.0000,121.6200 24.0200,121.6200 24.0200,121.6000 24.0000,121.6000',
+            },
+          },
+        },
+      });
+    },
+    retrievedAt: RETRIEVED_AT,
+  });
+  const events = normalizeNcdrHazards(snapshot, {
+    boundary: {
+      type: 'Polygon',
+      coordinates: [[[121.55, 23.90], [121.70, 23.90], [121.70, 24.10], [121.55, 24.10], [121.55, 23.90]]],
+    },
+    scope: 'taiwan',
+    coverage: 'TW',
+    areaId: 'tw',
+  });
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].event_id, 'ncdr:cap-hualien-001');
+  assert.equal(events[0].event_type, 'DEBRIS_FLOW_WARNING');
+  assert.equal(events[0].severity, 'HIGH');
+  assert.equal(events[0].attributes.affected_area, '花蓮縣花蓮市');
+  assert.equal(events[0].attributes.source_description, '花蓮縣土石流警戒');
+  assert.equal(events[0].geometry.type, 'Polygon');
+  assert.equal(events[0].attributes.source_record.identifier, 'CAP-HUALIEN-001');
+});
+
+test('normalizes CAP circles and category-specific NCDR events', () => {
+  const raw = rawSnapshot('ncdr-hazard-events', NCDR_ENDPOINT, {
+    details: [{
+      capid: 'CAP-TAICHUNG-FIRE-001',
+      payload: {
+        identifier: 'CAP-TAICHUNG-FIRE-001',
+        sent: RETRIEVED_AT,
+        info: [{
+          language: 'zh-TW',
+          category: 'Fire',
+          event: '火災',
+          effective: RETRIEVED_AT,
+          expires: NCDR_EXPIRES_AT,
+          severity: 'Severe',
+          description: '臺中市火災警示',
+          area: [{
+            areaDesc: '臺中市東區',
+            circle: '24.136099938432526,120.68659989934919 0.5',
+          }],
+        }],
+      },
+    }],
+    partial: false,
+  });
+  const events = normalizeNcdrHazards(raw, {
+    boundary: {
+      type: 'Polygon',
+      coordinates: [[[120.60, 24.05], [120.80, 24.05], [120.80, 24.25], [120.60, 24.25], [120.60, 24.05]]],
+    },
+    scope: 'taiwan',
+    coverage: 'TW',
+    areaId: 'tw',
+  });
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].event_type, 'FIRE_WARNING');
+  assert.equal(events[0].geometry.type, 'Point');
+  assert.deepEqual(events[0].geometry.coordinates, [120.68659989934919, 24.136099938432526]);
+  assert.equal(events[0].attributes.affected_area, '臺中市東區');
+});
+
 test('normalizes NCDR CAP polygons, excludes outside hazards, and retains expired events', () => {
   const raw = rawSnapshot('ncdr-hazard-events', NCDR_ENDPOINT, ncdrPayload());
   const events = normalizeNcdrHazards(raw, { boundary: OFFICIAL_NEIHU_BOUNDARY });
@@ -380,6 +629,37 @@ test('normalizes NCDR CAP polygons, excludes outside hazards, and retains expire
   assert.equal(events[0].attributes.theme, 'flood');
   assert.equal(events[1].event_id, 'ncdr:ncdr-expired-001');
   assert.equal(events[1].expires_at, '2026-09-02T19:00:00.000Z');
+});
+
+test('classifies NCDR events by operational relevance instead of severity alone', () => {
+  assert.equal(
+    classifyNcdrOperationalRelevance({
+      eventType: 'SAFETY_ALERT',
+      description: '消防安全設備不合格',
+    }),
+    'BACKGROUND',
+  );
+  assert.equal(
+    classifyNcdrOperationalRelevance({
+      eventType: 'NCDR_HAZARD',
+      description: '疏散避難，請勿進入警戒區',
+    }),
+    'EVACUATION',
+  );
+  assert.equal(
+    classifyNcdrOperationalRelevance({
+      eventType: 'SAFETY_ALERT',
+      description: '道路封閉，請改道通行',
+    }),
+    'ROUTE_CHANGE',
+  );
+  assert.equal(
+    classifyNcdrOperationalRelevance({
+      eventType: 'RESERVOIR_RELEASE_WARNING',
+      description: '水庫放流警戒',
+    }),
+    'HIGH_IMPACT',
+  );
 });
 
 test('rejects an NCDR hazard with missing geometry and preserves explicit source errors', () => {

@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10018010:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 110,
+  "priority": "LOW",
+  "area_id": "tw.10018010",
+  "theme": "safety",
+  "bbox": [
+    121.013499,
+    24.783894,
+    121.013499,
+    24.783894
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090108",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.013499,
+          24.783894
+        ]
+      },
+      "severity": "MEDIUM",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.10018010",
+        "county_code": "10018",
+        "town_code": "10018010",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090108",
+        "affected_area": "新竹市",
+        "source_description": "新竹市,興鴻桌遊有限公司(市招:69桌遊),甲類-遊藝場所,新竹市東區光復路一段525巷23-1號,消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090108",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "新竹市,興鴻桌遊有限公司(市招:69桌遊),甲類-遊藝場所,新竹市東區光復路一段525巷23-1號,消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090108",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "新竹市,興鴻桌遊有限公司(市招:69桌遊),甲類-遊藝場所,新竹市東區光復路一段525巷23-1號,消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Moderate",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "新竹市,興鴻桌遊有限公司(市招:69桌遊),消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "新竹市,興鴻桌遊有限公司(市招:69桌遊),甲類-遊藝場所,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "新竹市",
+                  "geocode": null,
+                  "circle": "24.783894,121.013499 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:954b56c7895f19f9e57ec279833acb38a6a206235e15eb2d00e7ec2502a69929",
+      "signature": "WDHgQmmXebdqOVIly3XnY9VuSptITkfUJZLzdMSh0i7czU2+nhl/TaDRC8JgDr5lW0GLm1f1IFa+bldnmWjGBQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2995,
+  "chunk_hash": "sha256:a08099fc2a7105fb44d885296c8050dcb9f6d775adc15cc361469a4c40da70cc",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "r1pRd4FHxdnfjalsz0OheYi3iJ62176DoJ1O0KEEGr4wzePNgM8zhDiJwap4w3Z8rBMOOjrqlJ9LuWJR7wwaCA=="
+}

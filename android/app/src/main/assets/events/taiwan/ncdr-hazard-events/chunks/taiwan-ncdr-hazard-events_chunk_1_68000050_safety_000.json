@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000050:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 193,
+  "priority": "HIGH",
+  "area_id": "tw.68000050",
+  "theme": "safety",
+  "bbox": [
+    121.280122,
+    25.065511,
+    121.280122,
+    25.065511
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090021",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.280122,
+          25.065511
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.68000050",
+        "county_code": "68000",
+        "town_code": "68000050",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090021",
+        "affected_area": "桃園市",
+        "source_description": "桃園市,台灣艾比克股份有限公司,危險物品,桃園市蘆竹區內厝里內溪路39巷46弄8號,違反危險物品規定\t 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090021",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "桃園市,台灣艾比克股份有限公司,危險物品,桃園市蘆竹區內厝里內溪路39巷46弄8號,違反危險物品規定\t 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090021",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "桃園市,台灣艾比克股份有限公司,危險物品,桃園市蘆竹區內厝里內溪路39巷46弄8號,違反危險物品規定\t 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "桃園市,台灣艾比克股份有限公司,危險物品,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "桃園市,台灣艾比克股份有限公司,危險物品,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "桃園市",
+                  "geocode": null,
+                  "circle": "25.065511,121.280122 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:c6c9e3dbc444d19a0b94f5bd484459c47702922b2ab6081dc3c37a4c3125855e",
+      "signature": "MiyFibp4FV7/0+LplREt5twBRzzqGjtIRiWTY+tP1hqOriDjZ3sw7R8z4Q+1HChJA2GpWZu0/N6QrqHEDxChCw=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2982,
+  "chunk_hash": "sha256:4a14aa09345365ad609f95f5d10ec0cff68bef7418b50162ce5913b416758676",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "3Bd8QzJFuIlZWo1LrPA8MAesmV3cTyyzvSIva50b9L60B/r/20ODRMQ64bfCczQgDgG+CHbHUfLNXT0AykdmDw=="
+}

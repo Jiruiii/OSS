@@ -1,7 +1,8 @@
 import {
-  isGeometryInNeihu,
+  isGeometryInBoundary,
   normalizeCoordinate,
 } from '../lib/geo.mjs';
+import { areaMetadataForRecord, boundaryForRecord } from '../lib/coverage.mjs';
 import {
   makeRawSnapshot,
   requestJson,
@@ -10,6 +11,7 @@ import {
 
 export const DEFAULT_CWA_EARTHQUAKE_ENDPOINT = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0015-001';
 export const DEFAULT_CWA_WARNING_ENDPOINT = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0033-001';
+export const DEFAULT_CWA_TYPHOON_ENDPOINT = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0034-001';
 
 const RFC3339_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u;
 
@@ -32,6 +34,24 @@ export class CwaSourceError extends Error {
 
 function firstValue(...values) {
   return values.find((value) => value !== undefined && value !== null && String(value).trim() !== '');
+}
+
+function textValue(value) {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const normalized = String(value).trim();
+    return normalized || undefined;
+  }
+  if (Array.isArray(value)) {
+    const values = value.map(textValue).filter(Boolean);
+    return values.length > 0 ? values.join(' ') : undefined;
+  }
+  if (typeof value !== 'object') return undefined;
+  for (const key of ['value', 'text', 'title', 'headline', 'description', 'section', 'areaDesc']) {
+    const normalized = textValue(value[key]);
+    if (normalized) return normalized;
+  }
+  return undefined;
 }
 
 function normalizeId(value, fieldName) {
@@ -110,17 +130,84 @@ function warningRecordsFromPayload(payload) {
   });
 }
 
+function typhoonRecordsFromPayload(payload) {
+  const infos = payload?.records?.info;
+  if (!Array.isArray(infos)) {
+    return warningRecordsFromPayload(payload).map((record) => ({
+      ...record,
+      warning_kind: 'typhoon',
+      coverage_level: 'nationwide',
+    }));
+  }
+
+  const resourceId = firstValue(payload?.result?.resource_id, 'W-C0034-001');
+  return infos.map((info, index) => {
+    const areas = Array.isArray(info?.area)
+      ? info.area
+      : (info?.area ? [info.area] : []);
+    const areaDescription = areas
+      .map((area) => textValue(area?.areaDesc ?? area?.area_desc))
+      .filter(Boolean)
+      .join('、');
+    const eventCode = textValue(info?.eventCode);
+    const eventName = textValue(info?.event);
+    const effective = textValue(info?.effective);
+    return {
+      identifier: firstValue(
+        textValue(info?.identifier),
+        `${resourceId}:${eventCode ?? eventName ?? 'typhoon'}:${effective ?? 'unknown'}:${index}`,
+      ),
+      Effective: effective,
+      Expires: textValue(info?.expires),
+      Severity: textValue(info?.severity),
+      Urgency: textValue(info?.urgency),
+      WarningType: eventName,
+      Description: firstValue(textValue(info?.headline), eventName, textValue(info?.description)),
+      AreaDesc: firstValue(areaDescription, '臺灣'),
+      warning_kind: 'typhoon',
+      coverage_level: 'nationwide',
+      source_record: { info },
+    };
+  });
+}
+
 function assertRawSnapshot(rawSnapshot, sourceId) {
   const errors = validateRawSnapshot(rawSnapshot);
   if (errors.length > 0) throw new CwaSourceError(`invalid CWA Raw snapshot: ${errors.join('; ')}`, { code: 'CWA_RAW_INVALID' });
-  if (rawSnapshot.source_id !== sourceId) {
-    throw new CwaSourceError(`CWA normalizer requires source_id=${sourceId}`, { code: 'CWA_SOURCE_ID_INVALID' });
+  const sourceIds = Array.isArray(sourceId) ? sourceId : [sourceId];
+  if (!sourceIds.includes(rawSnapshot.source_id)) {
+    throw new CwaSourceError(`CWA normalizer requires source_id=${sourceIds.join(' or ')}`, { code: 'CWA_SOURCE_ID_INVALID' });
   }
 }
 
 function boundaryGeometry(boundary) {
   if (boundary?.type === 'Feature') return boundary.geometry;
-  if (boundary?.type === 'FeatureCollection') return boundary.features?.[0]?.geometry;
+  if (boundary?.type === 'FeatureCollection') {
+    const features = Array.isArray(boundary.features) ? boundary.features : [];
+    const countyFeatures = features.filter((feature) => {
+      const level = firstValue(
+        feature?.properties?.level,
+        feature?.properties?.LEVEL,
+        feature?.properties?.area_level,
+        feature?.properties?.行政區層級,
+      );
+      return /county|縣|直轄市/iu.test(String(level ?? ''));
+    });
+    const geometries = (countyFeatures.length > 0 ? countyFeatures : features)
+      .map((feature) => feature?.geometry)
+      .filter(Boolean);
+    if (geometries.length === 0) return undefined;
+    if (geometries.length === 1) return geometries[0];
+    if (geometries.every((geometry) => ['Polygon', 'MultiPolygon'].includes(geometry.type))) {
+      return {
+        type: 'MultiPolygon',
+        coordinates: geometries.flatMap((geometry) => (
+          geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates
+        )),
+      };
+    }
+    return { type: 'GeometryCollection', geometries };
+  }
   return boundary;
 }
 
@@ -168,6 +255,10 @@ function geometryFromRecord(record, { earthquake = false } = {}) {
       record,
       ['EpicenterLatitude', 'epicenter_latitude', 'EpicenterLat', 'epicenterLat'],
       ['EpicenterLongitude', 'epicenter_longitude', 'EpicenterLon', 'epicenterLon'],
+    ) ?? pointFromFields(
+      record?.EarthquakeInfo?.Epicenter ?? record?.earthquake_info?.epicenter,
+      ['EpicenterLatitude', 'epicenter_latitude', 'latitude', 'Latitude'],
+      ['EpicenterLongitude', 'epicenter_longitude', 'longitude', 'Longitude'],
     );
   }
   return pointFromFields(
@@ -214,10 +305,17 @@ function sourceVersion(rawSnapshot, record, id) {
   ));
 }
 
-function curateGeometry(record, geometry, boundary) {
+function curateGeometry(record, geometry, options) {
+  const isNationwide = record?.coverage_level === 'nationwide';
+  const boundary = isNationwide ? options.boundary : boundaryForRecord(options, record, geometry);
   if (geometry) {
     try {
-      if (isGeometryInNeihu(geometry, boundary)) return { geometry, coverageLevel: 'district' };
+      if (boundary && isGeometryInBoundary(geometry, boundary)) {
+        return {
+          geometry,
+          coverageLevel: record?.coverage_level ?? (options.scope === 'taiwan' ? 'area' : 'district'),
+        };
+      }
     } catch (error) {
       throw new CwaSourceError(`CWA geometry is invalid: ${error.message}`, {
         code: 'CWA_GEOMETRY_INVALID',
@@ -225,19 +323,31 @@ function curateGeometry(record, geometry, boundary) {
       });
     }
   }
-  if (isTaipeiScope(record)) {
+  if (boundary && (isNationwide || options.scope === 'taiwan' || isTaipeiScope(record))) {
     const fallback = boundaryGeometry(boundary);
-    if (!fallback) throw new CwaSourceError('Neihu boundary geometry is required', { code: 'CWA_BOUNDARY_INVALID' });
-    return { geometry: fallback, coverageLevel: 'city' };
+    if (!fallback) throw new CwaSourceError('CWA boundary geometry is required', { code: 'CWA_BOUNDARY_INVALID' });
+    return {
+      geometry: fallback,
+      coverageLevel: record?.coverage_level ?? (options.scope === 'taiwan' ? 'area' : 'city'),
+    };
   }
   return undefined;
 }
 
-function eventAttributes(record, theme, coverageLevel) {
+function eventAttributes(record, theme, coverageLevel, geometry, options) {
+  const area = record?.coverage_level === 'nationwide'
+    ? {
+      area_id: options.scope === 'taiwan' ? 'tw' : (options.areaId ?? 'tw'),
+      ...(options.scope === 'taiwan'
+        ? { county_code: null, town_code: null, village_code: null }
+        : {}),
+    }
+    : areaMetadataForRecord(options, record, geometry);
   return {
-    area_id: 'neihu',
+    ...area,
     theme,
     coverage_level: coverageLevel,
+    ...(options.coverage ? { coverage: options.coverage } : {}),
     alert_id: firstValue(
       record.EarthquakeNo,
       record.earthquake_no,
@@ -283,7 +393,7 @@ function makeEvent({ rawSnapshot, record, id, eventType, geometry, coverageLevel
     event_version: eventVersion(record),
     issued_at: issuedAt,
     expires_at: expiresAt,
-    attributes: eventAttributes(record, theme, coverageLevel),
+    attributes: eventAttributes(record, theme, coverageLevel, geometry, options),
     signature_algorithm: 'Ed25519',
     signing_key_id: options.signingKeyId ?? 'cwa-source-2026',
     provenance: {
@@ -301,14 +411,29 @@ function normalizeEarthquakeRecord(record, index, rawSnapshot, options) {
   const earthquakeNo = firstValue(record.EarthquakeNo, record.earthquake_no, record.EarthquakeID, record.id);
   const id = normalizeId(earthquakeNo, 'CWA EarthquakeNo');
   const geometry = geometryFromRecord(record, { earthquake: true });
-  const curated = curateGeometry(record, geometry, options.boundary);
+  const curated = curateGeometry(record, geometry, options);
   if (!curated) return undefined;
   const issuedAt = normalizeTime(
-    firstValue(record.OriginTime, record.origin_time, record.IssueTime, record.issue_time),
+    firstValue(
+      record.OriginTime,
+      record.origin_time,
+      record.EarthquakeInfo?.OriginTime,
+      record.earthquake_info?.origin_time,
+      record.IssueTime,
+      record.issue_time,
+    ),
     `CWA earthquake ${id} issued_at`,
   );
   const expiresAt = normalizeTime(
-    firstValue(record.EndTime, record.end_time, record.Expires, record.expires, rawSnapshot.expires_at),
+    firstValue(
+      record.EndTime,
+      record.end_time,
+      record.Expires,
+      record.expires,
+      record.ValidTime?.EndTime,
+      record.valid_time?.end_time,
+      rawSnapshot.expires_at,
+    ),
     `CWA earthquake ${id} expires_at`,
   );
   const stationId = firstValue(record.StationID, record.station_id, record.StationName, record.station_name);
@@ -333,7 +458,8 @@ function normalizeWarningRecord(record, index, rawSnapshot, options) {
   }
   const sourceId = firstValue(record.identifier, record.Identifier, record.WarningID, record.warning_id, record.id);
   const id = normalizeId(sourceId, 'CWA warning identifier');
-  const curated = curateGeometry(record, geometryFromRecord(record), options.boundary);
+  const geometry = geometryFromRecord(record);
+  const curated = curateGeometry(record, geometry, options);
   if (!curated) return undefined;
   const issuedAt = normalizeTime(
     firstValue(record.Effective, record.effective, record.Sent, record.sent, record.IssueTime, record.issue_time),
@@ -347,10 +473,10 @@ function normalizeWarningRecord(record, index, rawSnapshot, options) {
     rawSnapshot,
     record,
     id,
-    eventType: 'WEATHER_WARNING',
+    eventType: record.warning_kind === 'typhoon' ? 'TYPHOON_WARNING' : 'WEATHER_WARNING',
     geometry: curated.geometry,
     coverageLevel: curated.coverageLevel,
-    theme: 'weather',
+    theme: record.warning_kind === 'typhoon' ? 'typhoon' : 'weather',
     issuedAt,
     expiresAt,
     options,
@@ -359,7 +485,7 @@ function normalizeWarningRecord(record, index, rawSnapshot, options) {
 }
 
 function normalizeOptions(options = {}) {
-  if (!options.boundary) throw new CwaSourceError('Neihu boundary is required for CWA curation', { code: 'CWA_BOUNDARY_MISSING' });
+  if (!options.boundary) throw new CwaSourceError('CWA scope boundary is required for curation', { code: 'CWA_BOUNDARY_MISSING' });
   const receivedAt = options.receivedAt;
   if (receivedAt !== undefined) normalizeTime(receivedAt, 'receivedAt');
   return options;
@@ -377,6 +503,14 @@ export function normalizeCwaWarnings(rawSnapshot, options = {}) {
   const normalizedOptions = normalizeOptions(options);
   assertRawSnapshot(rawSnapshot, 'cwa-weather-warning');
   return warningRecordsFromPayload(rawSnapshot.payload)
+    .map((record, index) => normalizeWarningRecord(record, index, rawSnapshot, normalizedOptions))
+    .filter(Boolean);
+}
+
+export function normalizeCwaTyphoonWarnings(rawSnapshot, options = {}) {
+  const normalizedOptions = normalizeOptions(options);
+  assertRawSnapshot(rawSnapshot, 'cwa-typhoon-warning');
+  return typhoonRecordsFromPayload(rawSnapshot.payload)
     .map((record, index) => normalizeWarningRecord(record, index, rawSnapshot, normalizedOptions))
     .filter(Boolean);
 }
@@ -441,6 +575,23 @@ export function fetchCwaWarnings({
     apiKey,
     endpoint,
     sourceId: 'cwa-weather-warning',
+    fetchImpl,
+    retrievedAt,
+    timeoutMs,
+  });
+}
+
+export function fetchCwaTyphoonWarnings({
+  apiKey = process.env.CWA_API_KEY,
+  endpoint = process.env.CWA_TYPHOON_ENDPOINT ?? DEFAULT_CWA_TYPHOON_ENDPOINT,
+  fetchImpl = globalThis.fetch,
+  retrievedAt = new Date().toISOString(),
+  timeoutMs = 30000,
+} = {}) {
+  return fetchCwaDataset({
+    apiKey,
+    endpoint,
+    sourceId: 'cwa-typhoon-warning',
     fetchImpl,
     retrievedAt,
     timeoutMs,

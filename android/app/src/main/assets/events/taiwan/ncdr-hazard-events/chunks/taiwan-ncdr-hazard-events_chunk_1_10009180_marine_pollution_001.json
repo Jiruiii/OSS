@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10009180:marine_pollution:001",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 77,
+  "priority": "LOW",
+  "area_id": "tw.10009180",
+  "theme": "marine_pollution",
+  "bbox": [
+    120.141111,
+    23.620833,
+    120.141111,
+    23.620833
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:oca-marinepollution_3082",
+      "event_type": "MARINE_POLLUTION_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.141111111111,
+          23.6208333333333
+        ]
+      },
+      "severity": "LOW",
+      "source": "NCDR",
+      "source_version": "2026-07-31T00:00:11+08:00",
+      "event_version": 1,
+      "issued_at": "2026-07-30T16:00:11.000Z",
+      "expires_at": "2026-10-29T16:00:00.000Z",
+      "attributes": {
+        "area_id": "tw.10009180",
+        "county_code": "10009",
+        "town_code": "10009180",
+        "village_code": null,
+        "theme": "marine_pollution",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "OCA-marinePollution_3082",
+        "affected_area": "箔子寮漁港",
+        "source_description": "地方單位\\雲林縣政府\\環境保護局：箔子寮漁港內港海面不明油污",
+        "source_record": {
+          "capid": "OCA-marinePollution_3082",
+          "capCode": "marinePollution",
+          "effective": "2026-07-30T00:00:00",
+          "expires": "2026-10-30T00:00:00",
+          "description": "地方單位\\雲林縣政府\\環境保護局：箔子寮漁港內港海面不明油污",
+          "identifier": "OCA-marinePollution_3082",
+          "sender": "https://iocean.oca.gov.tw",
+          "sent": "2026-07-31T00:00:11+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "地方單位\\雲林縣政府\\環境保護局：箔子寮漁港內港海面不明油污",
+              "language": "zh-TW",
+              "category": "Env",
+              "event": "海洋污染",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "marinePollution"
+              },
+              "effective": "2026-07-30T00:00:00+08:00",
+              "expires": "2026-10-30T00:00:00+08:00",
+              "senderName": "海洋保育署",
+              "headline": "海洋污染事件",
+              "instruction": null,
+              "web": "",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": ""
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "箔子寮漁港",
+                  "geocode": null,
+                  "circle": "23.6208333333333,120.141111111111 0.5",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:baaf08ee3b5d978a3d6bc05ae12d81d84e6cdc42cd32e3b2e63fefcae75d64d4",
+      "signature": "KRWXz3/pmJW/Kn5Cb90gQNSjFQn8JwcrzsdmvhgrTv32y+7peWsgxmDFombLFVZZ4MkRT8+UdVqSSNz6EEVQAQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2630,
+  "chunk_hash": "sha256:a5a8386274057f78f535dc59d1b79bc8dc297c29a6a26dd22ea896bde6d307b9",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "90XSZJKSI3xZUuB/rzX5F0clDAtGvj5uVbyjUwbzFzNO5Qw2ejnB7cDXUZkxt+9AmWCwGDoZO3mQUfwPzaE4Cg=="
+}

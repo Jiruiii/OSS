@@ -74,9 +74,7 @@ void main() {
     expect(find.text('來源：taipei-medical'), findsOneWidget);
   });
 
-  testWidgets('tapping an expired event opens severity and expiry details', (
-    tester,
-  ) async {
+  testWidgets('does not render an expired event on the map', (tester) async {
     await tester.pumpWidget(
       _testApp(
         features: const <StaticFeature>[],
@@ -85,14 +83,8 @@ void main() {
     );
     await _finishMapLoad(tester);
 
-    await tester.tap(find.bySemanticsLabel('事件：內湖模擬淹水，已過期'));
-    await tester.pump();
-
-    expect(find.text('事件類型：FLOOD_WARNING'), findsOneWidget);
-    expect(find.text('嚴重度：CRITICAL'), findsOneWidget);
-    expect(find.text('位置／範圍：點位（25.083506, 121.590304）'), findsOneWidget);
-    expect(find.text('到期時間：2026-09-01T07:00:00Z'), findsOneWidget);
-    expect(find.text('資料狀態：已過期'), findsOneWidget);
+    expect(find.bySemanticsLabel('事件：內湖模擬淹水，已過期'), findsNothing);
+    expect(find.byType(FeatureDetailsSheet), findsNothing);
   });
 
   testWidgets('overlapping shelter and medical markers show every record', (

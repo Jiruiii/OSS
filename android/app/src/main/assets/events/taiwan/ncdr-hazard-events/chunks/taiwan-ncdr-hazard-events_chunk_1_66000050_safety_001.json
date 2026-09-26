@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:66000050:safety:001",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 168,
+  "priority": "LOW",
+  "area_id": "tw.66000050",
+  "theme": "safety",
+  "bbox": [
+    120.694149,
+    24.158581,
+    120.694149,
+    24.158581
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090034",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.694149,
+          24.158581
+        ]
+      },
+      "severity": "MEDIUM",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.66000050",
+        "county_code": "66000",
+        "town_code": "66000050",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090034",
+        "affected_area": "臺中市",
+        "source_description": "臺中市,皇普莊園(高層建築物)(防災中心),集合住宅,臺中市北區錦祥里進化路535號,違反防焰物品規定 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090034",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "臺中市,皇普莊園(高層建築物)(防災中心),集合住宅,臺中市北區錦祥里進化路535號,違反防焰物品規定 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090034",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "臺中市,皇普莊園(高層建築物)(防災中心),集合住宅,臺中市北區錦祥里進化路535號,違反防焰物品規定 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Moderate",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "臺中市,皇普莊園(高層建築物)(防災中心),集合住宅,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "臺中市,皇普莊園(高層建築物)(防災中心),集合住宅,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "臺中市",
+                  "geocode": null,
+                  "circle": "24.158581,120.694149 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:56a90b9fa363de7bb8b5d2f629b97b10d2040b761d7e55b840ced6bead54e8a0",
+      "signature": "KFFn+Db2Az2+/BFZ2XkIKSstW7ZQTusN8iytVmtiiXhOx4KXIXtfBBzmgqheK928GTwAOYVxk/rVnTrCylJUBw=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2996,
+  "chunk_hash": "sha256:5dbe9acec54c401ae534ba0c4c47475d6a9e1e7c27eec8af121fae93469bb3f4",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "B9vfRLUJfO8CeXiy5tMRyS6Mloun6iMQJnliFYSu3dyEJFCT7S2o0EGvLYEsDGXr+tmumxVNutSgtOTlXOfnDA=="
+}

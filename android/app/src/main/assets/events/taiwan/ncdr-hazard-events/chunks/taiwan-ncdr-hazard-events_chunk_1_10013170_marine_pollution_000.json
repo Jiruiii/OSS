@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10013170:marine_pollution:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 84,
+  "priority": "LOW",
+  "area_id": "tw.10013170",
+  "theme": "marine_pollution",
+  "bbox": [
+    120.433611,
+    22.471389,
+    120.433611,
+    22.471389
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:oca-marinepollution_3160",
+      "event_type": "MARINE_POLLUTION_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.433611111111,
+          22.4713888888889
+        ]
+      },
+      "severity": "LOW",
+      "source": "NCDR",
+      "source_version": "2026-09-20T00:00:04+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-19T16:00:04.000Z",
+      "expires_at": "2026-12-19T00:15:00.000Z",
+      "attributes": {
+        "area_id": "tw.10013170",
+        "county_code": "10013",
+        "town_code": "10013170",
+        "village_code": null,
+        "theme": "marine_pollution",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "OCA-marinePollution_3160",
+        "affected_area": "鹽埔漁港活魚碼頭",
+        "source_description": "地方單位\\屏東縣政府\\環境保護局：鹽埔漁港活魚碼頭區不明油污",
+        "source_record": {
+          "capid": "OCA-marinePollution_3160",
+          "capCode": "marinePollution",
+          "effective": "2026-09-19T08:15:00",
+          "expires": "2026-12-19T08:15:00",
+          "description": "地方單位\\屏東縣政府\\環境保護局：鹽埔漁港活魚碼頭區不明油污",
+          "identifier": "OCA-marinePollution_3160",
+          "sender": "https://iocean.oca.gov.tw",
+          "sent": "2026-09-20T00:00:04+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "地方單位\\屏東縣政府\\環境保護局：鹽埔漁港活魚碼頭區不明油污",
+              "language": "zh-TW",
+              "category": "Env",
+              "event": "海洋污染",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "marinePollution"
+              },
+              "effective": "2026-09-19T08:15:00+08:00",
+              "expires": "2026-12-19T08:15:00+08:00",
+              "senderName": "海洋保育署",
+              "headline": "海洋污染事件",
+              "instruction": null,
+              "web": "",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": ""
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "鹽埔漁港活魚碼頭",
+                  "geocode": null,
+                  "circle": "22.4713888888889,120.433611111111 0.5",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:8a7049ebb40da52c0d40c3ced8787d9ee18566dac8b2ea59b0c295c21490db4c",
+      "signature": "hOFUGrw1NosRMJhLCJ2vCuwXbhcwNn5FBKb0J1qzo68o8vHZKQSx3oaokSB8Zq9yOr9rcti68miL6nJ+wj00Dg=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2648,
+  "chunk_hash": "sha256:dc0be10cce00b5c4258de8cc0832cc34c6a9c6b4e2d3889689da1546cb519202",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "bBL0KnoufKGZcrEcJbbH4s7uxrbNjlizzingOsJ0NtRn6ZiOPQ2OXVe+mCJsGlhvgyBLeo4XrALDuL8ipl4fAA=="
+}

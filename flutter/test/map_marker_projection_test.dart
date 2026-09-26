@@ -29,4 +29,30 @@ void main() {
     expect(gate.isCurrent(firstRequest), isFalse);
     expect(gate.isCurrent(latestRequest), isTrue);
   });
+
+  test('caches marker layout until it is invalidated', () {
+    final cache = MapMarkerLayoutCache<List<int>>();
+    var buildCount = 0;
+
+    final first = cache.getOrBuild(() {
+      buildCount += 1;
+      return <int>[buildCount];
+    });
+    final second = cache.getOrBuild(() {
+      buildCount += 1;
+      return <int>[buildCount];
+    });
+
+    expect(buildCount, 1);
+    expect(identical(first, second), isTrue);
+
+    cache.invalidate();
+    final third = cache.getOrBuild(() {
+      buildCount += 1;
+      return <int>[buildCount];
+    });
+
+    expect(buildCount, 2);
+    expect(third, <int>[2]);
+  });
 }

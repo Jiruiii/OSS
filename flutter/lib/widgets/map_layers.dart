@@ -7,6 +7,7 @@ import '../data/map_administrative.dart';
 import '../data/map_models.dart';
 import '../data/map_zoom.dart';
 import '../data/maplibre_map_config.dart';
+import '../data/ncdr_map_filter.dart';
 
 typedef StaticFeatureSelection = void Function(List<StaticFeature> features);
 typedef MeshEventSelection = void Function(MeshEvent event);
@@ -122,6 +123,7 @@ class MapLayers {
     GeoPoint? currentLocation,
     double? zoom,
     int? zoomPercentage,
+    DateTime? now,
   }) {
     final compactMarkers =
         zoomPercentage != null
@@ -134,6 +136,7 @@ class MapLayers {
               (showMedical && feature.kind == 'medical'),
         )
         .toList(growable: false);
+    final eventNow = (now ?? DateTime.now()).toUtc();
     final rawMarkers = <MapMarkerData>[
       ..._facilityMarkers(
         visibleFacilities,
@@ -143,6 +146,8 @@ class MapLayers {
       ),
       if (showEvents)
         ...events
+            .where((event) => event.isCurrentAt(eventNow))
+            .where(isMapVisibleEvent)
             .where((event) => meshEventFocusPoint(event) != null)
             .map(
               (event) =>

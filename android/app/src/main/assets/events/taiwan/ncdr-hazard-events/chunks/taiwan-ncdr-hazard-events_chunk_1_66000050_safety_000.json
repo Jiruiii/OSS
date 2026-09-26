@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:66000050:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 167,
+  "priority": "HIGH",
+  "area_id": "tw.66000050",
+  "theme": "safety",
+  "bbox": [
+    120.675107,
+    24.148364,
+    120.675107,
+    24.148364
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090031",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.675107,
+          24.148364
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.66000050",
+        "county_code": "66000",
+        "town_code": "66000050",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090031",
+        "affected_area": "臺中市",
+        "source_description": "臺中市,都會焦點公寓大廈,集合住宅,台中市北區六合里福龍街97、99號,違反消防設備規定 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090031",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "臺中市,都會焦點公寓大廈,集合住宅,台中市北區六合里福龍街97、99號,違反消防設備規定 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090031",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "臺中市,都會焦點公寓大廈,集合住宅,台中市北區六合里福龍街97、99號,違反消防設備規定 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "臺中市,都會焦點公寓大廈,集合住宅,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "臺中市,都會焦點公寓大廈,集合住宅,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "臺中市",
+                  "geocode": null,
+                  "circle": "24.148364,120.675107 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:9fba3517b793e344b5bc3bf0bb35d57f1ffb895253af8b75b393c57b64fd2907",
+      "signature": "GnZktJIDdVVe2CPpv2R8IqhDL2Qx9u3ljYNfBs6+MRIqk+iR3laqykIPngIh5uH8u+iGwy8pfAWKpVmzpAeuCQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2910,
+  "chunk_hash": "sha256:e4672c30ea7bd8c0500351185168a11326b74cef08b73902e18d244a5198c780",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "/DYFsNuQoapyS6at9TvlLa8J2LOk5Tne3T2P/5mPhTkAi9einbXCdlPr/3oaj0UN5kyRlLW4afRrpMNgRa6xBQ=="
+}

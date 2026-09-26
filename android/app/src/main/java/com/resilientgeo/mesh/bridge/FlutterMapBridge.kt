@@ -87,6 +87,7 @@ class FlutterMapBridge(
                     MapBridgeProtocol.initialState(
                         events = repository.observeEvents().first(),
                         emergencyModeEnabled = emergencyMode.isEnabled,
+                        staticFeatures = repository.verifiedStaticFeatures(),
                     ),
                 )
             } catch (error: Throwable) {

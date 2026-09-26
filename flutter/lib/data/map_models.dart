@@ -169,6 +169,27 @@ class MeshEvent {
 
   /// Android's persisted apply_state is authoritative; expires_at is display data.
   bool get isExpired => applyState == 'EXPIRED';
+
+  /// Returns whether this event may be rendered as a current event.
+  ///
+  /// Android supplies [applyState] after Room ingestion. The Flutter-only
+  /// NCDR demo has no Android state yet, so it falls back to the event's
+  /// issued/expires time window. An explicit non-CURRENT Android state always
+  /// wins over the raw timestamps.
+  bool isCurrentAt([DateTime? now]) {
+    final reference = (now ?? DateTime.now()).toUtc();
+    if (applyState != null && applyState != 'CURRENT') return false;
+
+    final issued = _parseEventTime(issuedAt);
+    final expires = _parseEventTime(expiresAt);
+    if (expires == null || !expires.isAfter(reference)) return false;
+    return issued == null || !issued.isAfter(reference);
+  }
+}
+
+DateTime? _parseEventTime(String? value) {
+  final parsed = value == null ? null : DateTime.tryParse(value);
+  return parsed?.toUtc();
 }
 
 /// Stable event identity shared by persistence presentation and map overlays.
@@ -227,10 +248,12 @@ class MapInitialState {
   const MapInitialState({
     required this.events,
     required this.emergencyModeEnabled,
+    this.staticFeatures = const <StaticFeature>[],
   });
 
   final List<MeshEvent> events;
   final bool emergencyModeEnabled;
+  final List<StaticFeature> staticFeatures;
 
   factory MapInitialState.fromJson(Map<String, dynamic> json) {
     if (!json.containsKey('events')) {
@@ -246,6 +269,13 @@ class MapInitialState {
     return MapInitialState(
       events: eventsFromMessage(json['events']),
       emergencyModeEnabled: json['emergency_mode_enabled'] as bool,
+      staticFeatures: (json['static_features'] is List
+              ? (json['static_features'] as List)
+              : const <Object?>[])
+          .map(_asStringMap)
+          .whereType<Map<String, dynamic>>()
+          .map(StaticFeature.fromJson)
+          .toList(growable: false),
     );
   }
 }

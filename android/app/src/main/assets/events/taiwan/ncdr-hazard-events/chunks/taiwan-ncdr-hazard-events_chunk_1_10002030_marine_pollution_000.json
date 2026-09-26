@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10002030:marine_pollution:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 51,
+  "priority": "LOW",
+  "area_id": "tw.10002030",
+  "theme": "marine_pollution",
+  "bbox": [
+    121.871222,
+    24.579833,
+    121.871222,
+    24.579833
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:oca-marinepollution_3106",
+      "event_type": "MARINE_POLLUTION_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.871222222222,
+          24.5798333333333
+        ]
+      },
+      "severity": "LOW",
+      "source": "NCDR",
+      "source_version": "2026-08-15T00:00:08+08:00",
+      "event_version": 1,
+      "issued_at": "2026-08-14T16:00:08.000Z",
+      "expires_at": "2026-11-14T07:47:00.000Z",
+      "attributes": {
+        "area_id": "tw.10002030",
+        "county_code": "10002",
+        "town_code": "10002030",
+        "village_code": null,
+        "theme": "marine_pollution",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "OCA-marinePollution_3106",
+        "affected_area": "南方澳第二漁港（延伸碼頭）",
+        "source_description": "地方單位\\宜蘭縣政府\\環境保護局：南方澳第二漁港(延伸碼頭)油污案",
+        "source_record": {
+          "capid": "OCA-marinePollution_3106",
+          "capCode": "marinePollution",
+          "effective": "2026-08-14T15:47:00",
+          "expires": "2026-11-14T15:47:00",
+          "description": "地方單位\\宜蘭縣政府\\環境保護局：南方澳第二漁港(延伸碼頭)油污案",
+          "identifier": "OCA-marinePollution_3106",
+          "sender": "https://iocean.oca.gov.tw",
+          "sent": "2026-08-15T00:00:08+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "地方單位\\宜蘭縣政府\\環境保護局：南方澳第二漁港(延伸碼頭)油污案",
+              "language": "zh-TW",
+              "category": "Env",
+              "event": "海洋污染",
+              "responseType": null,
+              "urgency": "Immediate",
+              "severity": "Minor",
+              "certainty": "Observed",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "marinePollution"
+              },
+              "effective": "2026-08-14T15:47:00+08:00",
+              "expires": "2026-11-14T15:47:00+08:00",
+              "senderName": "海洋保育署",
+              "headline": "海洋污染事件",
+              "instruction": null,
+              "web": "",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": ""
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "南方澳第二漁港（延伸碼頭）",
+                  "geocode": null,
+                  "circle": "24.5798333333333,121.871222222222 0.5",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:0407dc7d3af89c310b187e88669b6ce4f82964634014cd859a4b87b6102f3482",
+      "signature": "nAjz3oQeBV7q+7T8wIVIY1PzXH+XMju4H1iTlSKSy+pqUhHPMQNIrrgaJrFzvkWVU1xV7pt9wJiu5zxtxO4aCQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2693,
+  "chunk_hash": "sha256:3e7fb2fa60a15b4b866add77189064ef5b13a9aded7e373ce1a1e64aef8aec51",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "IC7dPdZgEKhDWywWq+siAze2gVZdWWeKnosOAh2f4q8PviJq1cG0Z9Eu7u1jKTHW+/IFgDXNzaDl2OL21lWMCA=="
+}

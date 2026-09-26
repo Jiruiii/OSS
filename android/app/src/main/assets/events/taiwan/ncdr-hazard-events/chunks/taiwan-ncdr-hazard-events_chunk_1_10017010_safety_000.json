@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10017010:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 109,
+  "priority": "HIGH",
+  "area_id": "tw.10017010",
+  "theme": "safety",
+  "bbox": [
+    121.771477,
+    25.148029,
+    121.771477,
+    25.148029
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090107",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.771477,
+          25.148029
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.10017010",
+        "county_code": "10017",
+        "town_code": "10017010",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090107",
+        "affected_area": "基隆市",
+        "source_description": "基隆市,國立臺灣海洋大學附屬基隆海事高級中等學校,乙類-學校教室,基隆市中正區海濱里祥豐街246號,消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090107",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "基隆市,國立臺灣海洋大學附屬基隆海事高級中等學校,乙類-學校教室,基隆市中正區海濱里祥豐街246號,消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090107",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "基隆市,國立臺灣海洋大學附屬基隆海事高級中等學校,乙類-學校教室,基隆市中正區海濱里祥豐街246號,消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "基隆市,國立臺灣海洋大學附屬基隆海事高級中等學校,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "基隆市,國立臺灣海洋大學附屬基隆海事高級中等學校,乙類-學校教室,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "基隆市",
+                  "geocode": null,
+                  "circle": "25.148029,121.771477 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:e6ec7a174bc2415d254e67b3960b207593bb1f7d59c161120ed4d5b3da56d8d9",
+      "signature": "cbcpsVGskH2gXOlH+TZKVY9PYZuZk7Wf1gYm/dHbmZsBhI/aqzSSuznpmrWOJNa3gehtPaPFi4ps1wizOllKBg=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 3084,
+  "chunk_hash": "sha256:2769f5a1497f5d90c6cf3ea108f1b4513f25587f64874b1da3c2f0330a73282b",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "VxZgkKIM5qMOW9bmUUPlkc5ZkJwOlPVig6ujDoF1gdKrDZXHCUz08p4cat51AOyRUwQNT+2oOPa4ZiKLa6XtAA=="
+}

@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:64000050:safety:001",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 124,
+  "priority": "HIGH",
+  "area_id": "tw.64000050",
+  "theme": "safety",
+  "bbox": [
+    120.3167,
+    22.63903,
+    120.3167,
+    22.63903
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090059",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.3167,
+          22.63903
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.64000050",
+        "county_code": "64000",
+        "town_code": "64000050",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090059",
+        "affected_area": "高雄市",
+        "source_description": "高雄市,高雄市民族國宅社區(專案-無連結管)(114補助),乙類-集合住宅,高雄市三民區永年街1巷39號(承雄消防公司),消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090059",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "高雄市,高雄市民族國宅社區(專案-無連結管)(114補助),乙類-集合住宅,高雄市三民區永年街1巷39號(承雄消防公司),消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090059",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "高雄市,高雄市民族國宅社區(專案-無連結管)(114補助),乙類-集合住宅,高雄市三民區永年街1巷39號(承雄消防公司),消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "高雄市,高雄市民族國宅社區(專案-無連結管),消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "高雄市,高雄市民族國宅社區(專案-無連結管)(114補助),乙類-集合住宅,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "高雄市",
+                  "geocode": null,
+                  "circle": "22.639030,120.316700 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:58d46385ec7447371ec4ebe94cc45100762bea9b6f54c43b397b523aa2b32494",
+      "signature": "saNTAqMAYAVrnmFkmxNOdjl1MvBeZNI+7bC+m1VSvnmCTJ4JsHJ4NkK8jY81WUqE3C8KeBzWWgVFaGXPosysDQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 3101,
+  "chunk_hash": "sha256:a053109c7a489dd349503ce6c42c509ff461c02d6be2033ef6be802c41bc1eaa",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "2ggccILCsnHkSGA4PwqiWhABXG9loqyBlBqE3AugOCTnzMZy2/oadG+2JvDbNGJMJ+OmqV+p2r0oAyggJzIrBg=="
+}

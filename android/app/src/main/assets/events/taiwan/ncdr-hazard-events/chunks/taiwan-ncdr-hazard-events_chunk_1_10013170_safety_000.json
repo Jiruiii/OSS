@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10013170:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 86,
+  "priority": "LOW",
+  "area_id": "tw.10013170",
+  "theme": "safety",
+  "bbox": [
+    120.463922,
+    22.488527,
+    120.463922,
+    22.488527
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090090",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.463922,
+          22.488527
+        ]
+      },
+      "severity": "MEDIUM",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.10013170",
+        "county_code": "10013",
+        "town_code": "10013170",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090090",
+        "affected_area": "屏東縣",
+        "source_description": "屏東縣,品億砂鍋鴨,甲類-餐廳,屏東縣新園鄉河堤二街467號,消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090090",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "屏東縣,品億砂鍋鴨,甲類-餐廳,屏東縣新園鄉河堤二街467號,消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090090",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "屏東縣,品億砂鍋鴨,甲類-餐廳,屏東縣新園鄉河堤二街467號,消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Moderate",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "屏東縣,品億砂鍋鴨,甲類-餐廳,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "屏東縣,品億砂鍋鴨,甲類-餐廳,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "屏東縣",
+                  "geocode": null,
+                  "circle": "22.488527,120.463922 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:2882c7b640b84c1b33ac6a44ef63f7f7ca432f74509043e0f98d8e356beafd39",
+      "signature": "GjCRL9JG42BkcYMtH0QRSmE8byd8CPZSrQE5zPEjBhAXtkuyK+HTlej42MDcY2vHhnQvHlMol0FIa9dk8m9GDg=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2833,
+  "chunk_hash": "sha256:26256654ddcb2d07e3b5f42ac52a81e0f7d10b35de64170cfd74c5246ac93e0a",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "yL+q0w/z0nSWzsIbcQF2FoLDFs2AoI3w7jRfxGs1NJ+9Aj5WCCRiRs1LvFLBoSMAvl/hpRsrq5OGLJPLKcd7Dg=="
+}

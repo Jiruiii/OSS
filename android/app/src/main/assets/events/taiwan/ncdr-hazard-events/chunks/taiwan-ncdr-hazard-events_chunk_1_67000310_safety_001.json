@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:67000310:safety:001",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 176,
+  "priority": "HIGH",
+  "area_id": "tw.67000310",
+  "theme": "safety",
+  "bbox": [
+    120.22632,
+    23.016304,
+    120.22632,
+    23.016304
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090044",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          120.22632,
+          23.016304
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.67000310",
+        "county_code": "67000",
+        "town_code": "67000310",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090044",
+        "affected_area": "臺南市",
+        "source_description": "臺南市,長億城D區大樓,乙類-集合住宅,臺南市永康區安康里大橋一街47號,消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090044",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "臺南市,長億城D區大樓,乙類-集合住宅,臺南市永康區安康里大橋一街47號,消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090044",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "臺南市,長億城D區大樓,乙類-集合住宅,臺南市永康區安康里大橋一街47號,消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "臺南市,長億城D區大樓,乙類-集合住宅,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "臺南市,長億城D區大樓,乙類-集合住宅,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "臺南市",
+                  "geocode": null,
+                  "circle": "23.016304,120.226320 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:eb7f41cf4accf0cac66b4ea50c8a149a7017ab4e7c81568ce1907d92657eea96",
+      "signature": "Ofd+sK/ylT+Oi6JxgRENYhsVszYCajLiOqRvgAuq2Cls0Wb8+66phFBXmwN1iPeZJJPm8OCr/DZWvuZqHyXZCw=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2902,
+  "chunk_hash": "sha256:878b0d8f629806e24bd57d4e299d4c66eca02f6a389796eb5f8b62a5c76cbf58",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "2COTPqTNNjNn0SX4dSK75xMX8vnQCDnQ1M96FLD3HOql+o1s7dcIXImnhwzOeqn//Y9/KjdZDKmKgumHu+kQCQ=="
+}

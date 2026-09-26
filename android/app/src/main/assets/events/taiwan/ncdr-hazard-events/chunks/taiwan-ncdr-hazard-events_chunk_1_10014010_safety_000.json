@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:10014010:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 87,
+  "priority": "HIGH",
+  "area_id": "tw.10014010",
+  "theme": "safety",
+  "bbox": [
+    121.144019,
+    22.767806,
+    121.144019,
+    22.767806
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090093",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.144019,
+          22.767806
+        ]
+      },
+      "severity": "HIGH",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.10014010",
+        "county_code": "10014",
+        "town_code": "10014010",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090093",
+        "affected_area": "臺東縣",
+        "source_description": "臺東縣,富寓大樓,乙類-寄宿舍,臺東縣台東市傳廣路492號,消防安全設備 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090093",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "臺東縣,富寓大樓,乙類-寄宿舍,臺東縣台東市傳廣路492號,消防安全設備 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090093",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "臺東縣,富寓大樓,乙類-寄宿舍,臺東縣台東市傳廣路492號,消防安全設備 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Severe",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "臺東縣,富寓大樓,乙類-寄宿舍,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "臺東縣,富寓大樓,乙類-寄宿舍,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "臺東縣",
+                  "geocode": null,
+                  "circle": "22.767806,121.144019 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:616f0bda9fae60bb8a9c59dc9ed27a1be479bb7a88eb81ed67e923d3107b9988",
+      "signature": "egg0Chs89iJ5AR8MxORmwOliT/KG6onWImP/AdRest8uF/W2RgS2HIBUbPeMb13Er/0X4QdrrInTweFBYw2GDw=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2821,
+  "chunk_hash": "sha256:03734ebd5c5a057809a70fec65c3ffa73a8638d79dc3a6b3c01a6aa9005815c8",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "phmfzXhUohli8XWu9NAFR1Yjh/KvEa+nt8RDlZCnRESQ5ZWdyUU129635Wm9QNeClJ5F2fwWp9iBGVdOzve4Bg=="
+}

@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000070:safety:001",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 196,
+  "priority": "LOW",
+  "area_id": "tw.68000070",
+  "theme": "safety",
+  "bbox": [
+    121.378792,
+    25.04802,
+    121.378792,
+    25.04802
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090016",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.378792,
+          25.04802
+        ]
+      },
+      "severity": "MEDIUM",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.68000070",
+        "county_code": "68000",
+        "town_code": "68000070",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090016",
+        "affected_area": "桃園市",
+        "source_description": "桃園市,中環股份有限公司林口三廠,危險物品,桃園市龜山區文化里華亞三路50號,違反危險物品規定\t 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090016",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "桃園市,中環股份有限公司林口三廠,危險物品,桃園市龜山區文化里華亞三路50號,違反危險物品規定\t 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090016",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "桃園市,中環股份有限公司林口三廠,危險物品,桃園市龜山區文化里華亞三路50號,違反危險物品規定\t 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Moderate",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "桃園市,中環股份有限公司林口三廠,危險物品,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "桃園市,中環股份有限公司林口三廠,危險物品,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "桃園市",
+                  "geocode": null,
+                  "circle": "25.048020,121.378792 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:29847d8feadffa9946b783c496520013e4e9eea0739087771288269cdfb3a99e",
+      "signature": "1ghBCmnkx2kK+iYE9x7jZnO+dUy0DFz6IePB+lk/RVXxRXZsyxZFsrFTxxdcLF6Xs6GP1OcVVq16Aj2kHZEWBQ=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2979,
+  "chunk_hash": "sha256:18fccd7c7ef749376288cab82d70223b3420cb0dcf27c7db3b33a72d3fe4f7fd",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "jtZ1cY9zJAY4Z5eYdmY90HFUucdbfuIk9lGZQ5/f1k27+K9I9ZQNdIslXqelJ+zABlY6aNrrQ3TXEQhY74VHCA=="
+}

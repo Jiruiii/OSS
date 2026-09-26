@@ -1,0 +1,124 @@
+{
+  "schema_version": "chunk-v0",
+  "chunk_id": "taiwan-ncdr-hazard-events:chunk:1:68000080:safety:000",
+  "manifest_id": "taiwan-ncdr-hazard-events:manifest:1",
+  "dataset_id": "taiwan-ncdr-hazard-events",
+  "namespace": "official",
+  "dataset_version": 1,
+  "sequence": 197,
+  "priority": "LOW",
+  "area_id": "tw.68000080",
+  "theme": "safety",
+  "bbox": [
+    121.275288,
+    24.956007,
+    121.275288,
+    24.956007
+  ],
+  "created_at": "2026-09-26T04:10:58.796Z",
+  "content_type": "application/json",
+  "content_encoding": "identity",
+  "event_count": 1,
+  "events": [
+    {
+      "schema_version": "event-v0",
+      "namespace": "official.ncdr",
+      "event_id": "ncdr:nfa-fireinspectiondanger202609090012",
+      "event_type": "SAFETY_ALERT",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.275288,
+          24.956007
+        ]
+      },
+      "severity": "MEDIUM",
+      "source": "NCDR",
+      "source_version": "2026-09-09T10:02:30+08:00",
+      "event_version": 1,
+      "issued_at": "2026-09-09T02:02:30.000Z",
+      "expires_at": "2026-10-01T15:59:59.000Z",
+      "attributes": {
+        "area_id": "tw.68000080",
+        "county_code": "68000",
+        "town_code": "68000080",
+        "village_code": null,
+        "theme": "safety",
+        "coverage_level": "area",
+        "coverage": "TW",
+        "alert_id": "NFA-FireInspectionDanger202609090012",
+        "affected_area": "桃園市",
+        "source_description": "桃園市,元圖股份有限公司,危險物品,桃園市八德區廣福路879巷177弄15衖6號,違反危險物品規定\t 不合格",
+        "source_record": {
+          "capid": "NFA-FireInspectionDanger202609090012",
+          "capCode": "Dangerfield",
+          "effective": "2026-09-09T00:00:00",
+          "expires": "2026-10-02T00:00:00",
+          "description": "桃園市,元圖股份有限公司,危險物品,桃園市八德區廣福路879巷177弄15衖6號,違反危險物品規定\t 不合格",
+          "identifier": "NFA-FireInspectionDanger202609090012",
+          "sender": "https://www.nfa.gov.tw",
+          "sent": "2026-09-09T10:02:30+08:00",
+          "status": "Actual",
+          "msgType": "Alert",
+          "scope": "Public",
+          "references": null,
+          "info": [
+            {
+              "sections": null,
+              "description": "桃園市,元圖股份有限公司,危險物品,桃園市八德區廣福路879巷177弄15衖6號,違反危險物品規定\t 不合格",
+              "language": "zh-TW",
+              "category": "Other",
+              "event": "消防安全檢查重大不合格場所",
+              "responseType": null,
+              "urgency": "Unknown",
+              "severity": "Moderate",
+              "certainty": "Unknown",
+              "eventCode": {
+                "valueName": "profile:CAP-TWP:Event:1.0",
+                "value": "Dangerfield"
+              },
+              "effective": "2026-09-09T00:00:00+08:00",
+              "expires": "2026-10-01T23:59:59+08:00",
+              "senderName": "內政部消防署",
+              "headline": "桃園市,元圖股份有限公司,危險物品,消防安全檢查重大不合格",
+              "instruction": null,
+              "web": "https://www.nfa.gov.tw",
+              "parameter": [
+                {
+                  "valueName": "alert_title",
+                  "value": "桃園市,元圖股份有限公司,危險物品,消防安全檢查重大不合格"
+                }
+              ],
+              "area": [
+                {
+                  "areaDesc": "桃園市",
+                  "geocode": null,
+                  "circle": "24.956007,121.275288 1",
+                  "polygon": null
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "signature_algorithm": "Ed25519",
+      "signing_key_id": "taiwan-static-2026",
+      "provenance": {
+        "original_source": "https://alerts.ncdr.nat.gov.tw/api/datastore?format=JSON",
+        "received_at": "2026-09-26T04:10:58.796Z",
+        "transport_source": {
+          "kind": "server",
+          "node_id": "ncdr-collector"
+        }
+      },
+      "payload_hash": "sha256:44357e8f16f18751551845a6a97655f4ea017b1ec5228b1382e1cfb1a5b05799",
+      "signature": "qiPs0WLNSBipL40leUevkQlYBXQ5tElncfoI8HyWk9EmuSjQLwIRCnwK4zC908Rtci+c4XFjwyrQmFZdeWOrDA=="
+    }
+  ],
+  "signature_algorithm": "Ed25519",
+  "signing_key_id": "taiwan-static-2026",
+  "byte_length": 2934,
+  "chunk_hash": "sha256:be458c232f19f4f99027180c170464e3dbe0912e2a69b0eed4126dfc9b8d4165",
+  "manifest_hash": "sha256:c1449d32d91a85715ed71786de823eaab4d0b8b782753227c2ed7831601805f7",
+  "signature": "s85RxLi1gumyVhTI33sctlAIgbLnj06kOHqAQ2zhoneUppwCHwlq22H1YTWLxfBhRA73ooZ+69ZRHTdntFlFAg=="
+}
