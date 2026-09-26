@@ -62,7 +62,9 @@ class EvacuationRouteService(
     }
 
     companion object {
-        const val GRAPH_ASSET = "routing/taipei-walk.rgm.gz"
+        // Android automatically unpacks and renames .gz assets during merge.
+        // .rgmz preserves our compressed bytes and the runtime asset name.
+        const val GRAPH_ASSET = "routing/taipei-walk.rgmz"
 
         fun assetGraphLoader(context: Context): () -> RoadGraph = {
             RoadGraph.fromPrebuilt(context.applicationContext.assets.open(GRAPH_ASSET))

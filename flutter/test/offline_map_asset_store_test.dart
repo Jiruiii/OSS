@@ -4,6 +4,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:resilientgeo_flutter/data/offline_map_asset_store.dart';
 
 void main() {
+  test('Android glyphs and sprites resolve inside the Flutter APK bundle', () {
+    const style =
+        '{"glyphs":"asset://assets/map/fonts/{fontstack}/{range}.pbf",'
+        '"sprite":"asset://assets/map/sprites/v4/dark",'
+        '"url":"pmtiles://file:///data/user/0/app/maps/base.pmtiles"}';
+    final rewritten = jsonDecode(
+      OfflineMapAssetStore.rewriteAndroidStyleAssetUris(style),
+    );
+    expect(
+      rewritten['glyphs'],
+      'asset://flutter_assets/assets/map/fonts/{fontstack}/{range}.pbf',
+    );
+    expect(
+      rewritten['sprite'],
+      'asset://flutter_assets/assets/map/sprites/v4/dark',
+    );
+    expect(
+      rewritten['url'],
+      'pmtiles://file:///data/user/0/app/maps/base.pmtiles',
+    );
+  });
   test('hydrates the editable reference label asset into a map style', () {
     const style =
         '{"sources":{"taiwan-reference-labels":{'

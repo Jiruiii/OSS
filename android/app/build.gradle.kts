@@ -21,6 +21,10 @@ android {
     }
 
     buildTypes {
+        create("profile") {
+            initWith(getByName("debug"))
+            matchingFallbacks += listOf("debug")
+        }
         release {
             isMinifyEnabled = false
         }
@@ -53,11 +57,19 @@ android {
             "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
     }
 
+    androidResources {
+        // PMTiles tile payloads and the graph are already compressed. Zip
+        // recompression wastes heap/CPU and prevents efficient asset copying.
+        noCompress += listOf("pmtiles", "rgmz", "gz")
+    }
+
     sourceSets["main"].res.srcDir(splashResDir)
 
     testOptions {
         unitTests {
-            isIncludeAndroidResources = true
+            // These JVM tests read fixtures directly and do not use Robolectric.
+            // Packaging the entire 450 MB map into a second test APK caused OOMs.
+            isIncludeAndroidResources = false
             isReturnDefaultValues = true
         }
     }

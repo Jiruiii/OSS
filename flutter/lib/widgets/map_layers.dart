@@ -92,9 +92,14 @@ class MapMarkerCluster {
 /// semantics while the map itself remains pannable.
 class MapLayers {
   const MapLayers._();
+  static MapMarkerData currentLocationMarker(GeoPoint point) =>
+      _locationMarker(point);
 
   static final _administrativeNames =
       Expando<Map<MapAdministrativeIndex, String?>>();
+  static final _areaNamesPattern = Expando<RegExp>();
+  static final _areaBuckets =
+      Expando<Map<GeoPoint, Map<String, MapAdministrativeArea?>>>();
 
   static const double _compactMarkerZoom = 12;
   static const double _compactMarkerSize = 18;
@@ -217,25 +222,30 @@ class MapLayers {
         standalone.add(marker);
         continue;
       }
-      final fallbackArea = index.areaFor(marker.point, level);
       final areaHint = marker.administrativeAreaName;
-      final area =
-          areaHint == null
-              ? fallbackArea
-              : index.findByName(
-                    level,
-                    areaHint,
-                    parent:
-                        level == MapAdministrativeLevel.subdivision
-                            ? index
-                                .nearest(
-                                  marker.point,
-                                  MapAdministrativeLevel.county,
-                                )
-                                ?.name
-                            : null,
-                  ) ??
-                  fallbackArea;
+      final buckets = _areaBuckets[index] ??= {};
+      final pointBuckets = buckets.putIfAbsent(marker.point, () => {});
+      final bucketKey = '${level.name}:${areaHint ?? ''}';
+      if (!pointBuckets.containsKey(bucketKey)) {
+        final hinted =
+            areaHint == null
+                ? null
+                : index.findByName(
+                  level,
+                  areaHint,
+                  parent:
+                      level == MapAdministrativeLevel.subdivision
+                          ? index
+                              .nearest(
+                                marker.point,
+                                MapAdministrativeLevel.county,
+                              )
+                              ?.name
+                          : null,
+                );
+        pointBuckets[bucketKey] = hinted ?? index.areaFor(marker.point, level);
+      }
+      final area = pointBuckets[bucketKey];
       if (area == null) {
         unassigned.add(marker);
         continue;
@@ -413,9 +423,27 @@ class MapLayers {
     final names =
         _administrativeNames[feature] ??= <MapAdministrativeIndex, String?>{};
     if (names.containsKey(index)) return names[index];
-    final textValues = feature.details.values.whereType<String>();
+    if (index.subdivisions.isEmpty) {
+      names[index] = null;
+      return null;
+    }
+    final pattern =
+        _areaNamesPattern[index] ??= RegExp(
+          (index.subdivisions.map((area) => area.name).toSet().toList()
+                ..sort((a, b) => b.length.compareTo(a.length)))
+              .map(RegExp.escape)
+              .join('|'),
+        );
+    final matchedNames =
+        feature.details.values
+            .whereType<String>()
+            .expand(
+              (text) =>
+                  pattern.allMatches(text).map((match) => match.group(0)!),
+            )
+            .toSet();
     final matches = index.subdivisions
-        .where((area) => textValues.any((value) => value.contains(area.name)))
+        .where((area) => matchedNames.contains(area.name))
         .toList(growable: false);
     if (matches.isEmpty) {
       names[index] = null;

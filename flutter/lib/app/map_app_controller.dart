@@ -75,11 +75,6 @@ class MapAppController extends ChangeNotifier {
 
   Future<void> load() async {
     try {
-      final rawStatic = await _loadPreferredStaticAsset();
-      staticFeatures = StaticFeatureCollection.fromJson(
-        Map<String, dynamic>.from(jsonDecode(rawStatic) as Map),
-      );
-
       try {
         final loadedState = await bridge.getInitialState();
         final verifiedEvents = _withoutDemoEvents(loadedState.events);
@@ -117,6 +112,10 @@ class MapAppController extends ChangeNotifier {
       } on Object {
         // Preview builds without the Android host use the real NCDR snapshot.
         // Android remains authoritative when its bridge is available.
+        final rawStatic = await _loadPreferredStaticAsset();
+        staticFeatures = StaticFeatureCollection.fromJson(
+          Map<String, dynamic>.from(jsonDecode(rawStatic) as Map),
+        );
         try {
           final demoEvents = await _demoEventLoader();
           persistedEvents = List<MeshEvent>.unmodifiable(demoEvents);

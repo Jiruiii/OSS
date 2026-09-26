@@ -163,7 +163,7 @@ def main():
     parser.add_argument("--source-url", required=True)
     parser.add_argument("--source-sha256", required=True)
     parser.add_argument("--boundary", type=Path, default=ROOT / "data/boundaries/geojson/county.geojson")
-    parser.add_argument("--output", type=Path, default=ROOT / "android/app/src/main/assets/routing/taipei-walk.rgm.gz")
+    parser.add_argument("--output", type=Path, default=ROOT / "android/app/src/main/assets/routing/taipei-walk.rgmz")
     args = parser.parse_args()
     started = time.perf_counter()
     digest = hashlib.file_digest(args.input_pbf.open("rb"), "sha256").hexdigest()
@@ -225,7 +225,7 @@ def main():
         "road_classes": CLASSES,
         "simplification_tolerance_m": 1, "max_snap_segment_m": 60,
     }
-    args.output.with_suffix(".manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
+    args.output.with_suffix(".rgm.manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+"\n", encoding="utf-8")
     print(json.dumps({**manifest, "build_seconds": round(time.perf_counter()-started, 2)}, ensure_ascii=True))
 
 

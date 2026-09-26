@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'map_models.dart';
 import 'map_administrative.dart';
@@ -59,7 +60,10 @@ class MapSearchIndex {
     Iterable<TaiwanSearchEntry> roadEntries = const <TaiwanSearchEntry>[],
     Iterable<MapAdministrativeArea> administrativeAreas =
         const <MapAdministrativeArea>[],
+    bool indexedRoadSearch = true,
   }) : _features = List<StaticFeature>.unmodifiable(features),
+       _roadSource = roadEntries,
+       _indexedRoadSearch = indexedRoadSearch,
        _roadEntries = List<TaiwanSearchEntry>.unmodifiable(roadEntries),
        _administrativeAreas = List<MapAdministrativeArea>.unmodifiable(
          administrativeAreas,
@@ -69,7 +73,20 @@ class MapSearchIndex {
 
   final List<StaticFeature> _features;
   final List<TaiwanSearchEntry> _roadEntries;
+  final Iterable<TaiwanSearchEntry> _roadSource;
+  final bool _indexedRoadSearch;
+  late final _RoadSearchLookup _roadLookup =
+      _roadLookups[_roadSource] ??= _RoadSearchLookup(_roadEntries);
   final List<MapAdministrativeArea> _administrativeAreas;
+
+  /// Called by the background worker before accepting queries.
+  void prepare() {
+    if (_indexedRoadSearch) _roadLookup;
+    for (final feature in _features) {
+      _featureText(feature);
+    }
+  }
+
   late final MapAdministrativeIndex _administrativeLabelIndex =
       MapAdministrativeIndex(
         counties: _administrativeAreas
@@ -133,7 +150,11 @@ class MapSearchIndex {
       );
     }
 
-    for (var index = 0; index < _roadEntries.length; index += 1) {
+    final roadCandidates =
+        _indexedRoadSearch
+            ? _roadLookup.candidates(normalized)
+            : Iterable<int>.generate(_roadEntries.length);
+    for (final index in roadCandidates) {
       final entry = _roadEntries[index];
       final baseScore = _entryMatchScore(entry, normalized);
       if (baseScore == null) continue;
@@ -242,33 +263,30 @@ class MapSearchIndex {
 }
 
 int? _featureMatchScore(StaticFeature feature, String query) {
-  final details = feature.details;
-  final name = _searchText(details['name']);
-  final aliases = _stringValues(details['aliases']);
-  final region = _regionFor(feature);
-  final address = _addressFor(feature);
+  final text = _featureText(feature);
   return _matchScore(
-    name: name,
-    aliases: aliases,
-    region: _searchText(region),
-    address: _searchText(address),
-    details: _searchText(details),
-    kind: _searchText(feature.kind),
-    id: _searchText(feature.id),
+    name: text.name,
+    aliases: text.aliases,
+    region: text.region,
+    address: text.address,
+    details: text.details,
+    kind: text.kind,
+    id: text.id,
     query: query,
   );
 }
 
 int? _entryMatchScore(TaiwanSearchEntry entry, String query) {
-  final sourceRegion = _normalizeText(entry.region);
+  final text = _entryText(entry);
+  final sourceRegion = text.region;
   final score = _matchScore(
-    name: _normalizeText(entry.name),
-    aliases: entry.aliases.map(_normalizeText),
+    name: text.name,
+    aliases: text.aliases,
     region: sourceRegion,
     address: '',
     details: '',
-    kind: _normalizeText(entry.kind),
-    id: _normalizeText(entry.id),
+    kind: text.kind,
+    id: text.id,
     query: query,
   );
   if (score == null) return null;
@@ -301,11 +319,10 @@ int _prioritizedEntryScore(
 }
 
 bool _entryNameMatches(TaiwanSearchEntry entry, String query) {
-  final name = _normalizeText(entry.name);
+  final text = _entryText(entry);
+  final name = text.name;
   if (_valueMatches(name, query)) return true;
-  return entry.aliases.any(
-    (alias) => _valueMatches(_normalizeText(alias), query),
-  );
+  return text.aliases.any((alias) => _valueMatches(alias, query));
 }
 
 bool _valueMatches(String value, String query) {
@@ -355,9 +372,118 @@ int? _matchScore({
   return null;
 }
 
+final _whitespace = RegExp(r'\s+');
+final _entryTexts = Expando<_SearchText>();
+final _featureTexts = Expando<_SearchText>();
+final _roadLookups = Expando<_RoadSearchLookup>();
+
+/// Compact postings narrow substring searches without changing final ranking.
+/// Reverse containment (a road name inside an address) uses full field keys.
+/// The worker shares this immutable lookup when facilities/areas are updated.
+class _RoadSearchLookup {
+  _RoadSearchLookup(List<TaiwanSearchEntry> entries) : count = entries.length {
+    final grams = <String, List<int>>{};
+    final reverse = <String, List<int>>{};
+    for (var index = 0; index < entries.length; index++) {
+      final text = _entryText(entries[index]);
+      final fields = [
+        text.name,
+        ...text.aliases,
+        text.region,
+        text.kind,
+        text.id,
+      ];
+      final seen = <String>{};
+      for (final field in fields) {
+        for (var i = 0; i + 1 < field.length; i++) {
+          seen.add(field.substring(i, i + 2));
+        }
+      }
+      for (final gram in seen) {
+        (grams[gram] ??= []).add(index);
+      }
+      for (final field in {text.name, ...text.aliases, text.region}) {
+        if (field.length < 2) continue;
+        if (field.length > maxReverseLength) maxReverseLength = field.length;
+        (reverse[field] ??= []).add(index);
+      }
+    }
+    postings = grams.map((key, ids) => MapEntry(key, Uint32List.fromList(ids)));
+    reverseFields = reverse.map(
+      (key, ids) => MapEntry(key, Uint32List.fromList(ids)),
+    );
+  }
+
+  final int count;
+  int maxReverseLength = 0;
+  late final Map<String, Uint32List> postings;
+  late final Map<String, Uint32List> reverseFields;
+
+  Iterable<int> candidates(String query) {
+    // Preserve one-character and UTF-16 matching semantics of the old scan.
+    if (query.length < 2) return Iterable<int>.generate(count);
+    Uint32List? smallest;
+    for (var i = 0; i + 1 < query.length; i++) {
+      final posting = postings[query.substring(i, i + 2)];
+      if (posting == null) {
+        smallest = null;
+        break;
+      }
+      if (smallest == null || posting.length < smallest.length) {
+        smallest = posting;
+      }
+    }
+    final candidates = <int>{...?smallest};
+    for (var start = 0; start + 1 < query.length; start++) {
+      final endLimit = math.min(query.length, start + maxReverseLength);
+      for (var end = start + 2; end <= endLimit; end++) {
+        final matches = reverseFields[query.substring(start, end)];
+        if (matches != null) candidates.addAll(matches);
+      }
+    }
+    return candidates.toList()..sort();
+  }
+}
+
+class _SearchText {
+  const _SearchText(
+    this.name,
+    this.aliases,
+    this.region,
+    this.address,
+    this.details,
+    this.kind,
+    this.id,
+  );
+  final String name, region, address, details, kind, id;
+  final List<String> aliases;
+}
+
+_SearchText _entryText(TaiwanSearchEntry entry) =>
+    _entryTexts[entry] ??= _SearchText(
+      _normalizeText(entry.name),
+      entry.aliases.map(_normalizeText).toList(growable: false),
+      _normalizeText(entry.region),
+      '',
+      '',
+      _normalizeText(entry.kind),
+      _normalizeText(entry.id),
+    );
+
+_SearchText _featureText(StaticFeature feature) =>
+    _featureTexts[feature] ??= _SearchText(
+      _searchText(feature.details['name']),
+      _stringValues(feature.details['aliases']),
+      _searchText(_regionFor(feature)),
+      _searchText(_addressFor(feature)),
+      _searchText(feature.details),
+      _searchText(feature.kind),
+      _searchText(feature.id),
+    );
+
 String _normalizeText(Object? value) {
   if (value == null) return '';
-  return value.toString().toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+  return value.toString().toLowerCase().replaceAll(_whitespace, ' ').trim();
 }
 
 String _searchText(Object? value) {

@@ -48,6 +48,15 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        // USB performance harness: show this app while a test phone is locked.
+        // Opt-in only, unavailable in non-debuggable builds; keyguard remains locked.
+        if ((applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0 &&
+            intent.getBooleanExtra("performance_over_keyguard", false) &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1
+        ) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {

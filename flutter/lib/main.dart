@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'app/map_app_controller.dart';
+import 'data/app_performance.dart';
 import 'data/offline_map_web_protocol.dart';
 import 'data/maplibre_web_runtime.dart';
 import 'screens/map_screen.dart';
@@ -13,6 +14,7 @@ import 'widgets/startup_splash.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  AppPerformance.register();
   if (kIsWeb) {
     MapLibreWebRuntime.configure();
     await registerOfflineMapProtocol();

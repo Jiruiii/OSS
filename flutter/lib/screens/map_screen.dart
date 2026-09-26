@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../data/map_bridge.dart';
+import '../data/offline_search_worker.dart';
+import '../data/app_performance.dart';
 import '../data/attestation_index.dart';
 import '../data/bridge_failure.dart';
 import '../data/corroboration.dart';
@@ -75,6 +78,11 @@ class _MapScreenState extends State<MapScreen> {
   MapAdministrativeIndex? _administrativeIndex;
   TaiwanSearchAsset? _searchAsset;
   MapSearchIndex? _searchIndex;
+  OfflineSearchWorker? _searchWorker;
+  List<MapSearchResult> _mapSearchResults = const [];
+  List<MapSearchResult> _reportSearchResults = const [];
+  int _mapSearchGeneration = 0;
+  int _reportSearchGeneration = 0;
   Timer? _mapSearchDebounce;
   Timer? _reportAddressSearchDebounce;
   List<MeshEvent> _persistedEvents = const <MeshEvent>[];
@@ -117,6 +125,7 @@ class _MapScreenState extends State<MapScreen> {
     _locationController = widget.locationController ?? LocationController();
     _locationSubscription = _locationController.locations.listen((location) {
       if (!mounted) return;
+      if (_runtimeState.currentLocation == location) return;
       setState(() {
         _runtimeState = _runtimeState.copyWith(currentLocation: location);
       });
@@ -155,6 +164,8 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
+    _searchWorker?.close();
+    if (!kReleaseMode) AppPerformance.search = null;
     _eventSubscription?.cancel();
     _locationSubscription?.cancel();
     _mapSearchDebounce?.cancel();
@@ -243,6 +254,20 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _loadSearchAssetInBackground() async {
     try {
+      if (!kIsWeb) {
+        final raw = await rootBundle.loadString(
+          'assets/map/search/taiwan-roads.json',
+        );
+        final worker = await OfflineSearchWorker.start(raw);
+        if (!mounted) {
+          worker.close();
+          return;
+        }
+        _searchWorker = worker;
+        if (!kReleaseMode) AppPerformance.search = worker.search;
+        _rebuildSearchIndex();
+        return;
+      }
       final asset = await _loadSearchAsset();
       if (!mounted) return;
       setState(() {
@@ -268,6 +293,11 @@ class _MapScreenState extends State<MapScreen> {
           _administrativeIndex?.searchableAreas ??
           const <MapAdministrativeArea>[],
     );
+    _searchWorker?.update(
+      staticFeatures.features,
+      _administrativeIndex?.searchableAreas ?? const [],
+    );
+    if (_searchText.isNotEmpty) unawaited(_refreshSearchResults(_searchText));
   }
 
   Future<MapInitialState> _loadInitialStateSafely() async {
@@ -752,19 +782,21 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _onReportAddressChanged(String value) {
+    _reportSearchGeneration++;
     if (!mounted) return;
     _reportAddressSearchDebounce?.cancel();
     if (value.trim().isEmpty) {
-      setState(() {});
+      unawaited(_refreshSearchResults(value, report: true));
       return;
     }
     _reportAddressSearchDebounce = Timer(const Duration(milliseconds: 180), () {
       if (!mounted) return;
-      setState(() {});
+      unawaited(_refreshSearchResults(value, report: true));
     });
   }
 
   void _onReportAddressSelected(MapSearchResult result) {
+    _reportSearchGeneration++;
     final draft = _reportDraft;
     if (draft == null || _reportSubmitting) return;
     _reportAddressSearchDebounce?.cancel();
@@ -875,6 +907,7 @@ class _MapScreenState extends State<MapScreen> {
   });
 
   void _selectSearchResult(MapSearchResult result) {
+    _mapSearchGeneration++;
     _mapSearchDebounce?.cancel();
     setState(() {
       _searchSelection = result;
@@ -882,22 +915,53 @@ class _MapScreenState extends State<MapScreen> {
       _selectedFeature = result.feature;
       _selectedEvent = null;
       _searchText = '';
+      _mapSearchResults = const [];
       _searchController.clear();
       _focusRequestId += 1;
     });
   }
 
   void _onMapSearchChanged(String value) {
+    _mapSearchGeneration++;
     _mapSearchDebounce?.cancel();
     if (value.trim().isEmpty) {
       if (_searchText.isEmpty) return;
-      setState(() => _searchText = '');
+      setState(() {
+        _searchText = '';
+        _mapSearchResults = const [];
+      });
       return;
     }
     _mapSearchDebounce = Timer(const Duration(milliseconds: 180), () {
       if (!mounted) return;
       setState(() => _searchText = value);
+      unawaited(_refreshSearchResults(value));
     });
+  }
+
+  Future<void> _refreshSearchResults(String text, {bool report = false}) async {
+    final generation =
+        report ? ++_reportSearchGeneration : ++_mapSearchGeneration;
+    try {
+      final results =
+          _searchWorker == null
+              ? _searchIndex?.query(text) ?? const <MapSearchResult>[]
+              : (await _searchWorker!.search(text)).results;
+      if (!mounted ||
+          generation !=
+              (report ? _reportSearchGeneration : _mapSearchGeneration)) {
+        return;
+      }
+      setState(() {
+        if (report) {
+          _reportSearchResults = results;
+        } else {
+          _mapSearchResults = results;
+        }
+      });
+    } on Object {
+      /* Optional index failure leaves the map usable. */
+    }
   }
 
   Future<void> _focusCurrentLocation() async {
@@ -921,15 +985,15 @@ class _MapScreenState extends State<MapScreen> {
     if (staticFeatures == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final searchIndex = _searchIndex;
-    final searchResults =
-        searchIndex?.query(_searchText) ?? const <MapSearchResult>[];
+    final searchResults = _mapSearchResults;
     final reportAddressQuery =
         _reportSheetVisible && _reportStep == CrowdReportSheetStep.edit
             ? _reportAddressController.text
             : '';
     final reportAddressResults =
-        searchIndex?.query(reportAddressQuery) ?? const <MapSearchResult>[];
+        reportAddressQuery.isEmpty
+            ? const <MapSearchResult>[]
+            : _reportSearchResults;
     return Scaffold(
       body: Stack(
         children: <Widget>[

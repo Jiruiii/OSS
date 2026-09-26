@@ -26,16 +26,48 @@ class GeolocatorLocationGateway implements LocationGateway {
 
   @override
   Future<GeoPoint?> getCurrentLocation() async {
-    final position = await Geolocator.getCurrentPosition();
+    // A recent, accurate device fix is already current enough for a walking
+    // origin. Never silently substitute an old last-known position.
+    if (!kIsWeb) {
+      try {
+        final cached = await Geolocator.getLastKnownPosition();
+        if (cached != null &&
+            canUseCachedPosition(cached, now: DateTime.now())) {
+          return _toGeoPoint(cached);
+        }
+      } on Object {
+        /* A missing cached fix does not prevent requesting GPS. */
+      }
+    }
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 10),
+      ),
+    );
     return _toGeoPoint(position);
+  }
+
+  static bool canUseCachedPosition(Position position, {required DateTime now}) {
+    final age = now.difference(position.timestamp);
+    return !age.isNegative &&
+        age <= const Duration(seconds: 30) &&
+        position.hasAccuracy &&
+        position.accuracy.isFinite &&
+        position.accuracy >= 0 &&
+        position.accuracy <= 50;
   }
 
   @override
   Future<bool> isServiceEnabled() => Geolocator.isLocationServiceEnabled();
 
   @override
-  Stream<GeoPoint> get locationUpdates =>
-      Geolocator.getPositionStream().map(_toGeoPoint);
+  Stream<GeoPoint> get locationUpdates => Geolocator.getPositionStream(
+    locationSettings: const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 5,
+    ),
+  ).map(_toGeoPoint);
 
   @override
   Future<LocationPermission> requestPermission() =>

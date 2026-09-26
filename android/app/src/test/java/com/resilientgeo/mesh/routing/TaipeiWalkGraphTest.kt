@@ -10,7 +10,7 @@ import kotlin.math.roundToInt
 class TaipeiWalkGraphTest {
     private val graph by lazy {
         val started = System.nanoTime()
-        RoadGraph.fromPrebuilt(File("src/main/assets/routing/taipei-walk.rgm.gz").inputStream()).also {
+        RoadGraph.fromPrebuilt(File("src/main/assets/routing/taipei-walk.rgmz").inputStream()).also {
             println("Taipei graph: ${it.nodeCount} nodes, ${it.edgeCount} edges, load ${(System.nanoTime()-started)/1e6} ms (JVM)")
         }
     }
