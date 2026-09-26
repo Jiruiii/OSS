@@ -77,6 +77,14 @@ object EvacuationRouter {
     /** Leaving a blocking hazard you already stand in is allowed, just strongly discouraged. */
     const val EXIT_HAZARD_PENALTY = 10.0
 
+    /**
+     * Shelters must sit next to the network. Every Neihu shelter is within
+     * ~50 m of a walkable node, while shelters just outside the Neihu snapshot
+     * (e.g. 中山區 across the Keelung River) are 180-300 m from its edge; with
+     * the 300 m origin limit their routes would end at the edge and look short.
+     */
+    const val DESTINATION_SNAP_LIMIT_METERS = 100.0
+
     fun plan(
         graph: RoadGraph,
         overlay: HazardOverlay,
@@ -103,8 +111,8 @@ object EvacuationRouter {
         }
         val originNode = graph.nearestNode(origin)
             ?: return noRoute(RouteWarning("ORIGIN_OFF_GRAPH", null, "起點距離離線路網超過 300 公尺，無法規劃路線"))
-        val targetNode = graph.nearestNode(destination)
-            ?: return noRoute(RouteWarning("DESTINATION_OFF_GRAPH", null, "避難所距離離線路網超過 300 公尺，無法規劃路線"))
+        val targetNode = graph.nearestNode(destination, DESTINATION_SNAP_LIMIT_METERS)
+            ?: return noRoute(RouteWarning("DESTINATION_OFF_GRAPH", null, "避難所不在離線路網範圍內（目前只涵蓋內湖區），無法規劃路線"))
 
         val warnings = mutableListOf<RouteWarning>()
         var effective = overlay

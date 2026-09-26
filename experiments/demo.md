@@ -90,10 +90,10 @@ adb shell am broadcast -a com.resilientgeo.mesh.debug.IMPORT_CHUNKS -n com.resil
 
 ## 6. 離線逃生路線（實機）
 
-情境檔：`data/fixtures/neihu/evacuation-scenario.json`（合成事件，建立在真實 OSM 幾何上；由 `pipeline/tools/generate-evacuation-scenario.mjs` 產生）。前置：Android 需要已驗證的避難所圖層，否則地圖上沒有避難所可選——依 `pipeline/README.md`「Task 5」用 `build-layer` 產生 `shelter` layer，放到 `android/app/src/main/assets/static/taiwan/shelter/`。
+情境檔：`data/fixtures/neihu/evacuation-scenario.json`（合成事件，建立在真實 OSM 幾何上；由 `pipeline/tools/generate-evacuation-scenario.mjs` 產生）。App 已打包全台避難所圖層（`assets/static/taiwan/shelter`，`taiwan-static-2026` 簽章），第一次開 App 會完整驗證一次（手機上約數秒），之後讀驗證快取。
 
 1. 飛航模式，把位置設在 121.566, 25.081（西湖），按「推薦最近避難所」：推薦 **西湖國小**，約 370 m。
 2. 送來封路事件（mesh 或 debug 匯入 `android/app/src/main/assets/fixtures/evacuation-scenario/step2-road-closed.json`）：畫面提示「路線資訊已變更」，重新計算後仍是西湖國小，但改走另一條路（約 480 m），結果列出被避開的封路。
 3. 送來 `step3-shelter-full.json`（西湖國小額滿）：重新推薦後改為 **西湖國中**（約 670 m）。
 
-同一組步驟在 JVM 裡由 `EvacuationScenarioTest` 自動重播。
+同一組步驟在 JVM 裡由 `EvacuationScenarioTest` 自動重播，候選避難所就是 Flutter 會挑的五個（直線距離最近）。注意第 3 步西湖國中（約 670 m）只比濱江國中（約 674 m）近 4 m；濱江國小位在內湖路網外，會顯示「不在離線路網範圍內」。

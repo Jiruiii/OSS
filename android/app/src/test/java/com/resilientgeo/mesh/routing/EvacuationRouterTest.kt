@@ -135,6 +135,14 @@ class EvacuationRouterTest {
     }
 
     @Test
+    fun `a shelter too far from the network is off-graph even within the origin limit`() {
+        // ~150 m east of node 2: fine as an origin (300 m), too far for a shelter (100 m).
+        val farShelter = LonLat(121.50366, 25.000)
+        assertEquals("DESTINATION_OFF_GRAPH", plan(destination = farShelter).warnings.first().code)
+        assertEquals(RouteStatus.OK, plan(origin = farShelter, destination = p(0, 0)).status)
+    }
+
+    @Test
     fun `a shelter at the origin node still yields a drawable two-point route`() {
         val route = plan(destination = LonLat(121.50001, 25.00001))
         assertEquals(RouteStatus.OK, route.status)

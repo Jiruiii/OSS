@@ -12,10 +12,11 @@
 - **路網來源**：`pipeline/tools/generate-walk-graph.mjs` 把 `flutter/assets/data/neihu/static-features.json` 的可步行道路轉成 `android/app/src/main/assets/routing/walk-roads.json`；Flutter 目前不再打包這份 Neihu 檔案。可步行類別多了 `primary`／`primary_link`（內湖資料中沒有，但人行道可走）。
 - **最近節點優先落在主路網**：快照有約 60 個零碎小段，否則 麗山國小 之類的避難所會被判為無法抵達。
 - **危險區用事件類型白名單**（`FLOOD_WARNING`、`LANDSLIDE_RISK`、`DEBRIS_FLOW_WARNING`），不是「任何 CRITICAL 多邊形」：打包的全台 NCDR 熱傷害與供水警戒、以及 SHELTER_STATUS／MEDICAL 事件都是 CRITICAL／HIGH 多邊形。
-- **Task 3 災害類型過濾與 `hazardKind` 推斷未做**：請求只帶避難所 id 與座標，Android 沒有已驗證的避難所圖層可查 `disaster_types`。避難所狀態以位置比對（100 m 內或多邊形包含），不以名稱比對，因為請求不帶名稱。
+- **Task 3 災害類型過濾與 `hazardKind` 推斷未做**：請求只帶避難所 id 與座標；Android 已打包全台避難所圖層（2026-09-27），之後可依 id 查 `disaster_types`，目前尚未實作。避難所狀態以位置比對（100 m 內或多邊形包含），不以名稱比對，因為請求不帶名稱。
 - **Task 5** 的重算與變更提示由 Flutter 既有的事件指紋機制負責（「路線資訊已變更，請重新計算」）；Android 端覆蓋層依事件快照快取。
 - **Task 7 情境**：起點 121.566, 25.081（西湖），封 OSM way 1462339230 → 仍去西湖國小但繞路；西湖國小額滿 → 改去西湖國中。`EvacuationScenarioTest` 以真實簽章 chunk 重播。
-- **未做**：實機演練（Task 6 Step 3、Task 7 Step 3）。Android 也還沒有打包已驗證的避難所圖層，實機演練前要先放入。
+- **避難所離路網上限 100 m**（起點仍是 300 m）：內湖的避難所都在路網 50 m 內，內湖以外的（例如中山區濱江國小，284 m）若用 300 m 會停在路網邊緣、甚至隔著基隆河，距離看起來很短。
+- **未做**：實機演練（Task 6 Step 3、Task 7 Step 3）。全台避難所圖層已於 2026-09-27 打包進 Android。
 
 **Goal:** 用手機上已經有的資料計算步行逃生路線，完全離線：
 - 道路圖來自打包的 OSM 快照。
