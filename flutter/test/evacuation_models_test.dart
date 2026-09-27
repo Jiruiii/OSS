@@ -18,7 +18,7 @@ void main() {
         <String, dynamic>{
           'code': 'UNVERIFIED_CROWD_REPORT',
           'event_id': 'report:test',
-          'message': '附近有未驗證告警，請現場確認',
+          'message': '附近有未驗證警示，請現場確認',
         },
       ],
       'blocked_event_ids': <dynamic>['road:closed'],

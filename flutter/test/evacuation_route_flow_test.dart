@@ -178,7 +178,7 @@ void main() {
       await tester.pump();
 
       expect(find.text('距離：1.2 公里'), findsOneWidget);
-      expect(find.text('附近有未驗證告警，請現場確認'), findsOneWidget);
+      expect(find.text('附近有未驗證警示，請現場確認'), findsOneWidget);
       expect(find.text('受路線快照排除事件：'), findsNothing);
     },
   );
@@ -471,7 +471,7 @@ void main() {
     );
     await _finishLoad(tester);
 
-    expect(find.bySemanticsLabel('回報告警'), findsOneWidget);
+    expect(find.bySemanticsLabel('回報警示'), findsOneWidget);
     expect(find.bySemanticsLabel('推薦最近避難所'), findsOneWidget);
     await _openShelterDetails(tester, '測試避難所');
     await tester.ensureVisible(find.text('規劃逃生路線'));
@@ -611,7 +611,7 @@ EvacuationRouteResult _okRoute({
             RouteWarning(
               code: 'UNVERIFIED_CROWD_REPORT',
               eventId: 'report:test',
-              message: '附近有未驗證告警，請現場確認',
+              message: '附近有未驗證警示，請現場確認',
             ),
           ]
           : const <RouteWarning>[],

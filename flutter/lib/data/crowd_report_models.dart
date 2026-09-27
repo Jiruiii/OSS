@@ -132,7 +132,7 @@ final class CrowdReportDraft {
 
   String? validate() {
     final point = location;
-    if (point == null) return '請選擇告警位置';
+    if (point == null) return '請選擇警示位置';
     if (locationSource == null) return '請選擇位置來源';
     if (!point.longitude.isFinite ||
         !point.latitude.isFinite ||
@@ -140,7 +140,7 @@ final class CrowdReportDraft {
         point.longitude > 180 ||
         point.latitude < -90 ||
         point.latitude > 90) {
-      return '告警位置座標無效';
+      return '警示位置座標無效';
     }
     return validateDescription(description);
   }

@@ -882,7 +882,7 @@ class _MapScreenState extends State<MapScreen> {
         _reportSheetVisible = false;
         _reportStep = CrowdReportSheetStep.edit;
       });
-      _showMessage('告警已建立：未驗證／待同步');
+      _showMessage('警示已建立：未驗證／待同步');
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _reportSubmitting = false);
@@ -893,13 +893,13 @@ class _MapScreenState extends State<MapScreen> {
   String _reportErrorMessage(Object error) => switch (error) {
     BridgeFailure(:final code) => switch (code) {
       BridgeFailureCode.unavailable => '此功能需要 Android App，Chrome 僅供地圖與資料預覽',
-      BridgeFailureCode.signingUnavailable => '裝置安全簽署不可用，告警未送出',
-      BridgeFailureCode.storageUnavailable => '告警無法儲存至待同步佇列，未送出',
-      BridgeFailureCode.invalidInput => '告警資料無效，未送出',
-      _ => '告警未送出，請稍後再試',
+      BridgeFailureCode.signingUnavailable => '裝置安全簽署不可用，警示未送出',
+      BridgeFailureCode.storageUnavailable => '警示無法儲存至待同步佇列，未送出',
+      BridgeFailureCode.invalidInput => '警示資料無效，未送出',
+      _ => '警示未送出，請稍後再試',
     },
-    FormatException() => '告警資料格式錯誤，未送出',
-    _ => '告警未送出，請稍後再試',
+    FormatException() => '警示資料格式錯誤，未送出',
+    _ => '警示未送出，請稍後再試',
   };
 
   void _setZoomPercentage(int percentage) => setState(() {
@@ -1074,7 +1074,7 @@ class _MapScreenState extends State<MapScreen> {
                       child: Card(
                         child: Padding(
                           padding: EdgeInsets.all(10),
-                          child: Text('請拖動地圖，讓中心圖釘對準告警位置'),
+                          child: Text('請拖動地圖，讓中心圖釘對準警示位置'),
                         ),
                       ),
                     ),
@@ -1214,8 +1214,8 @@ class _StatusOverlay extends StatelessWidget {
               key: ValueKey<String>('static-features-failed'),
             ),
           if (reportDeliveryEventId != null) ...<Widget>[
-            const Text('民眾告警：未驗證／待同步'),
-            Text('告警編號：$reportDeliveryEventId'),
+            const Text('民眾警示：未驗證／待同步'),
+            Text('警示編號：$reportDeliveryEventId'),
           ],
         ],
       ),
@@ -1235,7 +1235,7 @@ class _MapQuickActions extends StatelessWidget {
     children: <Widget>[
       _QuickActionButton(
         key: const ValueKey<String>('open-crowd-report-action'),
-        label: '回報告警',
+        label: '回報警示',
         icon: Icons.warning_amber_rounded,
         onPressed: onReport,
         buttonKey: const ValueKey<String>('open-crowd-report'),

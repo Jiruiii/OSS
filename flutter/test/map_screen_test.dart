@@ -46,18 +46,18 @@ void main() {
       );
       expect(updateTime.maxLines, 1);
       expect(updateTime.softWrap, isFalse);
-      expect(find.text('回報告警'), findsNothing);
+      expect(find.text('回報警示'), findsNothing);
       expect(find.text('推薦最近避難所'), findsNothing);
-      expect(find.byTooltip('回報告警'), findsOneWidget);
+      expect(find.byTooltip('回報警示'), findsOneWidget);
       expect(find.byTooltip('推薦最近避難所'), findsOneWidget);
-      expect(tester.getTopLeft(find.byTooltip('回報告警')).dx, greaterThan(200));
+      expect(tester.getTopLeft(find.byTooltip('回報警示')).dx, greaterThan(200));
       expect(tester.getTopLeft(find.byTooltip('推薦最近避難所')).dx, greaterThan(200));
       expect(find.byIcon(LucideIcons.mapPinHouse), findsOneWidget);
       expect(find.byIcon(MapIconCatalog.shelter), findsNothing);
       expect(find.byIcon(Icons.near_me), findsNothing);
       expect(
         tester.getRect(find.byTooltip('推薦最近避難所')).left,
-        greaterThan(tester.getRect(find.byTooltip('回報告警')).right),
+        greaterThan(tester.getRect(find.byTooltip('回報警示')).right),
       );
       expect(find.text('離線地圖可用'), findsNothing);
       expect(find.text('Protomaps 台灣離線底圖'), findsNothing);
