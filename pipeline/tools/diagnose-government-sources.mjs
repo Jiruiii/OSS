@@ -16,13 +16,13 @@ for (const [name, get] of [['system', () => lookup(host, { all: true })], ['reso
 const dns = await fetch(`https://cloudflare-dns.com/dns-query?name=${host}&type=A`, {
   headers: { Accept: 'application/dns-json' }, signal: AbortSignal.timeout(10000),
 }).then(r => r.json());
-const addresses = (dns.Answer ?? []).filter(a => a.type === 1).map(a => a.data);
+const addresses = [...new Set([...(dns.Answer ?? []).filter(a => a.type === 1).map(a => a.data), ...await resolve4(host)])];
 console.log(JSON.stringify({ dns: 'https-public', addresses }));
 for (const address of [undefined, ...addresses]) {
   const started = Date.now();
   try {
     const fetchImpl = address ? (url, options) => new Promise((resolve, reject) => {
-      const req = request(url, { headers: options.headers, signal: options.signal,
+      const req = request(url, { headers: options.headers, signal: options.signal, family: 4, autoSelectFamily: false,
         lookup: (_hostname, _options, callback) => callback(null, address, 4) }, response => {
         const parts = [];
         response.on('data', part => parts.push(part));
