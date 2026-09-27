@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -77,6 +78,7 @@ class MapAppController extends ChangeNotifier {
     try {
       try {
         final loadedState = await bridge.getInitialState();
+        if (_disposed) return;
         final verifiedEvents = _withoutDemoEvents(loadedState.events);
         initialState = MapInitialState(
           events: verifiedEvents,
@@ -109,15 +111,18 @@ class MapAppController extends ChangeNotifier {
           staticFeaturesPending = true;
           unawaited(_loadVerifiedStaticFeatures());
         }
-      } on Object {
-        // Preview builds without the Android host use the real NCDR snapshot.
-        // Android remains authoritative when its bridge is available.
+      } on MissingPluginException {
+        // Only hosts without the Android bridge may use preview assets.
+        // Verification, storage and decoding failures must reach the error UI.
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) rethrow;
         final rawStatic = await _loadPreferredStaticAsset();
+        if (_disposed) return;
         staticFeatures = StaticFeatureCollection.fromJson(
           Map<String, dynamic>.from(jsonDecode(rawStatic) as Map),
         );
         try {
           final demoEvents = await _demoEventLoader();
+          if (_disposed) return;
           persistedEvents = List<MeshEvent>.unmodifiable(demoEvents);
           initialState = MapInitialState(
             events: persistedEvents,
@@ -133,7 +138,9 @@ class MapAppController extends ChangeNotifier {
         }
       }
 
+      if (_disposed) return;
       await _loadPreferences();
+      if (_disposed) return;
       if (nativeBridgeAvailable) _listenToNativeEvents();
     } on Object catch (error) {
       loadError = error;
