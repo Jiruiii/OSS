@@ -72,6 +72,8 @@ debug/profile 提供 `ext.resilientgeo.performance` VM service extension，最�
 ## Pixel 8a 實測紀錄（2026-09-27）
 
 USB 連線、Flutter AOT profile、手機 thermal status 1（輕度升溫）。
+本輪覆蓋安裝並保留手機資料；冷啟動是新 process，仍保留已安裝底圖及既有驗證快取，
+不等於清除資料後的首次安裝。完整避難所首次驗證的既有成本另見 [限制紀錄](../experiments/limitations.md)，本輪未獨立重測。
 路線呼叫使用本機橋接與 Room 事件；instrumentation 則以空事件隔離路網運算。
 每組路線重跑 6 次，第一次排除於暖機 p95；搜尋每個詞重跑 3 次。
 拖動為 12 次 600 ms 橫向 swipe，統計最後 600 個 Flutter frame timing。

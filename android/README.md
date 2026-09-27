@@ -63,6 +63,16 @@ shows `無資料`, never zero. Bundled demo events are labeled
 
 ### Current build result
 
+2026-09-27: the Taipei/New Taipei graph, 135 Android JVM tests, Pixel 8a routing
+instrumentation and the AOT `assembleProfile` build pass. The installed device
+build is `app/build/outputs/apk/profile/app-profile.apk`; `install -r` preserves
+existing app data. Map panning, idle markers, actual-location shelter recommendation
+and PMTiles reuse across restarts were checked. A complete airplane-mode routing
+acceptance run and multi-device disaster-rerouting demo remain pending. See
+[the device report](../docs/taipei-offline-routing.md) for measurements and limits.
+
+### Historical build notes (2026-09-21)
+
 Flutter static asset validation, Flutter analyze/tests, Chrome web build,
 Android unit tests, and the embedded host `assembleDebug` build pass. The host
 APK is produced at `android/app/build/outputs/apk/debug/app-debug.apk` and

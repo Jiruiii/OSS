@@ -4,6 +4,17 @@
 >
 > 狀態：2026-09-24 規劃；**2026-09-26 實作完成（實機演練除外）**。任務總覽見 `docs/mvp-remaining-tasks.md` G 段。
 
+## 最新進度（2026-09-27）
+
+- [x] 正式路網擴大到雙北及邊界緩衝區：預建 `.rgmz` 約 28.9 MB，1,085,665 節點／1,183,752 路段。內湖 JSON、generator、golden 與 demo 情境保留。
+- [x] Android 規劃改用 A*、重用搜尋陣列與災情覆蓋層、加入路段空間索引；保留 pedestrian access／方向與 OSM node ID。
+- [x] 41 個行政區避難所連通測試、Pixel 8a 路線 instrumentation 及 profile App 六組短程／兩組較長跨市請求通過；實際定位推薦操作顯示約 406 公尺路線。
+- [x] 234 項 Flutter、135 項 Android JVM、4 項 generator 測試、analyze 與 APK 資產檢查通過。首次 App 路線約 1.8 秒、含較長路線的暖機 p95 約 68.6 ms。
+- [ ] 飛航模式路線專項驗收與 Task 7 的兩機災情改道錄影；本次單機 USB 量測不代替這兩項。
+- [ ] 災害類型過濾、高程／垂直避難、跨機型長時間負載驗證。
+
+詳細來源、條件與數據見 [雙北路線文件](../../taipei-offline-routing.md)。下列 2026-09-24 規劃與 2026-09-26 實作記錄保留為歷史；其中內湖規模、Dart／Dijkstra 和資料缺口的描述不代表目前雙北實作。
+
 ## 實作記錄與偏離（2026-09-26）
 
 - **計算位置改為 Android（Kotlin，`android/.../routing/`）**，不是 Flutter 純 Dart。之後合併的 Flutter UI 計畫（`2026-09-24-flutter-crowd-alert-evacuation-ui.md`）規定 Flutter 不得計算路線，只呈現 Android `calculateEvacuationRoute` 的結果，UI 與測試都已照這個契約完成。Android 也本來就持有已驗證事件，所以「只用 Android 驗證過的事件」自然成立。
@@ -205,7 +216,7 @@ App 從使用者的位置出發，找出最近、開設中、而且適用於當�
   - 免責聲明與資料時間永遠顯示。
   - 路線經過未驗證回報的路段時，顯示「經過未驗證回報路段」。
 - [x] **Step 2: 實作。** 路線顏色要和事件分色（CURRENT／EXPIRED／UNVERIFIED）明顯區分，深色模式也要測。 **（2026-09-26：由 UI 計畫完成）**
-- [ ] **Step 3: 實機手動驗證。** 開飛航模式後在 OSM 離線底圖上規劃路線；開網路後在 Google 底圖上看到同一條路線。 **（2026-09-26：未做：需要實機）**
+- [ ] **Step 3: 實機手動驗證。** 開飛航模式後在 OSM 離線底圖上規劃路線；開網路後在 Google 底圖上看到同一條路線。 **（2026-09-27：Pixel 8a 的 MapLibre 畫面、實際定位推薦與 profile 路線請求已驗證；完整飛航模式專項未重跑。App 現僅有 MapLibre，Google renderer 為原規劃歷史，不列入目前驗收。）**
 
 ### Task 7: Demo 情境資料
 

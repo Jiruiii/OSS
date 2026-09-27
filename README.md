@@ -287,6 +287,7 @@ pipeline 與 simulator **不使用任何第三方 npm 套件**，僅使用 Node.
 | [`docs/peer-sync-v0.md`](docs/peer-sync-v0.md)                               | HELLO → DIFF → REQUEST 協定與跨版本 DTN 規則       |
 | [`docs/adr/ADR-001-transport-layer.md`](docs/adr/ADR-001-transport-layer.md) | 傳輸層選型：三個候選的完整實機記錄與否決理由       |
 | [`docs/mvp-remaining-tasks.md`](docs/mvp-remaining-tasks.md)                 | MVP 剩餘待辦與完成標準                             |
+| [`docs/taipei-offline-routing.md`](docs/taipei-offline-routing.md)           | 雙北路網來源、Pixel 8a 延遲／記憶體實測與重跑方式    |
 | [`android/README.md`](android/README.md)                                     | Android 專案結構、建置踩雷紀錄與設計決策           |
 | [`experiments/README.md`](experiments/README.md)                             | 實驗產物、重新產生方式與主要結論                   |
 | [`C_BLEbroadcast.md`](C_BLEbroadcast.md)                                     | BLE 實機測試的原始工作筆記                         |

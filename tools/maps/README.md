@@ -1,5 +1,7 @@
 # 台灣 Protomaps PMTiles
 
+> 2026-09-27：除了全台底圖與道路搜尋，已新增雙北離線步行路網產生器、APK 資產檢查及 Pixel 8a USB 延遲量測工具。底圖涵蓋全台，路線目前只涵蓋雙北及邊界緩衝區。
+
 Flutter 的 MapLibre 樣式使用五個本機 PMTiles 檔案：
 
 | 檔案 | bbox（minLon,minLat,maxLon,maxLat） | zoom |
@@ -113,3 +115,23 @@ attribution 與排序後的 `entries`。每個 entry 包含 stable `id`、道路
 ```bash
 python3 -m unittest tools/maps/test_build_taiwan_search_index.py -v
 ```
+
+## 雙北路網與實機效能（2026-09-27）
+
+| 工具 | 用途 |
+| --- | --- |
+| `build_taipei_walk_graph.py` | 從固定日期、核對 SHA-256 的 Taiwan PBF 預建雙北步行圖、鄰接表、連通分量與空間索引 |
+| `test_build_taipei_walk_graph.py` | 驗證步行存取／方向、共用路口保留、簡化與節點間距、可重現輸出 |
+| `check_routing_apk.py` | 核對 `.rgmz` 檔名與 gzip bytes、manifest 雜湊，確認 PMTiles 未重壓縮且內湖 JSON 仍在 |
+| `measure_android_latency.py` | 透過指定 USB serial 與 profile VM service 量測搜尋、路線、拖動 frame、記憶體與升溫狀態 |
+
+產物 `android/app/src/main/assets/routing/taipei-walk.rgmz` 約 28.9 MB，以 Git LFS 管理；
+來源日期 2026-09-25，1,085,665 節點／1,183,752 路段。保留原始內湖工具與資產。
+副檔名不可直接改為 `.gz`，Android 打包會自動解壓並改名，導致 runtime 找不到檔案。
+
+量測工具只操作指定的測試 App，不修改 GPS、不清除手機資料、不送出回報。
+`--restart` 量測新 process 與道路搜尋初始化，`--swipes` 量測拖動，
+`--long-routes` 加入臺北／淡水到板橋；鎖定的 debuggable 測試手機可搭配
+`--restart --over-keyguard`，測完恢復正常啟動。
+
+重建環境、固定輸入雜湊、實機結果及限制見 [雙北路線與效能文件](../../docs/taipei-offline-routing.md)。

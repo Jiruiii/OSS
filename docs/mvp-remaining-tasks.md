@@ -1,6 +1,7 @@
 # MVP 剩餘待辦（合併版，不分人）
 
 > 建立日期：2026-09-05
+> 最新進度更新：2026-09-27，雙北離線路線與 Pixel 8a 延遲驗證完成；詳見 G、H 段及 [實測紀錄](taipei-offline-routing.md)。原有 MVP 阻塞項目不因此視為完成。
 > 取代分工方式：不再按「甲／乙」或「需不需要實機」切分，只按「離 MVP 通過條件有多近」排序。
 > 對應文件：`system.md`（開發階段與驗收條件）。
 > 已移除的文件（2026-09-24，內容已過時，需要時可從 git 歷史取回）：
@@ -171,9 +172,9 @@
 
 ---
 
-## G. 新功能：離線逃生路線（2026-09-24 規劃，2026-09-26 實作）
+## G. 新功能：離線逃生路線（2026-09-24 規劃，2026-09-27 雙北擴充）
 
-> 狀態：路線引擎、bridge 與 demo 情境完成，JVM 測試通過；**實機演練（G6 Step 3、G7 Step 3）尚未做**。
+> 狀態：雙北路網、路線引擎、bridge 與 UI 完成，41 個行政區連通測試及 Pixel 8a 路線 instrumentation／profile 量測通過；手機實際定位的推薦操作已顯示約 406 公尺路線。**飛航模式路線專項驗收及兩機災情改道演練仍未做**，單機效能測試不取代這兩項。
 > **與原計畫的差異**：路線改在 **Android（Kotlin，`routing/`）** 計算，不是 Flutter 純 Dart。已合併的 Flutter UI 計畫規定「Flutter 不計算路線，只呈現 Android 回傳的 `calculateEvacuationRoute` 結果」，UI 與測試都已照這個契約完成；Android 也本來就持有已驗證事件。演算法、封鎖／加權規則、決定性要求都照原計畫。
 > 實作計畫：`docs/superpowers/plans/2026-09-24-evacuation-routing.md`
 
@@ -181,16 +182,17 @@
 
 用手機上已經有的資料，完全離線地計算步行逃生路線：從使用者位置出發，找出最近、開設中、適用於當前災害的避難所，避開封閉道路和危險區域。mesh 帶來新事件時自動重算，並說明路線為什麼改變。
 
-### 可用資料（已實際檢查）
+### 原始內湖資料盤點（2026-09-24，保留歷史紀錄）
 
 - 道路：`static-features.json` 有 5,774 條道路，路口頂點共用，可以直接建成可連通的圖。有 `road_class`，沒有 `oneway`。
 - 避難所：26 處，含容量與適用災害類別。
 - 事件：`ROAD_STATUS` 的 id 內含 OSM way id，能 10/10 對上靜態道路；`FLOOD_WARNING`、`LANDSLIDE_RISK` 是多邊形；`SHELTER_STATUS` 能以名稱 5/5 對上靜態避難所。
 - 缺口：沒有高程、沒有 `oneway`，避難所只能靠名稱對應，demo 資料集只有 1 條封路。
 
-### 設計決策
+### 目前設計決策（2026-09-27）
 
-- 只做步行路線；在 Flutter 端用純 Dart 計算；用多目標 Dijkstra，跑一次就得到到所有避難所的距離。
+- 只做步行路線；Android Kotlin 使用預建雙北路網與單目標 A*，Flutter 挑最多 5 個候選避難所，依 Android 回傳的路線距離選擇目的地。保留原本 Dijkstra 與內湖 golden 回歸測試。
+- 路網保留 OSM node ID，遵守 `oneway:foot`、`foot`／`access` 限制；涵蓋雙北及邊界緩衝區，沒有高程資料。避難所狀態以位置比對，災害類型過濾仍未做。
 - CLOSED 道路和 CRITICAL 危險區**封鎖**；PARTIAL 道路和 HIGH 危險區**加權**。
 - 群眾回報（`UNVERIFIED`）**只加權、不封鎖**，避免一筆假回報就能把所有人導離最佳路線。
 - `EXPIRED` 事件不參與計算，但要提示使用者。
@@ -198,14 +200,15 @@
 
 ### 任務拆分
 
-- [x] **G1. 道路圖建構**：`pipeline/tools/generate-walk-graph.mjs` 從內湖 OSM 快照輸出 `assets/routing/walk-roads.json`（約 0.97 MB）；`RoadGraph` 建圖 28,954 節點、32,806 邊，最大連通分量 98.7%，JVM 建圖約 40 ms。最近節點查詢優先落在主路網（快照中有約 60 個零碎小段）。
+- [x] **G1. 道路圖建構與雙北擴充**：`tools/maps/build_taipei_walk_graph.py` 產生 `android/app/src/main/assets/routing/taipei-walk.rgmz`（28,891,043 bytes，Git LFS），共 1,085,665 節點、1,183,752 路段。原始內湖 `walk-roads.json`、產生工具與 golden 檔保留。來源與雜湊見 [雙北路網文件](taipei-offline-routing.md)。
 - [x] **G2. 災情覆蓋層**：`HazardOverlay`，規則表與測試一一對應。危險區改用事件類型白名單（`FLOOD_WARNING`、`LANDSLIDE_RISK`、`DEBRIS_FLOW_WARNING`）：打包的全台 NCDR 熱傷害、供水警戒，以及 SHELTER_STATUS／MEDICAL 事件也是 CRITICAL／HIGH 多邊形，照「任何 CRITICAL 多邊形」會封掉整片路網。
 - [x] **G3. 避難所目的地**：`ShelterState` 以位置（100 m 內或多邊形包含）比對 `SHELTER_STATUS`；未開設、額滿、位在 CRITICAL 危險區都回 `no_route` 並附原因；沒有狀態事件時照常規劃，但附「狀態未知」警告。災害類型過濾**未做**：`calculateEvacuationRoute` 契約只帶避難所 id 與座標；Android 已打包全台避難所圖層，之後可依 id 查 `disaster_types`。
-- [x] **G4. 路線計算**：`EvacuationRouter`（單目標 Dijkstra，同成本依 node id）；每次請求一個避難所，前幾名由 Flutter 依 Android 距離排序。起點離路網超過 300 m、避難所離路網超過 100 m（內湖以外的避難所）、全部被封、起點在危險區內，都有明確狀態或警告；`blocked_event_ids` 列出被避開的封路。內湖五個生活圈的結果存成 golden 檔。
+- [x] **G4. 路線計算**：`EvacuationRouter` 的規劃路徑使用單目標 A*，每次請求一個避難所，前幾名由 Flutter 依 Android 距離排序。起點離路網超過 300 m、避難所離路網超過 100 m、全部被封、起點在危險區內，都有明確狀態或警告；`blocked_event_ids` 列出被避開的封路。內湖五個生活圈 golden 測試仍通過；雙北 41 個行政區各有可達避難所的測試通過。
 - [x] **G5. 重算**：Flutter 已在事件指紋改變時標示「路線資訊已變更，請重新計算」；Android 端覆蓋層依事件快照快取，事件一變就重建。
-- [x] **G6. UI**：已由 UI 計畫完成；目前 App 只有 MapLibre 離線底圖一種 renderer。
+- [x] **G6. UI**：已由 UI 計畫完成；目前 App 只有 MapLibre 離線底圖一種 renderer。Pixel 8a 上已驗證實際定位推薦、街道拖動及停止後標記保留；飛航模式路線專項驗收仍待補測。
 - [x] **G7. Demo 情境**：`pipeline/tools/generate-evacuation-scenario.mjs` → `data/fixtures/neihu/evacuation-scenario.json` 與兩個簽章 chunk；`EvacuationScenarioTest` 重播三個步驟。實機演練尚未做。
 - [x] **G8. 文件與限制說明。**
+- [x] **G9. Pixel 8a 路線效能驗證**：六組短程與兩組較長跨市路線均回傳 `ok`；首次 App 路線請求約 1.8 秒，含較長路線的暖機 p95 約 68.6 ms。已覆蓋安裝 profile APK，保留手機資料；可重跑命令及量測條件見 [實測紀錄](taipei-offline-routing.md)。
 
 ### 待討論
 
@@ -213,7 +216,18 @@
 - 災害類型：自動推斷，還是讓使用者手動選擇。
 - 危險區加權倍率（實作採 PARTIAL ×3、HIGH ×5、UNVERIFIED ×2、起點在危險區內離開時 ×10）。
 - 起點本身在危險區內時的提示文字（實作：「你位於危險區域內，請盡快離開」）。
-- 靜態避難所圖層：2026-09-27 已打包全台 5,907 處（`assets/static/taiwan/shelter`，金鑰 `taiwan-static-2026`，私鑰只在產生者本機）；驗證結果依內容雜湊快取（`VerifiedLayerCache`）。手機上的首次驗證耗時待實機量測。
+- 靜態避難所圖層：2026-09-27 已打包全台 5,907 處（`assets/static/taiwan/shelter`，金鑰 `taiwan-static-2026`，私鑰只在產生者本機）；驗證結果依內容雜湊快取（`VerifiedLayerCache`）。[既有實機紀錄](../experiments/limitations.md) 的首次驗證約 14–18 秒、在背景執行；本輪保留既有資料與快取，未獨立重測首次完整簽章驗證。
+
+---
+
+## H. 地圖與搜尋延遲改善（2026-09-27）
+
+- [x] **H1. 地圖標記**：修正 Android 實體／邏輯像素差異；配置與行政區聚合快取、畫面外點位過濾，GPS 更新不重建所有靜態點位。保留全台既有設施與互動。
+- [x] **H2. 背景搜尋**：全台約 30 萬筆道路的解析、正規化與搜尋移到持續存在的 isolate；單字／雙字候選索引與最佳 8 筆結果降低配置成本。一般搜尋運算 p95 約 31.7 ms、單字最慢約 129.3 ms，另有 180 ms 輸入 debounce。
+- [x] **H3. 地圖資產重用**：PMTiles 按內容版本與完整檔案大小重用，更新採暫存與原子替換；多次重啟後五個底圖檔未重新複製。修正 Android glyph／sprite 資產路徑及 `.gz` 路網打包改名問題。
+- [x] **H4. 實機量測與回歸**：Pixel 8a profile 街道拖動 Flutter total span p95 約 9.1 ms，600 個 frame 中無 build／raster 超過 16 ms；234 項 Flutter、135 項 Android JVM、4 項產生器測試、analyze、APK 檢查與路線 instrumentation 通過。原始量測在本機 `.sim-out/`，彙整見 [實測紀錄](taipei-offline-routing.md)。
+- [ ] **H5. 冷啟動搜尋初始化縮短**：道路索引在背景約 6.8 秒後可用，初期只搜尋已載入設施；不把暖機查詢時間當成首次準備時間。
+- [ ] **H6. 其他機型與長時間負載**：本次 profile app 總 PSS 約 1.1 GiB，尚未完成小記憶體機型及長時間升溫下的效能驗收。Flutter frame timing 不等於完整 MapLibre GPU FPS。
 
 ---
 
