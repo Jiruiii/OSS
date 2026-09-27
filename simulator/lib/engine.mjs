@@ -22,7 +22,7 @@ function isoAdd(iso, seconds) {
   return new Date(new Date(iso).getTime() + seconds * 1000).toISOString().replace('.000Z', 'Z');
 }
 
-function buildPeerSummary(node, scenario) {
+export function buildPeerSummary(node, scenario, { generatedAt, maxPeerCount }) {
   const chunks = [...node.heldChunks]
     .sort()
     .map((chunkId) => {
@@ -39,7 +39,14 @@ function buildPeerSummary(node, scenario) {
     schema_version: 'peer-summary-v0',
     protocol_version: '0',
     node_id: node.id,
-    generated_at: scenario.clock.issued_at,
+    generated_at: generatedAt,
+    capabilities: {
+      discovery_transports: ['BLE'],
+      transfer_transports: ['BLE_GATT'],
+      max_peer_count: maxPeerCount,
+      supports_resume: false,
+      max_chunk_bytes: Math.max(1, ...scenario.manifest.chunks.map((entry) => entry.size_bytes)),
+    },
     datasets: [
       {
         dataset_id: scenario.datasetId,
@@ -112,7 +119,10 @@ function peerPhase(scenario, config, nodes, strategy, geoFilter, seed, round, si
   const edges = roundContacts(config, nodes, seed, round);
   if (edges.length === 0) return;
 
-  const summaries = nodes.map((node) => buildPeerSummary(node, scenario));
+  const summaries = nodes.map((node) => buildPeerSummary(node, scenario, {
+    generatedAt: simClock,
+    maxPeerCount: config.max_peer_count,
+  }));
   const sharedRarity = rarityScope === 'global' ? globalRarity(nodes) : null;
   const requestCtx = {
     datasetId: scenario.datasetId,

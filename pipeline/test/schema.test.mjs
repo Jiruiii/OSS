@@ -4,6 +4,10 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { buildPeerSummary } from '../../simulator/lib/engine.mjs';
+import { buildScenario } from '../../simulator/lib/scenario.mjs';
+import { createNode } from '../../simulator/lib/world.mjs';
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '../..');
 
@@ -264,6 +268,24 @@ test('catalog registers every data category and keeps GNSS device-local', () => 
 // Android side had drifted to sending three of the six required top-level
 // fields, and no test noticed, because the parser only reads two of them.
 const peerSummarySchema = schemas.get('peer-summary-v0.schema.json');
+
+test('simulated HELLOs conform to the same peer-summary-v0 contract as phones', () => {
+  const scenario = buildScenario();
+  const node = createNode(0, 'neihu.dahu', null, new Set(['neihu.dahu']), false);
+  const options = { generatedAt: '2026-09-01T08:02:00Z', maxPeerCount: 4 };
+
+  const empty = buildPeerSummary(node, scenario, options);
+  assert.deepEqual(validate(empty, peerSummarySchema), []);
+  assert.equal(empty.generated_at, options.generatedAt);
+  assert.equal(empty.capabilities.supports_resume, false);
+
+  node.heldChunks.add(scenario.manifest.chunks[0].chunk_id);
+  const held = buildPeerSummary(node, scenario, options);
+  assert.deepEqual(validate(held, peerSummarySchema), []);
+  assert.equal(held.datasets[0].chunks.length, 1);
+  assert.ok(held.capabilities.max_chunk_bytes >= held.datasets[0].chunks[0].size_bytes);
+  assert.deepEqual(held.capabilities.transfer_transports, ['BLE_GATT']);
+});
 
 for (const name of ['peer-a-summary-v0.json', 'peer-b-summary-v0.json']) {
   test(`${name} conforms to peer-summary-v0`, () => {

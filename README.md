@@ -56,10 +56,12 @@ flowchart LR
     E --> H[(Room DB<br/>+ 離線地圖)]
     F --> I[(Room DB<br/>+ 離線地圖)]
     G --> J[(Room DB<br/>+ 離線地圖)]
-    K[Simulator<br/>擴散模擬與量測] -.共用同一套決策與驗證邏輯.-> E
+    K[Simulator<br/>擴散模擬與量測] -.共用資料契約與測試 fixture.-> E
 ```
 
-**協作方式**：後端（`pipeline/`）是純 Node.js CLI，負責把多來源資料正規化成統一的 `event-v0` 格式，依 `(area_id, theme)` 分組切片、計算 canonical SHA-256 並以 Ed25519 簽章，輸出 manifest + chunks。**私鑰只存在伺服器端**。行動端（`android/`）在收到任何分片時，先由 `ChunkVerifier` 驗證 chunk hash 與簽章、再由 `EventVerifier` 逐筆驗證事件，最後才交給 `EventIngestor` 套用版本／TTL／namespace 規則寫入 Room；驗證不過的資料絕不進入 APPLY，也不覆蓋既有資料。傳輸層藏在 `PeerTransport` 介面後方（實作為 `BleGattTransport`），同步邏輯不綁死任何單一 Android API。模擬器（`simulator/`）刻意**共用手機端同一套 `computeDiff`／`buildRequest`／驗證邏輯**，只把傳輸層換成種子化的接觸模型，因此模擬結果與實機行為出自同一份決策程式碼。
+**協作方式**：後端（`pipeline/`）是純 Node.js CLI，負責把多來源資料正規化成統一的 `event-v0` 格式，依 `(area_id, theme)` 分組切片、計算 canonical SHA-256 並以 Ed25519 簽章，輸出 manifest + chunks。**私鑰只存在伺服器端**。行動端（`android/`）在收到任何分片時，先由 `ChunkVerifier` 驗證 chunk hash 與簽章、再由 `EventVerifier` 逐筆驗證事件，最後才交給 `EventIngestor` 套用版本／TTL／namespace 規則寫入 Room；驗證不過的資料絕不進入 APPLY，也不覆蓋既有資料。傳輸層藏在 `PeerTransport` 介面後方（實作為 `BleGattTransport`），同步邏輯不綁死任何單一 Android API。模擬器（`simulator/`）直接使用 `pipeline/lib` 的 JavaScript 決策與驗證函式，Android 則使用 Kotlin 移植版本；兩者透過共同資料契約與 fixture 核對行為。模擬器的接觸模型不等同實機傳輸，跨語言實作仍需各自測試。
+
+Android host 直接載入原生已驗證的靜態地物與事件，不依賴 Flutter 預覽 JSON。原生驗證、儲存或格式錯誤會顯示載入失敗；只有非 Android 的預覽環境在缺少 native bridge 時，才使用打包的展示快照。
 
 沒有雲端資料庫、沒有後端服務相依；唯一的例外是把民眾回報升級為「已查證」需要政府端簽發確認事件，但沒有政府端時系統照常運作。App 固定使用單一 `MapLibreMap` renderer：台灣 Protomaps PMTiles、glyph、sprite、樣式、行政區／地標 GeoJSON 與 `taiwan-roads.json` 搜尋索引全部隨 App 內嵌；Android 啟動時將 PMTiles 串流複製到 app-private `files/maps/`，因此地圖與道路搜尋不需要網路或地圖服務憑證。ADR-001 否決的 Nearby Connections 與 Wi-Fi Direct 實作已連同它們所需的 Wi-Fi／Play Services 權限一併移除，只保留在 git 歷史與 ADR 記錄中。
 
@@ -76,7 +78,7 @@ flowchart LR
 | 密碼學             | Bouncy Castle `bcprov-jdk18on` 1.78.1                                                 | Android 端 Ed25519 驗簽（平台 provider 至 API 33 才支援 EdDSA）                                                                   |
 | 傳輸層             | Android BLE GATT（自訂 service：DATA write／ACK notify／CONTROL characteristic）      | Peer discovery、連線、分片傳輸與位元組級續傳                                                                                      |
 | 資料契約           | JSON Schema（`event-v0`／`manifest-v0`／`chunk-v0`／`peer-summary-v0`／`feature-v0`） | 跨模組介面，pipeline 與 Android 各自實作、以同一份 fixture 交叉驗證                                                               |
-| 測試               | Flutter test、JUnit 4、AndroidX Test、`node:test`、Python `unittest`                  | 83 項 Flutter 測試、48 項 JVM 單元測試、14 項 instrumented 測試、122 項 Node 測試、6 項 Python 測試                               |
+| 測試               | Flutter test、JUnit 4、AndroidX Test、`node:test`、Python `unittest`                  | 覆蓋地圖介面、資料契約、驗證、同步與模擬；測試數量及結果以各 runner 的當次輸出為準                                               |
 | Sponsor 技術       | 未使用                                                                                | 本次未使用主辦方或贊助商提供的服務；pipeline 與 simulator 零第三方相依，Android 端僅用 AndroidX 與 Bouncy Castle                  |
 
 > 曾評估但**否決**的技術，實測記錄見 [`docs/adr/ADR-001-transport-layer.md`](docs/adr/ADR-001-transport-layer.md)：**Nearby Connections**（兩台實機皆回傳 Google 側 `INTERNAL_ERROR`，非 App 端可控）、**原生 Wi-Fi Direct**（discovery／連線可行，但 TCP 卡在疑似 Android per-app 網路路由限制）。
@@ -95,8 +97,8 @@ git clone https://github.com/Jiruiii/OSS.git
 cd OSS
 
 # ---------- 1. 驗證整套資料契約與模擬器（不需要手機，約 1 分鐘） ----------
-npm test                                   # 122 項通過（pipeline + simulator）
-python -m unittest discover -s tests -v    # 10 項通過（Windows 繁中環境請先設 PYTHONUTF8=1）
+npm test                                   # pipeline + simulator
+python -m unittest discover -s tests -v    # Windows 繁中環境請先設 PYTHONUTF8=1
 
 # ---------- 2. 產生並驗證一份真實簽章的資料封包 ----------
 node pipeline/cli.mjs keygen --out-dir .stage2-keys --key-id neihu-demo-2026
