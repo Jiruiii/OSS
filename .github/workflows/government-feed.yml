@@ -5,6 +5,10 @@ on:
     - cron: '17 */2 * * *'
   workflow_dispatch:
     inputs:
+      diagnostics:
+        description: Read-only government source network diagnostics (no publication)
+        type: boolean
+        default: false
       initial:
         description: First deployment only (no existing signed publisher state)
         type: boolean
@@ -42,11 +46,13 @@ jobs:
         with:
           node-version: '22'
       - name: Prepare private signing key
+        if: ${{ inputs.diagnostics != true }}
         env:
           SIGNING_PEM: ${{ secrets.GOVERNMENT_SIGNING_PRIVATE_KEY }}
         run: |
           node --input-type=module -e "import fs from 'node:fs'; if(!process.env.SIGNING_PEM) throw Error('Missing signing secret'); fs.mkdirSync('.stage2-keys/government-feed',{recursive:true}); fs.writeFileSync(process.env.PIPELINE_SIGNING_PRIVATE_KEY,process.env.SIGNING_PEM,{mode:0o600});"
       - name: Restore signed release and collect government data
+        if: ${{ inputs.diagnostics != true }}
         env:
           INITIAL: ${{ inputs.initial }}
         run: |
@@ -57,6 +63,7 @@ jobs:
             node pipeline/government-publisher.mjs
           fi
       - name: Deploy verified public files only
+        if: ${{ inputs.diagnostics != true }}
         env:
           INITIAL: ${{ inputs.initial }}
         run: |
@@ -65,3 +72,6 @@ jobs:
           else
             node pipeline/deploy-government.mjs
           fi
+      - name: Diagnose sources without publishing
+        if: ${{ inputs.diagnostics == true }}
+        run: node pipeline/tools/diagnose-government-sources.mjs
