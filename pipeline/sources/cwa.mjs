@@ -411,7 +411,13 @@ function normalizeEarthquakeRecord(record, index, rawSnapshot, options) {
   const earthquakeNo = firstValue(record.EarthquakeNo, record.earthquake_no, record.EarthquakeID, record.id);
   const id = normalizeId(earthquakeNo, 'CWA EarthquakeNo');
   const geometry = geometryFromRecord(record, { earthquake: true });
-  const curated = curateGeometry(record, geometry, options);
+  // The official earthquake feed includes offshore epicentres. Replacing an
+  // offshore point with all Taiwan's town polygons loses the location and
+  // multiplies tens of MB per report. Keep the source's precise epicentre in
+  // nationwide mode; an epicentre is not an intensity/closure polygon.
+  const curated = options.scope === 'taiwan' && geometry?.type === 'Point'
+    ? { geometry, coverageLevel: 'epicentre' }
+    : curateGeometry(record, geometry, options);
   if (!curated) return undefined;
   const issuedAt = normalizeTime(
     firstValue(

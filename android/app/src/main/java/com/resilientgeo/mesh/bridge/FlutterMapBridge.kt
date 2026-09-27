@@ -18,9 +18,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
@@ -50,6 +53,7 @@ class FlutterMapBridge(
     private val routeService: EvacuationRouteService = EvacuationRouteService(
         graphLoader = EvacuationRouteService.assetGraphLoader(context),
         eventJsonProvider = { repository.allEventsSnapshot().map { it.eventJson } },
+        shelterCatalogProvider = { repository.verifiedShelterDisasterCatalog() },
     ),
 ) : MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
 
@@ -57,6 +61,8 @@ class FlutterMapBridge(
     private val methodChannel = MethodChannel(messenger, METHOD_CHANNEL_NAME)
     private val eventChannel = EventChannel(messenger, EVENT_CHANNEL_NAME)
     private var eventObservation: Job? = null
+    private val syncStatus = com.resilientgeo.mesh.emergency.SyncStatusStore(context)
+    private val governmentSync = com.resilientgeo.mesh.online.GovernmentSyncManager.get(context)
 
     /**
      * Verified static layers, started as soon as the bridge exists. First
@@ -78,6 +84,19 @@ class FlutterMapBridge(
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             METHOD_GET_INITIAL_STATE -> getInitialState(result)
+            "getSyncStatus" -> result.success(syncStatus.message())
+            "getGovernmentSyncStatus" -> result.success(governmentSync.message())
+            "configureGovernmentSync" -> {
+                val args = call.arguments as? Map<*, *>
+                val url = args?.get("url") as? String
+                val enabled = args?.get("enabled") as? Boolean
+                if (url == null || enabled == null) result.error(INVALID_ARGUMENTS, "Requires url and enabled", null)
+                else try {
+                    governmentSync.configure(url, enabled, args?.get("area") as? String ?: "taipei")
+                    result.success(governmentSync.message())
+                } catch (error: Exception) { result.error(INVALID_ARGUMENTS, "請輸入有效的 HTTPS 更新網址", null) }
+            }
+            "syncGovernmentNow" -> scope.launch { result.success(governmentSync.sync()) }
             METHOD_GET_STATIC_FEATURES -> getStaticFeatures(result)
             METHOD_LOAD_BUNDLED_FIXTURE -> loadBundledFixture(result)
             METHOD_SET_EMERGENCY_MODE -> setEmergencyMode(call, result)
@@ -93,7 +112,13 @@ class FlutterMapBridge(
 
         eventObservation = scope.launch {
             repository.observeEvents()
-                .map(MapBridgeProtocol::eventSnapshot)
+                .combine(flow {
+                    while (true) {
+                        emit(Instant.now())
+                        delay(30_000)
+                    }
+                }) { rows, now -> rows.map { EventPayloadMapper.toMessage(it, now) } }
+                .distinctUntilChanged()
                 .catch { error ->
                     events.error(EVENT_OBSERVATION_ERROR, error.message, null)
                 }

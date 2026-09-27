@@ -12,6 +12,9 @@ import com.resilientgeo.mesh.report.CrowdReportInput
 import com.resilientgeo.mesh.trust.DeviceSigningKey
 import com.resilientgeo.mesh.trust.KeystoreWrappedStorage
 import com.resilientgeo.mesh.trust.TrustedKeyStore
+import com.resilientgeo.mesh.trust.EventVerifier
+import com.resilientgeo.mesh.trust.VerificationResult
+import com.resilientgeo.mesh.trust.Canonical
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -19,9 +22,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util.concurrent.Callable
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 /**
  * Wires the trust adapter and apply rules to Room. This is the only class
@@ -29,9 +37,13 @@ import java.time.temporal.ChronoUnit
  * everything else talks to [com.resilientgeo.mesh.ingest.EventStore] or a
  * plain [org.json.JSONObject].
  */
-class MeshRepository(context: Context) {
+class MeshRepository(
+    context: Context,
+    private val db: AppDatabase = AppDatabase.get(context.applicationContext),
+    private val cacheDirectory: File = File(context.applicationContext.filesDir, "chunk-cache"),
+    private val cacheCapBytes: Long = CHUNK_CACHE_CAP_BYTES,
+) {
     private val appContext = context.applicationContext
-    private val db = AppDatabase.get(appContext)
     private val store = RoomEventStore(db.eventDao())
     private val chunkDao = db.chunkDao()
 
@@ -45,7 +57,7 @@ class MeshRepository(context: Context) {
      * has nothing to send when REQUESTed for it.
      */
     private val chunkCacheDir: File by lazy {
-        File(appContext.filesDir, "chunk-cache").apply { mkdirs() }
+        cacheDirectory.apply { mkdirs() }
     }
 
     private val trustStoreText: String by lazy {
@@ -69,6 +81,11 @@ class MeshRepository(context: Context) {
     suspend fun verifiedStaticFeatures(): List<Map<String, Any?>> = withContext(Dispatchers.IO) {
         STATIC_LAYER_IDS.flatMap { layerId -> loadStaticLayer(layerId) }
     }
+
+    suspend fun verifiedShelterDisasterCatalog(): com.resilientgeo.mesh.routing.ShelterDisasterCatalog =
+        withContext(Dispatchers.IO) {
+            com.resilientgeo.mesh.routing.ShelterDisasterCatalog.fromFeatures(loadStaticLayer("shelter"))
+        }
 
     private fun loadStaticLayer(layerId: String): List<Map<String, Any?>> {
         val root = "$STATIC_LAYER_ROOT/$layerId"
@@ -154,8 +171,12 @@ class MeshRepository(context: Context) {
         val json = appContext.assets.open(FIXTURE_ASSET).bufferedReader().use { it.readText() }
         val events = JSONObject(json).getJSONArray("events")
         val now = Instant.now()
-        (0 until events.length()).map { index ->
-            EventIngestor.ingest(store, events.getJSONObject(index), trustStore, now)
+        inventoryLock.withLock {
+            db.runInTransaction(Callable {
+                (0 until events.length()).map { index ->
+                    EventIngestor.ingest(store, events.getJSONObject(index), trustStore, now)
+                }
+            })
         }
     }
 
@@ -173,15 +194,32 @@ class MeshRepository(context: Context) {
         when (val verified = ChunkVerifier.verify(chunk, trustStore, now)) {
             is ChunkVerifier.Result.Invalid -> ChunkIngestResult.Rejected(verified.reason)
             is ChunkVerifier.Result.Valid -> {
-                val results = verified.events.map { event -> EventIngestor.ingest(store, event, trustStore, now) }
-                // Record the chunk itself, not just its events, so this node
-                // can later describe its own inventory in HELLO. Written only
-                // after verification passes, so the inventory can never
-                // advertise a chunk that failed the trust check.
-                chunkDao.upsertSync(chunk.toChunkEntity(now))
-                cacheChunkBytes(chunk)
-                if (chunk.optString("dataset_id") == CrowdChunkCodec.DATASET_ID) pruneCrowdInventory(now)
-                ChunkIngestResult.Applied(results)
+                for (event in verified.events) {
+                    val result = EventVerifier.verify(event, trustStore, now)
+                    if (result is VerificationResult.Invalid) {
+                        return@withContext ChunkIngestResult.Rejected("event verification failed: ${result.errors}")
+                    }
+                }
+                inventoryLock.withLock {
+                    if (chunk.optString("dataset_id") == CrowdChunkCodec.DATASET_ID) {
+                        val incoming = verified.events.single()
+                        val stored = store.find(incoming.getString("namespace"), incoming.getString("event_id"))
+                        if (stored != null && stored.eventVersion > incoming.getInt("event_version")) {
+                            return@withLock ChunkIngestResult.Rejected("event_version_rollback")
+                        }
+                        if (stored != null && stored.eventVersion == incoming.getInt("event_version") &&
+                            JSONObject(stored.eventJson).getString("payload_hash") != incoming.getString("payload_hash")) {
+                            return@withLock ChunkIngestResult.Rejected("same_version_conflict")
+                        }
+                    }
+                    val results = commitChunk(chunk, now) {
+                        verified.events.map { event ->
+                            EventIngestor.ingest(store, event, trustStore, now)
+                        }
+                    }
+                    if (chunk.optString("dataset_id") == CrowdChunkCodec.DATASET_ID) pruneCrowdInventory(now)
+                    ChunkIngestResult.Applied(results)
+                }
             }
         }
     }
@@ -209,8 +247,11 @@ class MeshRepository(context: Context) {
         fallbackManifestId: String,
         fallbackDatasetVersion: Int,
     ): JSONObject = withContext(Dispatchers.IO) {
-        val dataset = buildDatasetJson(datasetId, namespace, fallbackManifestId, fallbackDatasetVersion)
-        peerSummaryEnvelope(nodeId, JSONArray().put(dataset))
+        inventoryLock.withLock {
+            reconcileInventory()
+            val dataset = buildDatasetJson(datasetId, namespace, fallbackManifestId, fallbackDatasetVersion)
+            peerSummaryEnvelope(nodeId, JSONArray().put(dataset))
+        }
     }
 
     /**
@@ -229,25 +270,28 @@ class MeshRepository(context: Context) {
      * claim: only the latter tells a peer there is something to send).
      */
     suspend fun allLocalPeerSummaries(nodeId: String): JSONObject = withContext(Dispatchers.IO) {
-        // Expired crowd reports must not be advertised for relay.
-        pruneCrowdInventory(Instant.now())
-        val heldPairs = chunkDao.allSync().map { it.datasetId to it.namespace }.distinct()
-        val seen = mutableSetOf<Pair<String, String>>()
-        val datasets = JSONArray()
+        inventoryLock.withLock {
+            reconcileInventory()
+            // Expired crowd reports must not be advertised for relay.
+            pruneCrowdInventory(Instant.now())
+            val heldPairs = chunkDao.allSync().map { it.datasetId to it.namespace }.distinct()
+            val seen = mutableSetOf<Pair<String, String>>()
+            val datasets = JSONArray()
 
-        for (known in KNOWN_DATASETS) {
-            datasets.put(buildDatasetJson(known.datasetId, known.namespace, known.fallbackManifestId, known.fallbackDatasetVersion))
-            seen += known.datasetId to known.namespace
-        }
-        for ((datasetId, namespace) in heldPairs) {
-            if (!seen.add(datasetId to namespace)) continue
-            // No fallback needed here: `held` for a pair reached only via
-            // heldPairs is guaranteed non-empty, so buildDatasetJson always
-            // finds a `newest` chunk and never falls back.
-            datasets.put(buildDatasetJson(datasetId, namespace, fallbackManifestId = "unknown", fallbackDatasetVersion = 0))
-        }
+            for (known in KNOWN_DATASETS) {
+                datasets.put(buildDatasetJson(known.datasetId, known.namespace, known.fallbackManifestId, known.fallbackDatasetVersion))
+                seen += known.datasetId to known.namespace
+            }
+            for ((datasetId, namespace) in heldPairs) {
+                if (!seen.add(datasetId to namespace)) continue
+                // No fallback needed here: `held` for a pair reached only via
+                // heldPairs is guaranteed non-empty, so buildDatasetJson always
+                // finds a `newest` chunk and never falls back.
+                datasets.put(buildDatasetJson(datasetId, namespace, fallbackManifestId = "unknown", fallbackDatasetVersion = 0))
+            }
 
-        peerSummaryEnvelope(nodeId, datasets)
+            peerSummaryEnvelope(nodeId, datasets)
+        }
     }
 
     private fun buildDatasetJson(
@@ -305,22 +349,103 @@ class MeshRepository(context: Context) {
      */
     suspend fun cachedChunkJson(datasetId: String, namespace: String, chunkId: String): JSONObject? =
         withContext(Dispatchers.IO) {
-            val file = chunkCacheFile(datasetId, namespace, chunkId)
-            if (!file.isFile) null else JSONObject(file.readText())
+            inventoryLock.withLock {
+                val file = chunkCacheFile(datasetId, namespace, chunkId)
+                val chunk = runCatching {
+                    JSONObject(file.readText()).takeIf {
+                        it.getString("dataset_id") == datasetId && it.getString("namespace") == namespace &&
+                            it.getString("chunk_id") == chunkId &&
+                            ChunkVerifier.verify(it, trustStore) is ChunkVerifier.Result.Valid
+                    }
+                }.getOrNull()
+                if (chunk == null) {
+                    chunkDao.deleteSync(datasetId, namespace, chunkId)
+                    deleteCachedFile(file)
+                }
+                chunk
+            }
         }
 
-    private fun cacheChunkBytes(chunk: JSONObject) {
+    /** Publish complete bytes first; the Room transaction makes events and inventory visible together. */
+    private fun <T> commitChunk(chunk: JSONObject, now: Instant, applyEvents: () -> T): T {
         val file = chunkCacheFile(
             datasetId = chunk.getString("dataset_id"),
             namespace = chunk.getString("namespace"),
             chunkId = chunk.getString("chunk_id"),
         )
-        file.writeText(chunk.toString())
+        val previous = file.takeIf { it.isFile }?.readBytes()
+        val priorSize = cacheByteCounts.getOrPut(chunkCacheDir.absolutePath) { cacheBytesOnDisk() }
+        writeAtomically(file, chunk.toString().toByteArray(Charsets.UTF_8))
+        val result = try {
+            db.runInTransaction(Callable {
+                val applied = applyEvents()
+                chunkDao.upsertSync(chunk.toChunkEntity(now))
+                applied
+            })
+        } catch (error: Exception) {
+            if (previous == null) file.delete() else writeAtomically(file, previous)
+            throw error
+        }
+        cacheByteCounts[chunkCacheDir.absolutePath] = priorSize - (previous?.size ?: 0) + file.length()
         evictChunkCacheIfOverCap()
+        return result
     }
 
-    private fun chunkCacheFile(datasetId: String, namespace: String, chunkId: String): File =
-        File(chunkCacheDir, safeCacheFileName(datasetId, namespace, chunkId))
+    private fun writeAtomically(file: File, bytes: ByteArray) {
+        val temporary = File.createTempFile("chunk-", ".tmp", chunkCacheDir)
+        try {
+            temporary.outputStream().use { output ->
+                output.write(bytes)
+                output.fd.sync()
+            }
+            Files.move(temporary.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            temporary.delete()
+        }
+    }
+
+    /** Recover inventory entries whose bytes were lost during a crash or external cleanup. */
+    private fun reconcileInventory() {
+        chunkDao.allSync().forEach { entity ->
+            val file = chunkCacheFile(entity.datasetId, entity.namespace, entity.chunkId)
+            val valid = runCatching {
+                val chunk = JSONObject(file.readText())
+                chunk.getString("chunk_hash") == entity.chunkHash &&
+                    chunk.getString("chunk_id") == entity.chunkId &&
+                    chunk.getString("dataset_id") == entity.datasetId &&
+                    chunk.getString("namespace") == entity.namespace
+            }.getOrDefault(false)
+            if (!valid) dropChunk(entity)
+        }
+        cacheByteCounts[chunkCacheDir.absolutePath] = cacheBytesOnDisk()
+    }
+
+    private fun cacheBytesOnDisk(): Long = chunkCacheDir.listFiles()
+        ?.filter { it.extension == "json" }?.sumOf { it.length() } ?: 0
+
+    private fun deleteCachedFile(file: File) {
+        val size = file.length()
+        if (file.delete()) cacheByteCounts.computeIfPresent(chunkCacheDir.absolutePath) { _, count ->
+            (count - size).coerceAtLeast(0)
+        }
+    }
+
+    private fun chunkCacheFile(datasetId: String, namespace: String, chunkId: String): File {
+        // Replacing punctuation with '_' aliases distinct identities. A request
+        // for an unknown identity must never read or delete another chunk's bytes.
+        val digest = Canonical.sha256Canonical(listOf(datasetId, namespace, chunkId)).removePrefix("sha256:")
+        val file = File(chunkCacheDir, "chunk-$digest.json")
+        val legacy = File(chunkCacheDir, safeCacheFileName(datasetId, namespace, chunkId))
+        if (!file.exists() && legacy.isFile) {
+            val matches = runCatching {
+                val chunk = JSONObject(legacy.readText())
+                chunk.getString("dataset_id") == datasetId && chunk.getString("namespace") == namespace &&
+                    chunk.getString("chunk_id") == chunkId
+            }.getOrDefault(false)
+            if (matches) Files.move(legacy.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE)
+        }
+        return file
+    }
 
     /** chunk_id values contain ':' (e.g. "resilientgeo-demo:chunk:136:dahu:shelter:000"), not filesystem-safe on every target. */
     private fun safeCacheFileName(datasetId: String, namespace: String, chunkId: String): String =
@@ -336,12 +461,20 @@ class MeshRepository(context: Context) {
      * as an explicit number so it doesn't grow unbounded at a larger scale.
      */
     private fun evictChunkCacheIfOverCap() {
-        val files = chunkCacheDir.listFiles()?.sortedBy { it.lastModified() } ?: return
+        // Re-reading and parsing the entire inventory for every ~4 KB write
+        // made a nationwide HTTP import quadratic. All cache writers share the
+        // inventory lock and size counter; HELLO still reconciles actual bytes.
+        if ((cacheByteCounts[chunkCacheDir.absolutePath] ?: cacheBytesOnDisk()) <= cacheCapBytes) return
+        reconcileInventory()
+        val files = chunkCacheDir.listFiles()?.filter { it.extension == "json" }?.sortedBy { it.lastModified() } ?: return
         var total = files.sumOf { it.length() }
         var index = 0
-        while (total > CHUNK_CACHE_CAP_BYTES && index < files.size) {
+        val inventory = chunkDao.allSync()
+        while (total > cacheCapBytes && index < files.size) {
             total -= files[index].length()
-            files[index].delete()
+            inventory.filter { chunkCacheFile(it.datasetId, it.namespace, it.chunkId) == files[index] }
+                .forEach { chunkDao.deleteSync(it.datasetId, it.namespace, it.chunkId) }
+            deleteCachedFile(files[index])
             index++
         }
     }
@@ -377,25 +510,25 @@ class MeshRepository(context: Context) {
         } catch (error: Exception) {
             return@withContext CrowdReportResult.SigningUnavailable(error.message ?: error.javaClass.simpleName)
         }
-        val now = Instant.now()
-        if (activeReportCount(key.keyId(), now) >= MAX_OWN_ACTIVE_CROWD_REPORTS) {
-            return@withContext CrowdReportResult.Invalid(
-                listOf("this device already has $MAX_OWN_ACTIVE_CROWD_REPORTS active reports"),
-            )
-        }
-        val event = CrowdReportFactory.create(input, key, now)
-        try {
-            when (val result = EventIngestor.ingest(store, event, trustStore, now)) {
-                is IngestResult.Inserted -> {
-                    val chunk = CrowdChunkCodec.build(event, key)
-                    chunkDao.upsertSync(chunk.toChunkEntity(now))
-                    cacheChunkBytes(chunk)
-                    CrowdReportResult.Created(event.getString("event_id"), result.state)
-                }
-                else -> CrowdReportResult.StorageUnavailable("report was not stored: $result")
+        inventoryLock.withLock {
+            val now = Instant.now()
+            if (activeReportCount(key.keyId(), now) >= MAX_OWN_ACTIVE_CROWD_REPORTS) {
+                return@withLock CrowdReportResult.Invalid(
+                    listOf("this device already has $MAX_OWN_ACTIVE_CROWD_REPORTS active reports"),
+                )
             }
-        } catch (error: Exception) {
-            CrowdReportResult.StorageUnavailable(error.message ?: error.javaClass.simpleName)
+            val event = CrowdReportFactory.create(input, key, now)
+            try {
+                val chunk = CrowdChunkCodec.build(event, key)
+                when (val result = commitChunk(chunk, now) { EventIngestor.ingest(store, event, trustStore, now) }) {
+                    is IngestResult.Inserted -> {
+                        CrowdReportResult.Created(event.getString("event_id"), result.state)
+                    }
+                    else -> CrowdReportResult.StorageUnavailable("report was not stored: $result")
+                }
+            } catch (error: Exception) {
+                CrowdReportResult.StorageUnavailable(error.message ?: error.javaClass.simpleName)
+            }
         }
     }
 
@@ -452,7 +585,7 @@ class MeshRepository(context: Context) {
 
     private fun dropChunk(chunk: ChunkEntity) {
         chunkDao.deleteSync(chunk.datasetId, chunk.namespace, chunk.chunkId)
-        chunkCacheFile(chunk.datasetId, chunk.namespace, chunk.chunkId).delete()
+        deleteCachedFile(chunkCacheFile(chunk.datasetId, chunk.namespace, chunk.chunkId))
     }
 
     /** How many verified chunks this node currently holds — for status UI/logs. */
@@ -474,6 +607,8 @@ class MeshRepository(context: Context) {
     )
 
     companion object {
+        // Shared by every repository instance (bridge, service and debug harness).
+        private val inventoryLock = ReentrantLock()
         /** Reports this device may have active at once; bounds what it can push onto neighbours. */
         const val MAX_OWN_ACTIVE_CROWD_REPORTS = 20
 
@@ -505,7 +640,10 @@ class MeshRepository(context: Context) {
         private const val MAX_CHUNK_BYTES = 1048576
 
         /** Total on-disk size [evictChunkCacheIfOverCap] will keep the chunk-bytes cache under. */
-        private const val CHUNK_CACHE_CAP_BYTES = 8L * 1024 * 1024
+        // The nationwide government feed currently uses about 11 MB. Keep a
+        // complete release relayable, plus room for crowdsourced/older chunks.
+        private const val CHUNK_CACHE_CAP_BYTES = 32L * 1024 * 1024
+        private val cacheByteCounts = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
         /**
          * Datasets [allLocalPeerSummaries] always declares even with zero

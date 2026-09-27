@@ -214,7 +214,7 @@ class _VerificationNotice extends StatelessWidget {
   }
 }
 
-String _eventState(MeshEvent event) => switch (event.applyState) {
+String _eventState(MeshEvent event) => switch (event.effectiveApplyState) {
   'CURRENT' => '有效',
   'EXPIRED' => '已過期',
   'UNVERIFIED' => '未驗證',

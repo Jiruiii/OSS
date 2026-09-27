@@ -37,6 +37,7 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.security.SecureRandom
 
 /**
  * ADR-001's third bulk-transfer candidate — plain BLE GATT, and the one
@@ -83,6 +84,9 @@ class BleGattTransport(
     private val context: Context,
     private val adapter: BluetoothAdapter,
 ) : PeerTransport {
+
+    private val identityBytes = ByteArray(8).also { SecureRandom().nextBytes(it) }
+    override val localIdentity: String = "ble:" + identityBytes.joinToString("") { "%02x".format(it) }
 
     companion object {
         private const val TAG = "ResilientGeoBleGatt"
@@ -345,6 +349,7 @@ class BleGattTransport(
 
         override fun onStartFailure(errorCode: Int) {
             Log.e(TAG, "advertise failed to start, errorCode=$errorCode")
+            onAdvertisingFailure?.invoke(errorCode)
         }
     }
 
@@ -358,7 +363,12 @@ class BleGattTransport(
             .addServiceUuid(ParcelUuid(SERVICE_UUID))
             .setIncludeDeviceName(false)
             .build()
-        advertiser?.startAdvertising(settings, data, advertiseCallback)
+        // Keep the service UUID in the advertisement (21 bytes including flags),
+        // and the instance identity in the separate scan response (26 bytes).
+        val response = AdvertiseData.Builder()
+            .addServiceData(ParcelUuid(SERVICE_UUID), identityBytes)
+            .build()
+        advertiser?.startAdvertising(settings, data, response, advertiseCallback)
             ?: Log.e(TAG, "no BLE advertiser available on this device")
     }
 
@@ -370,24 +380,32 @@ class BleGattTransport(
 
     private var onPeerFound: ((PeerAdvertisement) -> Unit)? = null
     private var scanCallback: ScanCallback? = null
+    private var onAdvertisingFailure: ((Int) -> Unit)? = null
 
     override fun discover(): Flow<PeerAdvertisement> = callbackFlow {
+        if (advertiser == null || scanner == null) throw IllegalStateException("BLE advertise/scan unavailable")
+        onAdvertisingFailure = { close(IllegalStateException("BLE advertise failed: $it")) }
         onPeerFound = { advertisement -> trySend(advertisement) }
         startAdvertising()
 
         val callback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
+                val identity = result.scanRecord?.getServiceData(ParcelUuid(SERVICE_UUID))
+                    ?.takeIf { it.size == 8 }
+                    ?.let { bytes -> "ble:" + bytes.joinToString("") { "%02x".format(it) } }
                 onPeerFound?.invoke(
                     PeerAdvertisement(
                         peerId = result.device.address,
                         rssi = result.rssi,
                         discoveredAtMillis = System.currentTimeMillis(),
+                        transportIdentity = identity,
                     ),
                 )
             }
 
             override fun onScanFailed(errorCode: Int) {
                 Log.e(TAG, "scan failed to start, errorCode=$errorCode")
+                close(IllegalStateException("BLE scan failed: $errorCode"))
             }
         }
         scanCallback = callback
@@ -397,6 +415,7 @@ class BleGattTransport(
             ?: Log.e(TAG, "no BLE scanner available on this device")
 
         awaitClose {
+            onAdvertisingFailure = null
             onPeerFound = null
             scanCallback?.let { scanner?.stopScan(it) }
             scanCallback = null

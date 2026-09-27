@@ -95,7 +95,7 @@ class _EventCard extends StatelessWidget {
               '嚴重度：${event.severity ?? '無資料'}',
               isCrowdEvent(event) && !event.isExpired
                   ? '狀態：${crowdVerificationLabel(event.verification ?? CrowdVerification.unverified)}'
-                  : '狀態：${_applyStateLabel(event.applyState)}',
+                  : '狀態：${_applyStateLabel(event.effectiveApplyState)}',
               '發布：${event.issuedAt ?? '無資料'}',
               '有效期限：${event.expiresAt ?? '無資料'}',
             ].join('\n'),

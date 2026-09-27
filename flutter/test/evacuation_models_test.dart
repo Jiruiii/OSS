@@ -3,6 +3,49 @@ import 'package:resilientgeo_flutter/data/evacuation_models.dart';
 import 'package:resilientgeo_flutter/data/map_models.dart';
 
 void main() {
+  test(
+    'disaster filtering retains unknown shelters and excludes known mismatches',
+    () {
+      StaticFeature shelter(String id, List<String>? types) => StaticFeature(
+        id: id,
+        kind: 'shelter',
+        geometry: const PointGeometry(GeoPoint(longitude: 121.5, latitude: 25)),
+        fields: {if (types != null) 'disaster_types': types},
+        properties: null,
+      );
+      final flood = shelter('flood', ['水災']);
+      final earthquake = shelter('earthquake', ['震災']);
+      final unknown = shelter('unknown', []);
+      final missing = shelter('missing', null);
+      expect(
+        shelterDisasterEligibility(flood, DisasterType.flood),
+        ShelterDisasterEligibility.compatible,
+      );
+      expect(
+        shelterDisasterEligibility(earthquake, DisasterType.flood),
+        ShelterDisasterEligibility.incompatible,
+      );
+      expect(
+        shelterDisasterEligibility(unknown, DisasterType.flood),
+        ShelterDisasterEligibility.unknown,
+      );
+      expect(
+        shortlistShelterCandidates(
+          const GeoPoint(longitude: 121.5, latitude: 25),
+          [flood, earthquake, unknown, missing],
+          disasterType: DisasterType.flood,
+        ).map((c) => c.id),
+        ['flood', 'missing', 'unknown'],
+      );
+      expect(
+        shortlistShelterCandidates(
+          const GeoPoint(longitude: 121.5, latitude: 25),
+          [flood, earthquake],
+        ).length,
+        2,
+      );
+    },
+  );
   test('parses an ok route in lon-lat order with warnings', () {
     final route = EvacuationRouteResult.fromMessage(<String, dynamic>{
       'status': 'ok',
@@ -151,7 +194,7 @@ void main() {
     expect(candidates, everyElement(isA<ShelterRouteCandidate>()));
   });
 
-  test('shortlist limit cannot expose more than five candidates', () {
+  test('expanded shortlist can reach the sixth shelter', () {
     final candidates = shortlistShelterCandidates(
       const GeoPoint(longitude: 121.5, latitude: 25.0),
       List<StaticFeature>.generate(
@@ -161,8 +204,34 @@ void main() {
       limit: 99,
     );
 
-    expect(candidates, hasLength(5));
+    expect(candidates, hasLength(8));
   });
+
+  test(
+    'shortlist excludes shelters beyond the search radius and caps at fifty',
+    () {
+      const origin = GeoPoint(longitude: 121.5, latitude: 25.0);
+      final candidates = shortlistShelterCandidates(
+        origin,
+        List.generate(
+          60,
+          (index) => _shelter('shelter:$index', 121.5 + index / 10000, 25.0),
+        ),
+        limit: 99,
+        maxDistanceM: 20000,
+      );
+      expect(candidates, hasLength(50));
+      expect(
+        shortlistShelterCandidates(
+          origin,
+          [_shelter('far', 121.9, 25.4)],
+          limit: 50,
+          maxDistanceM: 20000,
+        ),
+        isEmpty,
+      );
+    },
+  );
 }
 
 StaticFeature _shelter(String id, double longitude, double latitude) =>

@@ -24,6 +24,25 @@ class EvacuationRouteServiceTest {
         RouteRequest(origin, "shelter:test", destination, mode)
 
     @Test
+    fun `disaster selection rejects incompatible shelters and marks unknown ones`() = runTest {
+        val point = RoutingTestSupport.p(2, 0)
+        val catalog = ShelterDisasterCatalog(mapOf("shelter:test" to ShelterDisasterCatalog.Entry(point, setOf("震災"))))
+        var graphLoads = 0
+        val service = EvacuationRouteService({ graphLoads++; RoutingTestSupport.grid() }, { emptyList() }, { now }, { catalog })
+        val base = request(RoutingTestSupport.p(0, 0))
+        val mismatch = service.calculate(base.copy(disasterType = "flood"))
+        assertEquals(RouteStatus.NO_ROUTE, mismatch.status)
+        assertEquals("SHELTER_DISASTER_MISMATCH", mismatch.warnings.single().code)
+        assertEquals(0, graphLoads)
+        assertEquals(RouteStatus.OK, service.calculate(base.copy(disasterType = "earthquake")).status)
+        val unknown = service.calculate(base.copy(destinationId = "shelter:unknown", disasterType = "flood"))
+        assertEquals(RouteStatus.OK, unknown.status)
+        assertTrue(unknown.warnings.any { it.code == "SHELTER_DISASTER_UNKNOWN" })
+        assertEquals(RouteStatus.INVALID_INPUT, service.calculate(base.copy(disasterType = "invented")).status)
+        assertEquals(RouteStatus.INVALID_INPUT, service.calculate(base.copy(destination = RoutingTestSupport.p(0, 2), disasterType = "earthquake")).status)
+    }
+
+    @Test
     fun `invalid input is a status, not an exception`() = runTest {
         assertEquals(RouteStatus.INVALID_INPUT, service().calculate(request(LonLat(Double.NaN, 25.0))).status)
         assertEquals(RouteStatus.INVALID_INPUT, service().calculate(request(RoutingTestSupport.p(0, 0), mode = "drive")).status)
@@ -62,6 +81,27 @@ class EvacuationRouteServiceTest {
         assertEquals(3, before.polyline.size)
         assertEquals(5, after.polyline.size)
         assertEquals(listOf("road:w100-closed"), after.blockedEventIds)
+    }
+
+    @Test
+    fun `an unchanged stored closure stops blocking after expiry`() = runTest {
+        var clock = now
+        val events = mutableListOf<String>()
+        val service = EvacuationRouteService(RoutingTestSupport::grid, { events.toList() }, { clock })
+        val request = request(RoutingTestSupport.p(0, 0))
+        val original = service.calculate(request)
+        events += eventJson("road:w100-expiring", now.toString(), now.plusSeconds(5).toString())
+        val detour = service.calculate(request)
+        assertEquals(5, detour.polyline.size)
+        assertEquals(listOf("road:w100-expiring"), detour.blockedEventIds)
+        clock = now.plusSeconds(5)
+        val expired = service.calculate(request)
+        assertEquals(original.polyline, expired.polyline)
+        assertTrue(expired.blockedEventIds.isEmpty())
+        events.clear()
+        val removed = service.calculate(request)
+        assertEquals(original.polyline, removed.polyline)
+        assertEquals(original.warnings, removed.warnings)
     }
 
     /**

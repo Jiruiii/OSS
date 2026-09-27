@@ -12,7 +12,7 @@ import kotlin.math.round
 object MapBridgeProtocol {
 
     fun eventSnapshot(events: List<EventEntity>): List<Map<String, Any?>> =
-        events.map(EventPayloadMapper::toMessage)
+        events.map { EventPayloadMapper.toMessage(it) }
 
     fun initialState(
         events: List<EventEntity>,
@@ -84,6 +84,11 @@ object MapBridgeProtocol {
         val map = arguments as? Map<*, *> ?: return null
         val origin = map["origin"] as? Map<*, *> ?: return null
         val destination = map["destination"] as? Map<*, *> ?: return null
+        val disasterType = when (val value = map["disaster_type"]) {
+            null -> null
+            is String -> value
+            else -> return null
+        }
         return RouteRequest(
             origin = LonLat(
                 (origin["lon"] as? Number)?.toDouble() ?: return null,
@@ -95,6 +100,7 @@ object MapBridgeProtocol {
                 (destination["lat"] as? Number)?.toDouble() ?: return null,
             ),
             mode = map["mode"] as? String ?: "walk",
+            disasterType = disasterType,
         )
     }
 

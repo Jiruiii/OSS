@@ -112,7 +112,7 @@ void main() {
     expect(event.isExpired, isTrue);
   });
 
-  test('treats Android apply state as authoritative over raw expiry text', () {
+  test('expired timestamps override a stale stored CURRENT state', () {
     final event = MeshEvent.fromJson(<String, dynamic>{
       'namespace': 'official.tdx',
       'event_id': 'road:dahu-01',
@@ -125,7 +125,8 @@ void main() {
 
     expect(event.expiresAt, '2020-01-01T00:00:00Z');
     expect(event.applyState, 'CURRENT');
-    expect(event.isExpired, isFalse);
+    expect(event.isExpired, isTrue);
+    expect(event.effectiveApplyState, 'EXPIRED');
   });
 
   test(

@@ -12,6 +12,7 @@ data class RouteRequest(
     val destinationId: String,
     val destination: LonLat,
     val mode: String,
+    val disasterType: String? = null,
 )
 
 /**
@@ -20,27 +21,40 @@ data class RouteRequest(
  * ever called.
  *
  * The graph is loaded once; the hazard overlay is rebuilt only when the event
- * snapshot changes, because Flutter asks for up to five shelters in a row when
+ * snapshot changes, because Flutter asks for multiple shelters in a row when
  * it recommends the nearest reachable one.
  */
 class EvacuationRouteService(
     private val graphLoader: () -> RoadGraph,
     private val eventJsonProvider: suspend () -> List<String>,
     private val clock: () -> Instant = Instant::now,
+    private val shelterCatalogProvider: suspend () -> ShelterDisasterCatalog = { ShelterDisasterCatalog(emptyMap()) },
 ) {
     private val mutex = Mutex()
     private var graph: RoadGraph? = null
     private var workspace: EvacuationRouter.SearchWorkspace? = null
     private var cachedOverlay: Pair<String, HazardOverlay>? = null
+    private var shelterCatalog: ShelterDisasterCatalog? = null
 
     suspend fun calculate(request: RouteRequest): RouteResult = mutex.withLock {
         val now = clock()
         val events = eventJsonProvider().mapNotNull { RouteEvent.fromEventJson(it, now) }
         val snapshotAt = snapshotTime(events, now)
         if (!request.origin.isValid || !request.destination.isValid ||
-            request.destinationId.isBlank() || request.mode != "walk"
+            request.destinationId.isBlank() || request.mode != "walk" ||
+            (request.disasterType != null && request.disasterType !in ShelterDisasterCatalog.labels)
         ) {
             return@withLock RouteResult.failure(RouteStatus.INVALID_INPUT, snapshotAt)
+        }
+        val eligibilityWarning = request.disasterType?.let { type ->
+            val catalog = shelterCatalog ?: shelterCatalogProvider().also { shelterCatalog = it }
+            catalog.warning(request.destinationId, request.destination, type)
+        }
+        if (eligibilityWarning?.code == "SHELTER_LOCATION_MISMATCH") {
+            return@withLock RouteResult.failure(RouteStatus.INVALID_INPUT, snapshotAt, warnings = listOf(eligibilityWarning))
+        }
+        if (eligibilityWarning?.code == "SHELTER_DISASTER_MISMATCH") {
+            return@withLock RouteResult.failure(RouteStatus.NO_ROUTE, snapshotAt, warnings = listOf(eligibilityWarning))
         }
         val loaded = graph ?: try {
             graphLoader().also { graph = it }
@@ -49,8 +63,14 @@ class EvacuationRouteService(
         }
         val fingerprint = events.map { "${it.identity}:${it.applyState}" }.sorted().joinToString("|")
         val overlay = cachedOverlay?.takeIf { it.first == fingerprint }?.second
-            ?: HazardOverlay.fromEvents(events, loaded).also { cachedOverlay = fingerprint to it }
-        EvacuationRouter.plan(
+            ?: run {
+                // The nationwide-sized arrays take ~10 MB per overlay. Drop the
+                // obsolete cache before allocating a replacement, under the
+                // same mutex, so repeated event updates don't retain both.
+                cachedOverlay = null
+                HazardOverlay.fromEvents(events, loaded).also { cachedOverlay = fingerprint to it }
+            }
+        val route = EvacuationRouter.plan(
             graph = loaded,
             overlay = overlay,
             origin = request.origin,
@@ -59,6 +79,7 @@ class EvacuationRouteService(
             snapshotAt = snapshotAt,
             workspace = workspace ?: EvacuationRouter.SearchWorkspace(loaded.nodeCount).also { workspace = it },
         )
+        if (eligibilityWarning == null) route else route.copy(warnings = route.warnings + eligibilityWarning)
     }
 
     companion object {

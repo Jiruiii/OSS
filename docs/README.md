@@ -8,6 +8,10 @@
 | --- | --- |
 | 專案介紹、安裝與執行 | [主 README](../README.md) |
 | 完成項目、剩餘功能與實機驗收 | [MVP 進度總表](mvp-remaining-tasks.md) |
+| 資料一致性、TTL、推薦與兩機修正 | [可靠性與實機驗證](reliability-device-validation.md) |
+| 同步狀態頁與避難災害情境 | [功能與驗證紀錄](sync-status-disaster-filter.md) |
+| 事件更新與到期自動重算路線 | [自動重算與實機驗證](automatic-route-refresh.md) |
+| 政府 API 更新、Cloudflare Pages 與離線轉傳 | [政府資料更新](government-online-sync.md) |
 | 系統架構、開發階段與驗收條件 | [系統實作計畫](../system.md)，目前狀態以開頭進度表與 MVP 進度總表為準 |
 | 雙北路網與 Pixel 8a 效能 | [雙北離線路線紀錄](taipei-offline-routing.md) |
 | Android 建置與 Flutter 操作 | [Android README](../android/README.md)、[Flutter README](../flutter/README.md) |

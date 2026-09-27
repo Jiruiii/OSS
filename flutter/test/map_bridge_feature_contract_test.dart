@@ -7,6 +7,29 @@ import 'package:resilientgeo_flutter/data/map_bridge.dart';
 import 'package:resilientgeo_flutter/data/map_models.dart';
 
 void main() {
+  test(
+    'sends the selected disaster through the native bridge',
+    () async {
+      const channel = MethodChannel('test/sync-and-disaster');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      MethodCall? received;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        received = call;
+        return _okRouteMessage();
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+      await MapBridge(methodChannel: channel).calculateEvacuationRoute(
+        origin: const GeoPoint(longitude: 121.5, latitude: 25),
+        destination: const ShelterRouteCandidate(
+          id: 'shelter:test',
+          location: GeoPoint(longitude: 121.5, latitude: 25),
+        ),
+        disasterType: DisasterType.tsunami,
+      );
+      expect((received!.arguments as Map)['disaster_type'], 'tsunami');
+    },
+  );
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test(

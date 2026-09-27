@@ -9,8 +9,86 @@ import 'package:resilientgeo_flutter/data/location_controller.dart';
 import 'package:resilientgeo_flutter/data/map_bridge.dart';
 import 'package:resilientgeo_flutter/data/map_models.dart';
 import 'package:resilientgeo_flutter/screens/map_screen.dart';
+import 'package:resilientgeo_flutter/widgets/map_canvas.dart';
 
 void main() {
+  testWidgets(
+    'changing disaster context automatically refreshes an existing route',
+    (tester) async {
+      final bridge = _RouteBridge(result: _okRoute());
+      await tester.pumpWidget(_app(bridge: bridge));
+      await _finishLoad(tester);
+      await _openShelterDetails(tester, '測試避難所');
+      await tester.tap(find.text('規劃逃生路線'));
+      await tester.pump();
+      await tester.tap(
+        find.byKey(const ValueKey('evacuation-disaster-context')),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('disaster-type-selector')),
+      );
+      await tester.tap(find.byKey(const ValueKey('disaster-type-selector')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('震災').last);
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+      expect(bridge.routeCalls, 2);
+      expect(bridge.lastDisasterType, DisasterType.earthquake);
+      expect(find.text('災害情境變更，已自動重新規劃'), findsOneWidget);
+    },
+  );
+  testWidgets(
+    'selecting a disaster filters recommendations and reaches native routing',
+    (tester) async {
+      StaticFeature candidate(String id, String type) => StaticFeature(
+        id: id,
+        kind: 'shelter',
+        geometry: const PointGeometry(
+          GeoPoint(longitude: 121.501, latitude: 25.0),
+        ),
+        fields: {
+          'name': id,
+          'disaster_types': [type],
+        },
+        properties: null,
+      );
+      final bridge = _RouteBridge(result: _okRoute());
+      await tester.pumpWidget(
+        _app(
+          bridge: bridge,
+          features: [
+            candidate('flood-only', '水災'),
+            candidate('earthquake-only', '震災'),
+          ],
+        ),
+      );
+      await _finishLoad(tester);
+      await tester.tap(
+        find.byKey(const ValueKey('evacuation-disaster-context')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('disaster-type-selector')),
+      );
+      await tester.tap(find.byKey(const ValueKey('disaster-type-selector')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('震災').last);
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+      expect(find.text('避難情境：震災'), findsOneWidget);
+      await tester.tap(find.bySemanticsLabel('推薦最近避難所'));
+      await tester.pump();
+      expect(bridge.lastDisasterType, DisasterType.earthquake);
+      expect(bridge.destinations.map((shelter) => shelter.id), [
+        'earthquake-only',
+      ]);
+      expect(find.text('距離：1.2 公里'), findsOneWidget);
+    },
+  );
   for (final code in <String>['ORIGIN_OFF_GRAPH', 'SHELTER_FULL']) {
     testWidgets('recommendation keeps the native failure reason: $code', (
       tester,
@@ -207,15 +285,16 @@ void main() {
     expect(find.text('路線資訊已變更，請重新計算'), findsNothing);
   });
 
-  testWidgets('changed event identity marks a ready route stale', (
+  testWidgets('bursts hide the old line and automatically recalculate once', (
     tester,
   ) async {
     final updates = StreamController<List<MeshEvent>>.broadcast();
     addTearDown(updates.close);
     final first = _event('road:one', 1);
+    final bridge = _RouteBridge(result: _okRoute());
     await tester.pumpWidget(
       _app(
-        bridge: _RouteBridge(result: _okRoute()),
+        bridge: bridge,
         events: <MeshEvent>[first],
         eventUpdates: updates.stream,
       ),
@@ -227,18 +306,30 @@ void main() {
 
     updates.add(<MeshEvent>[_event('road:one', 2)]);
     await tester.pump();
-    expect(find.text('路線資訊已變更，請重新計算'), findsOneWidget);
+    expect(tester.widget<MapCanvas>(find.byType(MapCanvas)).route, isNull);
+    expect(find.text('道路狀態更新，正在自動重新規劃'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 400));
+    updates.add(<MeshEvent>[_event('road:one', 3)]);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(bridge.routeCalls, 1);
+    await tester.pump(const Duration(milliseconds: 201));
+    expect(bridge.routeCalls, 2);
+    expect(find.text('道路狀態更新，已自動重新規劃'), findsOneWidget);
+    expect(find.text('距離：1.2 公里'), findsOneWidget);
   });
 
   testWidgets(
-    'event change during calculation makes the returned route stale',
+    'event change during calculation discards the result and waits for native work',
     (tester) async {
       final updates = StreamController<List<MeshEvent>>.broadcast();
       addTearDown(updates.close);
       final pending = Completer<EvacuationRouteResult>();
+      final latest = Completer<EvacuationRouteResult>();
+      final bridge = _RouteBridge(pendings: [pending, latest]);
       await tester.pumpWidget(
         _app(
-          bridge: _RouteBridge(pending: pending),
+          bridge: bridge,
           events: <MeshEvent>[_event('road:one', 1)],
           eventUpdates: updates.stream,
         ),
@@ -249,39 +340,45 @@ void main() {
       await tester.pump();
       updates.add(<MeshEvent>[_event('road:one', 2)]);
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 601));
+      expect(bridge.routeCalls, 1);
 
       pending.complete(_okRoute());
       await tester.pump();
-      expect(find.text('路線資訊已變更，請重新計算'), findsOneWidget);
+      expect(find.text('距離：1.2 公里'), findsNothing);
+      expect(bridge.routeCalls, 2);
+      latest.complete(_okRoute(distanceM: 1500));
+      await tester.pump();
+      expect(find.text('距離：1.5 公里'), findsOneWidget);
     },
   );
 
-  testWidgets('recalculation reuses the selected destination', (tester) async {
-    final updates = StreamController<List<MeshEvent>>.broadcast();
-    addTearDown(updates.close);
-    final bridge = _RouteBridge(result: _okRoute());
-    await tester.pumpWidget(
-      _app(
-        bridge: bridge,
-        events: <MeshEvent>[_event('road:one', 1)],
-        eventUpdates: updates.stream,
-      ),
-    );
-    await _finishLoad(tester);
-    await _openShelterDetails(tester, '測試避難所');
-    await tester.tap(find.text('規劃逃生路線'));
-    await tester.pump();
-    updates.add(<MeshEvent>[_event('road:one', 2)]);
-    await tester.pump();
-    await tester.tap(
-      find.byKey(const ValueKey<String>('recalculate-evacuation-route')),
-    );
-    await tester.pump();
+  testWidgets(
+    'automatic recalculation reuses a manually selected destination',
+    (tester) async {
+      final updates = StreamController<List<MeshEvent>>.broadcast();
+      addTearDown(updates.close);
+      final bridge = _RouteBridge(result: _okRoute());
+      await tester.pumpWidget(
+        _app(
+          bridge: bridge,
+          events: <MeshEvent>[_event('road:one', 1)],
+          eventUpdates: updates.stream,
+        ),
+      );
+      await _finishLoad(tester);
+      await _openShelterDetails(tester, '測試避難所');
+      await tester.tap(find.text('規劃逃生路線'));
+      await tester.pump();
+      updates.add(<MeshEvent>[_event('road:one', 2)]);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 601));
 
-    expect(bridge.routeCalls, 2);
-    expect(bridge.destinations[0].id, bridge.destinations[1].id);
-    expect(bridge.destinations[0].location, bridge.destinations[1].location);
-  });
+      expect(bridge.routeCalls, 2);
+      expect(bridge.destinations[0].id, bridge.destinations[1].id);
+      expect(bridge.destinations[0].location, bridge.destinations[1].location);
+    },
+  );
 
   testWidgets('ignores an older response after the route sheet is closed', (
     tester,
@@ -357,21 +454,18 @@ void main() {
     await tester.tap(find.bySemanticsLabel('推薦最近避難所'));
     await tester.pump();
 
-    expect(find.text('目前沒有可推薦的避難所'), findsOneWidget);
+    expect(find.text('20 公里內沒有可推薦的避難所'), findsOneWidget);
     expect(find.textContaining('距離：'), findsNothing);
     expect(bridge.routeCalls, 0);
   });
 
   testWidgets(
-    'recommendation is bounded to five Android route calls and shows progress',
+    'recommendation reaches the sixth shelter after five unreachable candidates',
     (tester) async {
-      final pending = <Completer<EvacuationRouteResult>>[
-        Completer<EvacuationRouteResult>(),
-        Completer<EvacuationRouteResult>(),
-        Completer<EvacuationRouteResult>(),
-        Completer<EvacuationRouteResult>(),
-        Completer<EvacuationRouteResult>(),
-      ];
+      final pending = List.generate(
+        7,
+        (_) => Completer<EvacuationRouteResult>(),
+      );
       final bridge = _RouteBridge(pendings: pending);
       await tester.pumpWidget(
         _app(
@@ -394,15 +488,19 @@ void main() {
 
       await tester.tap(find.bySemanticsLabel('推薦最近避難所'));
       await tester.pump();
-      expect(find.text('正在比較可達避難所（1/5）'), findsOneWidget);
+      expect(find.text('正在比較可達避難所（1/7）'), findsOneWidget);
       expect(bridge.routeCalls, 1);
 
       for (var index = 0; index < pending.length; index += 1) {
-        pending[index].complete(_routeStatus(EvacuationRouteStatus.noRoute));
+        pending[index].complete(
+          index == 5
+              ? _okRoute(distanceM: 1000)
+              : _routeStatus(EvacuationRouteStatus.noRoute),
+        );
         await tester.pump();
       }
-      expect(bridge.routeCalls, 5);
-      expect(find.text('找不到可達路線'), findsOneWidget);
+      expect(bridge.routeCalls, 7);
+      expect(find.text('距離：1.0 公里'), findsOneWidget);
     },
   );
 
@@ -431,7 +529,9 @@ void main() {
     expect(bridge.routeCalls, 1);
   });
 
-  testWidgets('recommendation aborts when event data changes', (tester) async {
+  testWidgets('recommendation restarts when event data changes', (
+    tester,
+  ) async {
     final updates = StreamController<List<MeshEvent>>.broadcast();
     addTearDown(updates.close);
     final pending = Completer<EvacuationRouteResult>();
@@ -452,8 +552,11 @@ void main() {
     pending.complete(_okRoute(distanceM: 100));
     await tester.pump();
 
-    expect(find.text('事件資料已更新，請重新計算推薦避難所'), findsOneWidget);
+    expect(find.text('道路狀態更新，正在自動重新規劃'), findsOneWidget);
     expect(find.textContaining('距離：'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 601));
+    expect(find.text('距離：100 公尺'), findsOneWidget);
+    expect(find.text('道路狀態更新，已自動重新規劃'), findsOneWidget);
   });
 
   testWidgets('route and alert actions remain reachable at 390dp', (
@@ -481,12 +584,175 @@ void main() {
 
     updates.add(<MeshEvent>[_event('road:changed', 1)]);
     await tester.pump();
-    await tester.ensureVisible(
-      find.byKey(const ValueKey<String>('recalculate-evacuation-route')),
-    );
-    expect(find.text('路線資訊已變更，請重新計算'), findsOneWidget);
+    expect(find.text('道路狀態更新，正在自動重新規劃'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 601));
+    expect(find.text('道路狀態更新，已自動重新規劃'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'recommendation compares shelters again after shelter status changes',
+    (tester) async {
+      final updates = StreamController<List<MeshEvent>>.broadcast();
+      addTearDown(updates.close);
+      final results = {
+        'shelter:a': _okRoute(distanceM: 300),
+        'shelter:b': _okRoute(distanceM: 700),
+      };
+      final bridge = _RouteBridge(resultsByShelterId: results);
+      await tester.pumpWidget(
+        _app(
+          bridge: bridge,
+          features: [_shelterA, _shelterB],
+          eventUpdates: updates.stream,
+        ),
+      );
+      await _finishLoad(tester);
+      await tester.tap(find.bySemanticsLabel('推薦最近避難所'));
+      await tester.pump();
+      expect(find.text('目的地：候選 A'), findsOneWidget);
+      results['shelter:a'] = _routeStatus(EvacuationRouteStatus.noRoute);
+      updates.add([_event('shelter:status', 1, type: 'SHELTER_STATUS')]);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 601));
+      expect(bridge.routeCalls, 4);
+      expect(find.text('目的地：候選 B'), findsOneWidget);
+      expect(find.text('避難所狀態更新，已自動重新規劃'), findsOneWidget);
+    },
+  );
+
+  testWidgets('closing during debounce cancels automatic recalculation', (
+    tester,
+  ) async {
+    final updates = StreamController<List<MeshEvent>>.broadcast();
+    addTearDown(updates.close);
+    final bridge = _RouteBridge(result: _okRoute());
+    await tester.pumpWidget(_app(bridge: bridge, eventUpdates: updates.stream));
+    await _finishLoad(tester);
+    await _openShelterDetails(tester, '測試避難所');
+    await tester.tap(find.text('規劃逃生路線'));
+    await tester.pump();
+    updates.add([_event('road:one', 1)]);
+    await tester.pump();
+    await tester.tap(find.byTooltip('關閉路線'));
+    await tester.pump(const Duration(seconds: 2));
+    expect(bridge.routeCalls, 1);
+    expect(find.text('逃生路線'), findsNothing);
+  });
+
+  testWidgets('unrelated official updates do not recalculate a route', (
+    tester,
+  ) async {
+    final updates = StreamController<List<MeshEvent>>.broadcast();
+    addTearDown(updates.close);
+    final bridge = _RouteBridge(result: _okRoute());
+    await tester.pumpWidget(_app(bridge: bridge, eventUpdates: updates.stream));
+    await _finishLoad(tester);
+    await _openShelterDetails(tester, '測試避難所');
+    await tester.tap(find.text('規劃逃生路線'));
+    await tester.pump();
+    updates.add([_event('medical:one', 1, type: 'MEDICAL_STATUS')]);
+    await tester.pump(const Duration(seconds: 2));
+    expect(bridge.routeCalls, 1);
+    expect(find.text('距離：1.2 公里'), findsOneWidget);
+  });
+
+  testWidgets(
+    'expiry refreshes without a native snapshot or new location request',
+    (tester) async {
+      var now = DateTime.utc(2030);
+      final location = _FakeLocationController(
+        const GeoPoint(longitude: 121.5, latitude: 25),
+      );
+      final bridge = _RouteBridge(result: _okRoute());
+      await tester.pumpWidget(
+        _app(
+          bridge: bridge,
+          locationController: location,
+          routeClock: () => now,
+          events: [
+            _event(
+              'road:expiring',
+              1,
+              expiresAt: now.add(const Duration(seconds: 2)).toIso8601String(),
+            ),
+          ],
+        ),
+      );
+      await _finishLoad(tester);
+      await _openShelterDetails(tester, '測試避難所');
+      await tester.tap(find.text('規劃逃生路線'));
+      await tester.pump();
+      now = now.add(const Duration(seconds: 2));
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text('事件到期，正在自動重新規劃'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 601));
+      expect(bridge.routeCalls, 2);
+      expect(location.requests, 1);
+    },
+  );
+
+  testWidgets(
+    'background changes wait until resumed then use the latest snapshot',
+    (tester) async {
+      final updates = StreamController<List<MeshEvent>>.broadcast();
+      addTearDown(updates.close);
+      final bridge = _RouteBridge(result: _okRoute());
+      await tester.pumpWidget(
+        _app(bridge: bridge, eventUpdates: updates.stream),
+      );
+      await _finishLoad(tester);
+      await _openShelterDetails(tester, '測試避難所');
+      await tester.tap(find.text('規劃逃生路線'));
+      await tester.pump();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      updates.add([_event('road:one', 1)]);
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+      expect(bridge.routeCalls, 1);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump();
+      expect(bridge.routeCalls, 2);
+    },
+  );
+
+  testWidgets(
+    'failed automatic refresh removes the old line and allows retry',
+    (tester) async {
+      final updates = StreamController<List<MeshEvent>>.broadcast();
+      addTearDown(updates.close);
+      final bridge = _RouteBridge(result: _okRoute());
+      await tester.pumpWidget(
+        _app(bridge: bridge, eventUpdates: updates.stream),
+      );
+      await _finishLoad(tester);
+      await _openShelterDetails(tester, '測試避難所');
+      await tester.tap(find.text('規劃逃生路線'));
+      await tester.pump();
+      bridge.failure = const BridgeFailure(
+        code: BridgeFailureCode.routeEngineError,
+        message: 'test',
+      );
+      updates.add([_event('road:one', 1)]);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 601));
+      expect(find.text('道路狀態更新，重新規劃失敗，請重試'), findsOneWidget);
+      expect(tester.widget<MapCanvas>(find.byType(MapCanvas)).route, isNull);
+      await tester.pump(const Duration(seconds: 3));
+      expect(bridge.routeCalls, 2);
+      bridge.failure = null;
+      await tester.tap(
+        find.byKey(const ValueKey('recalculate-evacuation-route')),
+      );
+      await tester.pump();
+      expect(bridge.routeCalls, 3);
+      expect(find.text('距離：1.2 公里'), findsOneWidget);
+    },
+  );
 }
 
 Future<void> _openShelterDetails(WidgetTester tester, String name) async {
@@ -506,6 +772,7 @@ Widget _app({
   List<MeshEvent> events = const <MeshEvent>[],
   Stream<List<MeshEvent>>? eventUpdates,
   LocationController? locationController,
+  DateTime Function()? routeClock,
 }) => MaterialApp(
   home: MapScreen(
     key: UniqueKey(),
@@ -518,6 +785,7 @@ Widget _app({
     initialState: MapInitialState(events: events, emergencyModeEnabled: false),
     bridge: bridge,
     eventUpdates: eventUpdates,
+    routeClock: routeClock,
     locationController:
         locationController ??
         _FakeLocationController(
@@ -536,7 +804,7 @@ class _RouteBridge extends MapBridge {
   }) : super(methodChannel: const MethodChannel('test/route-flow'));
 
   final EvacuationRouteResult? result;
-  final BridgeFailure? failure;
+  BridgeFailure? failure;
   final Completer<EvacuationRouteResult>? pending;
   final List<Completer<EvacuationRouteResult>>? pendings;
   final Map<String, EvacuationRouteResult>? resultsByShelterId;
@@ -544,6 +812,7 @@ class _RouteBridge extends MapBridge {
   GeoPoint? lastOrigin;
   ShelterRouteCandidate? lastDestination;
   String? lastMode;
+  DisasterType? lastDisasterType;
   final List<ShelterRouteCandidate> destinations = <ShelterRouteCandidate>[];
 
   @override
@@ -558,11 +827,13 @@ class _RouteBridge extends MapBridge {
     required GeoPoint origin,
     required ShelterRouteCandidate destination,
     String mode = 'walk',
+    DisasterType? disasterType,
   }) {
     routeCalls += 1;
     lastOrigin = origin;
     lastDestination = destination;
     lastMode = mode;
+    lastDisasterType = disasterType;
     destinations.add(destination);
     final error = failure;
     if (error != null) return Future<EvacuationRouteResult>.error(error);
@@ -630,15 +901,20 @@ EvacuationRouteResult _routeStatus(EvacuationRouteStatus status) =>
       blockedEventIds: const <String>[],
     );
 
-MeshEvent _event(String id, int version) => MeshEvent(
+MeshEvent _event(
+  String id,
+  int version, {
+  String type = 'ROAD_STATUS',
+  String? expiresAt,
+}) => MeshEvent(
   namespace: 'official',
   eventId: id,
   eventVersion: version,
-  eventType: 'ROAD_BLOCKAGE',
+  eventType: type,
   severity: 'HIGH',
   source: 'test',
   issuedAt: null,
-  expiresAt: null,
+  expiresAt: expiresAt,
   applyState: 'CURRENT',
   geometry: const PointGeometry(GeoPoint(longitude: 121.55, latitude: 25.04)),
   attributes: null,

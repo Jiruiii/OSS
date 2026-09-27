@@ -158,9 +158,11 @@ void main() {
   });
 
   test('crowd colours differ from every official severity colour', () {
-    final unverified = eventColor(report());
+    final unverified = eventColor(report(expiresAt: '2099-01-01T00:00:00Z'));
     final confirmed = eventColor(
-      report().copyWithVerification(CrowdVerification.confirmed),
+      report(
+        expiresAt: '2099-01-01T00:00:00Z',
+      ).copyWithVerification(CrowdVerification.confirmed),
     );
     expect(unverified, unverifiedEventColor);
     expect(confirmed, confirmedCrowdEventColor);

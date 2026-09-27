@@ -21,6 +21,28 @@ void main() {
   });
 
   test(
+    'stream errors preserve data and retry reconnects to native events',
+    () async {
+      final bridge = _RecoverableBridge();
+      final controller = MapAppController(bridge: bridge);
+      addTearDown(controller.dispose);
+      addTearDown(bridge.updates.close);
+      await controller.load();
+      bridge.updates.addError(StateError('database unavailable'));
+      await pumpEventQueue();
+      expect(controller.eventUpdateError, isA<StateError>());
+      expect(controller.nativeBridgeAvailable, isTrue);
+      await controller.retryEventUpdates();
+      expect(controller.eventUpdateError, isNull);
+      expect(bridge.subscriptions, 2);
+      expect(controller.retryingEvents, isFalse);
+      bridge.updates.add(const <MeshEvent>[]);
+      await pumpEventQueue();
+      expect(controller.eventUpdateError, isNull);
+    },
+  );
+
+  test(
     'native bridge without verified layers fails closed instead of using preview JSON',
     () async {
       final controller = MapAppController(bridge: _EmptyVerifiedBridge());
@@ -212,6 +234,17 @@ class _EmptyVerifiedBridge extends MapBridge {
 
   @override
   Stream<List<MeshEvent>> get events => const Stream<List<MeshEvent>>.empty();
+}
+
+class _RecoverableBridge extends _EmptyVerifiedBridge {
+  final updates = StreamController<List<MeshEvent>>.broadcast();
+  int subscriptions = 0;
+
+  @override
+  Stream<List<MeshEvent>> get events {
+    subscriptions++;
+    return updates.stream;
+  }
 }
 
 class _SlowStaticLayerBridge extends MapBridge {

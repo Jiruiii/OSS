@@ -128,6 +128,10 @@ class MapBridgeProtocolTest {
         assertEquals(LonLat(121.590304, 25.083506), request.origin)
         assertEquals("shelter:5427", request.destinationId)
         assertEquals("walk", request.mode)
+        assertNull(request.disasterType)
+        val selected = mapOf("origin" to mapOf("lon" to 121.5, "lat" to 25.0), "destination" to mapOf("id" to "shelter:test", "lon" to 121.5, "lat" to 25.0), "disaster_type" to "flood")
+        assertEquals("flood", MapBridgeProtocol.routeRequest(selected)!!.disasterType)
+        assertNull(MapBridgeProtocol.routeRequest(selected + ("disaster_type" to 123)))
         assertNull(MapBridgeProtocol.routeRequest(mapOf("origin" to mapOf("lon" to 1.0))))
     }
 
