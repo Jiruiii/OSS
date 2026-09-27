@@ -158,6 +158,19 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   @override
   void didUpdateWidget(covariant MapCanvas oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final reportCameraIdle = widget.onReportCameraIdle;
+    final camera = _cameraPosition;
+    if (oldWidget.onReportCameraIdle == null &&
+        reportCameraIdle != null &&
+        camera != null) {
+      // Location picking starts at the current map centre; do not wait for
+      // a camera-idle event that only arrives after the user drags.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && widget.onReportCameraIdle == reportCameraIdle) {
+          reportCameraIdle(_geoPointFromCamera(camera));
+        }
+      });
+    }
     if (oldWidget.runtimeState.themeMode != widget.runtimeState.themeMode) {
       _loadStyle();
     }
@@ -427,6 +440,21 @@ class _MapCanvasState extends State<MapCanvas> with TickerProviderStateMixin {
   }
 
   void _onMapSettled() {
+    // The native map can report "camera idle" on every frame while nothing
+    // moves. Re-running the settle work for an unchanged camera kept calling
+    // onReportCameraIdle (rebuilding MapScreen while picking a report
+    // location) and rescheduling bounds corrections on every frame.
+    final settled = _cameraPosition;
+    final lastSettled = _lastSettledMarkerCamera;
+    if (settled != null &&
+        lastSettled != null &&
+        lastSettled.target == settled.target &&
+        lastSettled.zoom == settled.zoom &&
+        _markerLayoutReady &&
+        !_cameraIsMoving &&
+        !_cameraBoundsCorrectionPending) {
+      return;
+    }
     _cameraBoundsCorrectionPending = false;
     _cameraIsMoving = false;
     final position = _cameraPosition;
