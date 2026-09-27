@@ -4,6 +4,7 @@
 > 最新進度更新：2026-09-27，雙北離線路線與 Pixel 8a 延遲驗證完成；詳見 G、H 段及 [實測紀錄](taipei-offline-routing.md)。原有 MVP 阻塞項目不因此視為完成。
 > 取代分工方式：不再按「甲／乙」或「需不需要實機」切分，只按「離 MVP 通過條件有多近」排序。
 > 對應文件：`system.md`（開發階段與驗收條件）。
+> 文件清理（2026-09-27）：移除五份已被現行文件取代的模板與實作計畫，原文保留在 Git；清單與目前入口見 [文件索引](README.md)。
 > 已移除的文件（2026-09-24，內容已過時，需要時可從 git 歷史取回）：
 > - `team-assignments.md`：原始分工與各里程碑的實機證據細節。下文 A 段幾處「細節見 `team-assignments.md`」指的就是它，最後版本在 commit `b9bd906`，可用 `git show b9bd906:team-assignments.md` 查看。
 > - `docs/review-system-md-2026-09-05.md`：結構性風險分析，裡面的建議已於 commit `232b62d` 全部落實。
