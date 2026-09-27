@@ -303,6 +303,18 @@ test('normalizes the CWA earthquake API shape with records grouped under Earthqu
   assert.equal(events[0].event_id, 'cwa:earthquake:115001:neihu-001');
 });
 
+test('nationwide earthquake keeps the real offshore epicentre instead of all land polygons', () => {
+  const payload = cwaEarthquakeApiPayload();
+  payload.records.Earthquake = [{ ...payload.records.Earthquake[0],
+    StationLatitude: undefined, StationLongitude: undefined,
+    EpicenterLatitude: '25.2', EpicenterLongitude: '123.1' }];
+  const raw = rawSnapshot('cwa-earthquake', CWA_EARTHQUAKE_ENDPOINT, payload);
+  const events = normalizeCwaEarthquakes(raw, { scope: 'taiwan', boundary: TAIWAN_SCOPE });
+  assert.equal(events.length, 1);
+  assert.deepEqual(events[0].geometry, { type: 'Point', coordinates: [123.1, 25.2] });
+  assert.equal(events[0].attributes.coverage_level, 'epicentre');
+});
+
 test('normalizes CWA city-level warnings as Neihu-applicable events with explicit city coverage', () => {
   const raw = rawSnapshot('cwa-weather-warning', CWA_WARNING_ENDPOINT, cwaWarningPayload());
   const events = normalizeCwaWarnings(raw, { boundary: OFFICIAL_NEIHU_BOUNDARY });

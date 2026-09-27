@@ -12,6 +12,8 @@ class EvacuationRouteSheet extends StatelessWidget {
     required this.errorMessage,
     required this.stale,
     this.loadingMessage,
+    this.updateNotice,
+    this.destinationName,
     required this.onRecalculate,
     required this.onClose,
   });
@@ -21,6 +23,8 @@ class EvacuationRouteSheet extends StatelessWidget {
   final String? errorMessage;
   final bool stale;
   final String? loadingMessage;
+  final String? updateNotice;
+  final String? destinationName;
   final VoidCallback? onRecalculate;
   final VoidCallback? onClose;
 
@@ -38,6 +42,14 @@ class EvacuationRouteSheet extends StatelessWidget {
           children: <Widget>[
             _header(context),
             const SizedBox(height: 10),
+            if (destinationName != null) ...[
+              Text('目的地：$destinationName'),
+              const SizedBox(height: 8),
+            ],
+            if (updateNotice != null) ...[
+              Semantics(liveRegion: true, child: Text(updateNotice!)),
+              const SizedBox(height: 8),
+            ],
             if (loading)
               _loadingBody()
             else if (errorMessage != null)
@@ -77,7 +89,7 @@ class EvacuationRouteSheet extends StatelessWidget {
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
         const SizedBox(width: 10),
-        Text(loadingMessage ?? '正在計算逃生路線…'),
+        Expanded(child: Text(loadingMessage ?? '正在計算逃生路線…')),
       ],
     ),
   );

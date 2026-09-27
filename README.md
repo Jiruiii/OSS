@@ -4,6 +4,10 @@
 
 > 2026-09-24 更新：Android App 的 launcher 現在是 Flutter module 的全台灣離線地圖；Android 原生保留 Room、事件驗證／TTL、BLE 與 transport harness，Flutter 透過 bridge 只讀取已驗證事件。
 
+> 2026-09-27 更新：路線已支援事件更新、到期及災害情境變更自動重算；推薦模式會重新比較可達避難所，並顯示更新原因。驗證方式見 [路線自動重算](docs/automatic-route-refresh.md)。
+
+> 政府動態資料已支援收集、簽章發布、HTTPS 增量下載及離線 BLE 轉傳。App 在「個人設定 → 政府資料更新」顯示來源最近取得時間；免費發布預設每兩小時，不能視為即時推送。設定與部署見 [政府資料更新](docs/government-online-sync.md)。
+
 ## 問題與目標
 
 災害發生時通訊資源下降，但民眾與救援人員對「最新空間資訊」的需求反而急遽上升。現有地圖與防災服務多半依賴持續連網下載，因此會出現**有訊號、卻來不及取得關鍵資訊**的情況：地圖載不出來、關鍵資訊跟不重要的資訊一起搶頻寬、災前下載的離線地圖沒有災後新增的道路封閉與避難所滿載。
@@ -39,8 +43,8 @@
 - **Store-Carry-Forward（DTN）** — A 傳給 B，B 移動後遇到 C 再傳給 C；A 與 C 從不需要同時連線。已用三台實機驗證：force-stop A 之後，C 仍經 B 收到並驗證全部事件。節點會把通過驗證的分片記進本機庫存，因此收到資料後能對下一個 peer 如實宣告「我有這些」，而不是回報空手。
 - **端到端可信度** — 伺服器端以 Ed25519 簽章，手機端在寫入前驗證 hash、簽章、版本與 TTL。版本倒退一律拒絕；官方資料與群眾回報分屬不同 namespace，永不互相覆蓋。私鑰從不進入 repo，也不隨 App 出貨。
 - **民眾回報 + 政府查證** — 民眾在地圖上回報災情（道路阻斷、淹水、火災／煙霧、受困／受傷、其他）。Flutter 只送表單欄位；Android 組成 `crowd.reports` 事件，用裝置自產的 Ed25519 金鑰簽章（公鑰隨事件送出、key id 即公鑰指紋），再走和收到的資料完全相同的驗證流程寫入 Room。回報一律標為 `UNVERIFIED`，地圖上以紫色顯示「未經查證，僅供參考」，並以一筆一分片的方式經 mesh 轉傳，中繼節點不重新簽章。政府端用 `pipeline/cli.mjs attest` 簽發獨立的 `official.verified` 確認事件，以 `payload_hash` 指回原回報；手機收到後顯示「已查證」或隱藏「查證為假」的回報。裝置金鑰只能簽 `crowd.*`，官方資料的信任規則不變。沒有政府端時，回報照樣可以流通。
-- **離線逃生路線** — Android 用打包的雙北 OSM 步行路網和 Room 裡已驗證的事件，在手機上計算到避難所的步行路線，不呼叫任何路線 API。封閉道路與 CRITICAL 淹水／土石流範圍會被避開，部分封閉與高風險區加權，群眾回報只加權、不封鎖；額滿或未開設的避難所會被排除並說明原因。mesh 帶來新事件後，畫面提示重新計算，路線會改道或換目的地。路網來源、重建與 Pixel 8a 效能驗證見 [雙北離線路線文件](docs/taipei-offline-routing.md)。
-- **Emergency Mode** — 使用者手動開啟、有明顯狀態提示的前景服務。開啟後持續進行 BLE 廣播與掃描，在鎖屏、App 切到背景時仍維持運作，通知列即時顯示附近節點數。發現附近節點後，`AutoPeerSyncEngine` 會**自動**跑 HELLO → DIFF → REQUEST → TRANSFER，不需要任何人操作。這裡不需要協商角色：兩邊都送出自己的 HELLO，各自向對方請求自己缺的分片，也各自回應對方的請求，因為 `computeDiff`／`buildRequest` 本身就是對稱的。通知列會顯示已同步的分片數。（目前只有 JVM 與 instrumented 測試，**尚未做實機驗證**，見下方限制。）
+- **離線逃生路線** — Android 用打包的雙北 OSM 步行路網和 Room 裡已驗證的事件，在手機上計算到避難所的步行路線，不呼叫任何路線 API。封閉道路與 CRITICAL 淹水／土石流範圍會被避開，部分封閉與高風險區加權，群眾回報只加權、不封鎖；額滿或未開設的避難所會被排除並說明原因。影響路線的新事件、到期及災害情境變更會自動重新規劃；推薦模式會重新比較候選避難所，畫面說明更新原因。路網來源、重建與 Pixel 8a 效能驗證見 [雙北離線路線文件](docs/taipei-offline-routing.md)，自動重算見 [驗證紀錄](docs/automatic-route-refresh.md)。
+- **Emergency Mode** — 使用者手動開啟、有明顯狀態提示的前景服務。開啟後持續進行 BLE 廣播與掃描，在鎖屏、App 切到背景時仍維持運作，通知列即時顯示附近節點數。發現附近節點後，`AutoPeerSyncEngine` 會**自動**跑 HELLO → DIFF → REQUEST → TRANSFER，不需要任何人操作。這裡不需要協商角色：兩邊都送出自己的 HELLO，各自向對方請求自己缺的分片，也各自回應對方的請求，因為 `computeDiff`／`buildRequest` 本身就是對稱的。通知列會顯示已同步的分片數。（兩機初步實測已通過，完整驗收範圍見下方限制與 [實測紀錄](docs/reliability-device-validation.md)。）
 - **可重現的量測工具** — 決定性 DTN 模擬器比較「無協作／一般 replication／rarest-first」三種策略 × 10/20/50/100 節點 × 地理過濾開關，產出 Coverage、Freshness、Cellular Savings、Transfer Efficiency 四項指標報告，固定 seed 可位元比對。
 
 ## 系統架構
@@ -56,10 +60,12 @@ flowchart LR
     E --> H[(Room DB<br/>+ 離線地圖)]
     F --> I[(Room DB<br/>+ 離線地圖)]
     G --> J[(Room DB<br/>+ 離線地圖)]
-    K[Simulator<br/>擴散模擬與量測] -.共用同一套決策與驗證邏輯.-> E
+    K[Simulator<br/>擴散模擬與量測] -.共用資料契約與測試 fixture.-> E
 ```
 
-**協作方式**：後端（`pipeline/`）是純 Node.js CLI，負責把多來源資料正規化成統一的 `event-v0` 格式，依 `(area_id, theme)` 分組切片、計算 canonical SHA-256 並以 Ed25519 簽章，輸出 manifest + chunks。**私鑰只存在伺服器端**。行動端（`android/`）在收到任何分片時，先由 `ChunkVerifier` 驗證 chunk hash 與簽章、再由 `EventVerifier` 逐筆驗證事件，最後才交給 `EventIngestor` 套用版本／TTL／namespace 規則寫入 Room；驗證不過的資料絕不進入 APPLY，也不覆蓋既有資料。傳輸層藏在 `PeerTransport` 介面後方（實作為 `BleGattTransport`），同步邏輯不綁死任何單一 Android API。模擬器（`simulator/`）刻意**共用手機端同一套 `computeDiff`／`buildRequest`／驗證邏輯**，只把傳輸層換成種子化的接觸模型，因此模擬結果與實機行為出自同一份決策程式碼。
+**協作方式**：後端（`pipeline/`）是純 Node.js CLI，負責把多來源資料正規化成統一的 `event-v0` 格式，依 `(area_id, theme)` 分組切片、計算 canonical SHA-256 並以 Ed25519 簽章，輸出 manifest + chunks。**私鑰只存在伺服器端**。行動端（`android/`）在收到任何分片時，先由 `ChunkVerifier` 驗證 chunk hash 與簽章、再由 `EventVerifier` 逐筆驗證事件，最後才交給 `EventIngestor` 套用版本／TTL／namespace 規則寫入 Room；驗證不過的資料絕不進入 APPLY，也不覆蓋既有資料。傳輸層藏在 `PeerTransport` 介面後方（實作為 `BleGattTransport`），同步邏輯不綁死任何單一 Android API。模擬器（`simulator/`）直接使用 `pipeline/lib` 的 JavaScript 決策與驗證函式，Android 則使用 Kotlin 移植版本；兩者透過共同資料契約與 fixture 核對行為。模擬器的接觸模型不等同實機傳輸，跨語言實作仍需各自測試。
+
+Android host 直接載入原生已驗證的靜態地物與事件，不依賴 Flutter 預覽 JSON。原生驗證、儲存或格式錯誤會顯示載入失敗；只有非 Android 的預覽環境在缺少 native bridge 時，才使用打包的展示快照。
 
 沒有雲端資料庫、沒有後端服務相依；唯一的例外是把民眾回報升級為「已查證」需要政府端簽發確認事件，但沒有政府端時系統照常運作。App 固定使用單一 `MapLibreMap` renderer：台灣 Protomaps PMTiles、glyph、sprite、樣式、行政區／地標 GeoJSON 與 `taiwan-roads.json` 搜尋索引全部隨 App 內嵌；Android 啟動時將 PMTiles 串流複製到 app-private `files/maps/`，因此地圖與道路搜尋不需要網路或地圖服務憑證。ADR-001 否決的 Nearby Connections 與 Wi-Fi Direct 實作已連同它們所需的 Wi-Fi／Play Services 權限一併移除，只保留在 git 歷史與 ADR 記錄中。
 
@@ -76,7 +82,7 @@ flowchart LR
 | 密碼學             | Bouncy Castle `bcprov-jdk18on` 1.78.1                                                 | Android 端 Ed25519 驗簽（平台 provider 至 API 33 才支援 EdDSA）                                                                   |
 | 傳輸層             | Android BLE GATT（自訂 service：DATA write／ACK notify／CONTROL characteristic）      | Peer discovery、連線、分片傳輸與位元組級續傳                                                                                      |
 | 資料契約           | JSON Schema（`event-v0`／`manifest-v0`／`chunk-v0`／`peer-summary-v0`／`feature-v0`） | 跨模組介面，pipeline 與 Android 各自實作、以同一份 fixture 交叉驗證                                                               |
-| 測試               | Flutter test、JUnit 4、AndroidX Test、`node:test`、Python `unittest`                  | 83 項 Flutter 測試、48 項 JVM 單元測試、14 項 instrumented 測試、122 項 Node 測試、6 項 Python 測試                               |
+| 測試               | Flutter test、JUnit 4、AndroidX Test、`node:test`、Python `unittest`                  | 覆蓋地圖介面、資料契約、驗證、同步與模擬；測試數量及結果以各 runner 的當次輸出為準                                               |
 | Sponsor 技術       | 未使用                                                                                | 本次未使用主辦方或贊助商提供的服務；pipeline 與 simulator 零第三方相依，Android 端僅用 AndroidX 與 Bouncy Castle                  |
 
 > 曾評估但**否決**的技術，實測記錄見 [`docs/adr/ADR-001-transport-layer.md`](docs/adr/ADR-001-transport-layer.md)：**Nearby Connections**（兩台實機皆回傳 Google 側 `INTERNAL_ERROR`，非 App 端可控）、**原生 Wi-Fi Direct**（discovery／連線可行，但 TCP 卡在疑似 Android per-app 網路路由限制）。
@@ -95,8 +101,8 @@ git clone https://github.com/Jiruiii/OSS.git
 cd OSS
 
 # ---------- 1. 驗證整套資料契約與模擬器（不需要手機，約 1 分鐘） ----------
-npm test                                   # 122 項通過（pipeline + simulator）
-python -m unittest discover -s tests -v    # 10 項通過（Windows 繁中環境請先設 PYTHONUTF8=1）
+npm test                                   # pipeline + simulator
+python -m unittest discover -s tests -v    # Windows 繁中環境請先設 PYTHONUTF8=1
 
 # ---------- 2. 產生並驗證一份真實簽章的資料封包 ----------
 node pipeline/cli.mjs keygen --out-dir .stage2-keys --key-id neihu-demo-2026
@@ -194,12 +200,12 @@ App 主畫面直接進入 Flutter 台灣離線地圖，提供道路／建物／�
 - **不宣稱在任何固定時間覆蓋全城。** 所有模擬數字只適用於 [`experiments/scenario.md`](experiments/scenario.md) 描述的內湖情境與接觸模型，單一 seed，非多次抽樣的信賴區間。
 - **模擬參數只校準了一半。** `max_bytes_per_round` 已用實機 BLE 接觸窗量測校準；`contact_probability`（社交接觸機率）與 `transfer_failure_prob` 仍是工程估計值 — 現有實機數據沒有一項直接對應到這兩個參數，硬套上去會是假精確。
 - **耗電只有單一機型、單一 60 秒視窗、只涵蓋持續傳輸**，不是 Emergency Mode 真實的間歇性接觸型態，也未涵蓋鎖屏情境。
-- **Emergency Mode 的自動同步還沒做實機驗證。** `AutoPeerSyncEngine`（PR #18）已經接進前景服務，有 JVM 單元測試與 instrumented 測試，但還沒在兩台以上的實機上跑過「開著 Emergency Mode 放著，自己完成交換」的情境。上方實機結果表裡的同步數據全部來自手動操作的 Peer Sync 畫面。
+- **自動同步已通過兩機初步實測，完整驗收仍待完成。** 2026-09-27 在 Pixel 8a／Sharp SH-M32 關閉 Wi-Fi 與行動數據後，真實 BLE 與同步引擎完成互補缺片；重建 transport 再次相遇時不重複傳片。測試使用獨立資料庫；正式服務另確認熄屏時可以完成已有資料的 HELLO 核對。三機自動中繼、長時間 Doze 及正式成功率統計仍待完成，詳見 [可靠性與實機驗證](docs/reliability-device-validation.md)。
 - **民眾回報與逃生路線仍需現場驗證。** 兩者都有 JS／Kotlin JVM／Flutter 自動化測試（含用真實簽章重播 A→B→C 轉傳，以及逃生路線的三步驟 demo 情境）；雙北路線另有 Pixel 8a USB instrumentation 與 profile 畫面量測，並非實際災害或多人現場測試。回報送到政府端、確認事件送回手機，目前都靠 debug build 的 `adb` 匯出／匯入。裝置金鑰沒有撤銷機制，同一把金鑰的回報可以被串起來；「N 人回報」可以被一人多機灌票，所以不等於驗證。
-- **逃生路線只有步行、涵蓋雙北及邊界緩衝區**，遵守 OSM `oneway:foot` 與步行存取限制，但沒有高程資料。避難所開設狀態靠位置比對，也不依災害類型過濾避難所；路網外或未連接的場所仍可能無可達路線。原始內湖路網與測試保留。路線不是官方疏散指示。
+- **逃生路線只有步行、涵蓋雙北及邊界緩衝區**，遵守 OSM `oneway:foot` 與步行存取限制，但沒有高程資料。避難所開設狀態靠位置比對；使用者可選六種災害情境篩選，類別不明時保留警告，不自動推斷情境。路網外或未連接的場所仍可能無可達路線。原始內湖路網與測試保留。路線不是官方疏散指示；操作與同步狀態頁見 [功能紀錄](docs/sync-status-disaster-filter.md)。
 - **自動同步不支援跨接觸續傳。** 如果接觸窗關閉導致真的斷線，傳到一半的分片不會保留狀態，下次相遇會從第 0 個 byte 重傳。位元組級續傳目前只在同一條連線還開著時有效。
-- **鎖屏／背景存活尚未用正式前景服務重跑**（先前一次嘗試因螢幕被意外喚醒而無效），跨機型的 20 次連線成功率統計也尚未補齊。
-- **耗電只涵蓋「持續發現」，不含傳輸。** 目前服務不會自行建立 GATT 連線交換分片，所以 +54 mW 是待命成本，實際同步時的耗電尚未量測；且只有 1 台機型、鄰居數固定為 1。（同日稍早那組 22.35→26.78 mW 已作廢——當時手機插著 USB 且滿電，量到的是計量器雜訊，詳見 `experiments/results/energy-raw/README.md`。）
+- **長時間 Doze 與跨機型 20 次連線成功率尚未補齊。** 本輪正式前景服務已有短時間熄屏心跳及 HELLO 核對證據；USB 充電時裝置 idle 狀態仍是 ACTIVE，不能視為 Doze 驗收。
+- **前景服務耗電量測只涵蓋「持續發現」，不含傳輸。** +54 mW 是舊版 discovery-only 服務的待命成本，目前自動同步服務的耗電尚未量測；舊量測只有 1 台機型、鄰居數固定為 1。（同日稍早那組 22.35→26.78 mW 已作廢——當時手機插著 USB 且滿電，量到的是計量器雜訊，詳見 `experiments/results/energy-raw/README.md`。）
 - **手動 Peer Sync 畫面的 server 端仍然從 `assets/` 供應分片。** 自動同步則不同：節點會把驗證通過的分片本體存進本機 `chunk-cache`（上限 8 MB，超過時先刪最舊的），再從這裡供應給下一個 peer，所以中繼節點真的能轉傳自己收到的資料。不過這條中繼路徑同樣還沒做實機驗證。
 
 - **固定大小切分讓版本更新無法真正 delta**：`fixed-size` 切分下，資料集只要有一筆事件變動，同組後面所有 chunk 的邊界就會位移、hash 全變。
@@ -216,7 +222,7 @@ App 主畫面直接進入 Flutter 台灣離線地圖，提供道路／建物／�
 - 依實際容量需求擴充 PMTiles 的台灣街道資料與未來離線路徑規劃；第一版資料固定 z15，z17 仍只是 overzoom，不宣稱 z17 巷弄細節。
 - 用兩機、三機實機驗證 Emergency Mode 的自動同步與中繼轉傳，並補上跨接觸的續傳狀態保存。
 - **民眾回報的後續**：真的上傳 API 與政府端後台（取代 debug 匯出／匯入）、現場授權人員的離線確認（需要授權憑證鏈與撤銷機制）、定期更換裝置金鑰以降低可串連性、信譽評分。
-- **逃生路線的後續**：擴大到全台路網、依已打包避難所圖層的 `disaster_types` 過濾、高程與垂直避難建議、以及把 `CONFIRMED` 的封路回報改由政府直接簽發 `ROAD_STATUS`，讓路線真正避開。
+- **逃生路線的後續**：擴大到全台路網、高程與垂直避難建議、以及把 `CONFIRMED` 的封路回報改由政府直接簽發 `ROAD_STATUS`，讓路線真正避開。
 - 擴大目前版本化 raster tiles 的覆蓋範圍。
 
 完整版見 [`experiments/limitations.md`](experiments/limitations.md) 與 [`docs/mvp-remaining-tasks.md`](docs/mvp-remaining-tasks.md)。

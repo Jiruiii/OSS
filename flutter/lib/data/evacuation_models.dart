@@ -2,6 +2,38 @@ import 'dart:math' as math;
 
 import 'map_models.dart';
 
+enum DisasterType {
+  flood('flood', '水災'),
+  earthquake('earthquake', '震災'),
+  debrisFlow('debris_flow', '土石流'),
+  tsunami('tsunami', '海嘯'),
+  nuclear('nuclear', '核子事故'),
+  landslide('landslide', '坡地災害');
+
+  const DisasterType(this.wireValue, this.label);
+  final String wireValue, label;
+}
+
+enum ShelterDisasterEligibility { compatible, incompatible, unknown }
+
+ShelterDisasterEligibility shelterDisasterEligibility(
+  StaticFeature shelter,
+  DisasterType type,
+) {
+  final raw = shelter.details['disaster_types'];
+  final labels =
+      raw is List
+          ? raw.whereType<String>().map((value) => value.trim()).toSet()
+          : <String>{};
+  final known = labels.intersection(
+    DisasterType.values.map((value) => value.label).toSet(),
+  );
+  if (known.isEmpty) return ShelterDisasterEligibility.unknown;
+  return known.contains(type.label)
+      ? ShelterDisasterEligibility.compatible
+      : ShelterDisasterEligibility.incompatible;
+}
+
 enum EvacuationRouteStatus { ok, noRoute, graphUnavailable, invalidInput }
 
 extension EvacuationRouteStatusWire on EvacuationRouteStatus {
@@ -38,8 +70,10 @@ List<ShelterRouteCandidate> shortlistShelterCandidates(
   GeoPoint origin,
   Iterable<StaticFeature> shelters, {
   int limit = 5,
+  double maxDistanceM = double.infinity,
+  DisasterType? disasterType,
 }) {
-  final cappedLimit = limit.clamp(0, 5).toInt();
+  final cappedLimit = limit.clamp(0, 50).toInt();
   if (cappedLimit == 0 || !_validPoint(origin)) {
     return const <ShelterRouteCandidate>[];
   }
@@ -47,14 +81,21 @@ List<ShelterRouteCandidate> shortlistShelterCandidates(
   final ranked = <_ShelterCandidateDistance>[];
   for (final shelter in shelters) {
     if (shelter.kind != 'shelter') continue;
+    if (disasterType != null &&
+        shelterDisasterEligibility(shelter, disasterType) ==
+            ShelterDisasterEligibility.incompatible) {
+      continue;
+    }
     final id = shelter.id;
     final geometry = shelter.geometry;
     if (id == null || id.isEmpty || geometry is! PointGeometry) continue;
     if (!_validPoint(geometry.point)) continue;
+    if (shelterAirDistanceM(origin, geometry.point) > maxDistanceM) continue;
     ranked.add(
       _ShelterCandidateDistance(
         candidate: ShelterRouteCandidate(id: id, location: geometry.point),
-        airDistanceSquared: _airDistanceSquared(origin, geometry.point),
+        airDistanceSquared:
+            math.pow(shelterAirDistanceM(origin, geometry.point), 2).toDouble(),
       ),
     );
   }
@@ -69,6 +110,17 @@ List<ShelterRouteCandidate> shortlistShelterCandidates(
       .take(cappedLimit)
       .map((entry) => entry.candidate)
       .toList(growable: false);
+}
+
+double shelterAirDistanceM(GeoPoint origin, GeoPoint destination) {
+  final lat1 = origin.latitude * math.pi / 180;
+  final lat2 = destination.latitude * math.pi / 180;
+  final dLat = lat2 - lat1;
+  final dLon = (destination.longitude - origin.longitude) * math.pi / 180;
+  final a =
+      math.pow(math.sin(dLat / 2), 2) +
+      math.cos(lat1) * math.cos(lat2) * math.pow(math.sin(dLon / 2), 2);
+  return 6371000 * 2 * math.asin(math.sqrt(a.clamp(0, 1)));
 }
 
 final class _ShelterCandidateDistance {
@@ -88,15 +140,6 @@ bool _validPoint(GeoPoint point) =>
     point.longitude <= 180 &&
     point.latitude >= -90 &&
     point.latitude <= 90;
-
-double _airDistanceSquared(GeoPoint origin, GeoPoint destination) {
-  final latitudeRadians =
-      ((origin.latitude + destination.latitude) / 2) * math.pi / 180;
-  final longitudeDelta =
-      (origin.longitude - destination.longitude) * math.cos(latitudeRadians);
-  final latitudeDelta = origin.latitude - destination.latitude;
-  return longitudeDelta * longitudeDelta + latitudeDelta * latitudeDelta;
-}
 
 final class RouteWarning {
   const RouteWarning({
@@ -151,6 +194,18 @@ final class EvacuationRouteResult {
   final String? eventSnapshotAt;
   final List<RouteWarning> warnings;
   final List<String> blockedEventIds;
+
+  EvacuationRouteResult withWarning(RouteWarning warning) =>
+      EvacuationRouteResult(
+        status: status,
+        polyline: polyline,
+        distanceM: distanceM,
+        durationS: durationS,
+        graphVersion: graphVersion,
+        eventSnapshotAt: eventSnapshotAt,
+        warnings: <RouteWarning>[...warnings, warning],
+        blockedEventIds: blockedEventIds,
+      );
 
   factory EvacuationRouteResult.fromMessage(Map<String, dynamic> message) {
     final status = EvacuationRouteStatusWire.fromWire(message['status']);

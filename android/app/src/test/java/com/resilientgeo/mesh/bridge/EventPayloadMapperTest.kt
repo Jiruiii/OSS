@@ -7,8 +7,17 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.time.Instant
 
 class EventPayloadMapperTest {
+
+    @Test
+    fun `stored CURRENT becomes EXPIRED at the exact expiry boundary`() {
+        val event = eventEntity().copy(expiresAt = "2026-09-27T08:00:00Z")
+        assertEquals("CURRENT", EventPayloadMapper.toMessage(event, Instant.parse("2026-09-27T07:59:59Z"))["apply_state"])
+        assertEquals("EXPIRED", EventPayloadMapper.toMessage(event, Instant.parse("2026-09-27T08:00:00Z"))["apply_state"])
+        assertEquals("EXPIRED", EventPayloadMapper.toMessage(event.copy(namespace = "crowd.reports"), Instant.parse("2026-09-27T08:00:00Z"))["apply_state"])
+    }
 
     @Test
     fun `maps the complete persisted document recursively and overlays Room apply state`() {

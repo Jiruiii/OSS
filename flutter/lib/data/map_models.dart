@@ -198,8 +198,17 @@ class MeshEvent {
     verification: value,
   );
 
-  /// Android's persisted apply_state is authoritative; expires_at is display data.
-  bool get isExpired => applyState == 'EXPIRED';
+  /// Keep the UI correct between native expiry ticks and while returning from background.
+  String? get effectiveApplyState {
+    final expires = _parseEventTime(expiresAt);
+    if (applyState == 'EXPIRED' ||
+        (expires != null && !expires.isAfter(DateTime.now().toUtc()))) {
+      return 'EXPIRED';
+    }
+    return applyState;
+  }
+
+  bool get isExpired => effectiveApplyState == 'EXPIRED';
 
   /// Returns whether this event may be rendered as a current event.
   ///

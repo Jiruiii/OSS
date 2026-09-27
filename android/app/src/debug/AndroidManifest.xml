@@ -29,7 +29,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <application>
+    <application android:networkSecurityConfig="@xml/debug_network_security_config">
+        <activity
+            android:name=".debug.RouteValidationActivity"
+            android:exported="true"
+            android:theme="@style/Theme.ResilientGeoMesh.OfflineGis" />
         <activity
             android:name=".transport.BleSpikeActivity"
             android:exported="true"

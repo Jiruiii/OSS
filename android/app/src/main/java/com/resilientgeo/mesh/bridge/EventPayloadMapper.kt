@@ -1,6 +1,8 @@
 package com.resilientgeo.mesh.bridge
 
 import com.resilientgeo.mesh.data.EventEntity
+import com.resilientgeo.mesh.ingest.ApplyState
+import java.time.Instant
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -11,11 +13,11 @@ import org.json.JSONObject
  */
 object EventPayloadMapper {
 
-    fun toMessage(event: EventEntity): Map<String, Any?> =
+    fun toMessage(event: EventEntity, now: Instant = Instant.now()): Map<String, Any?> =
         JSONObject(event.eventJson)
             .toMessageMap()
             .toMutableMap()
-            .apply { put("apply_state", event.applyState) }
+            .apply { put("apply_state", ApplyState.at(event.namespace, event.expiresAt, now).name) }
 
     private fun JSONObject.toMessageMap(): Map<String, Any?> {
         val values = LinkedHashMap<String, Any?>()

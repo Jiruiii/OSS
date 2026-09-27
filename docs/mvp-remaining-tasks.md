@@ -2,6 +2,8 @@
 
 > 建立日期：2026-09-05
 > 最新進度更新：2026-09-27，雙北離線路線與 Pixel 8a 延遲驗證完成；詳見 G、H 段及 [實測紀錄](taipei-offline-routing.md)。原有 MVP 阻塞項目不因此視為完成。
+> 同日可靠性更新：快取／庫存一致性、Flutter TTL、更新重試及擴大推薦已修正，Pixel 8a／Sharp 兩機真實 BLE 互補缺片與再次相遇通過；詳見 [可靠性與實機驗證](reliability-device-validation.md)。三機自動中繼、長時間 Doze 及正式連線成功率仍待驗收。
+> 同步與避難情境更新：新增同步狀態頁、服務啟停與六種災害類別篩選；詳見 [功能與驗證紀錄](sync-status-disaster-filter.md)。事件到達後自動重算仍待實作。
 > 取代分工方式：不再按「甲／乙」或「需不需要實機」切分，只按「離 MVP 通過條件有多近」排序。
 > 對應文件：`system.md`（開發階段與驗收條件）。
 > 文件清理（2026-09-27）：移除五份已被現行文件取代的模板與實作計畫，原文保留在 Git；清單與目前入口見 [文件索引](README.md)。
@@ -192,8 +194,8 @@
 
 ### 目前設計決策（2026-09-27）
 
-- 只做步行路線；Android Kotlin 使用預建雙北路網與單目標 A*，Flutter 挑最多 5 個候選避難所，依 Android 回傳的路線距離選擇目的地。保留原本 Dijkstra 與內湖 golden 回歸測試。
-- 路網保留 OSM node ID，遵守 `oneway:foot`、`foot`／`access` 限制；涵蓋雙北及邊界緩衝區，沒有高程資料。避難所狀態以位置比對，災害類型過濾仍未做。
+- 只做步行路線；Android Kotlin 使用預建雙北路網與單目標 A*，Flutter 搜尋 20 公里內最多 50 個候選避難所，依 Android 回傳的路線距離選擇目的地，並使用距離下界與逐次檢查的 15 秒預算限制搜尋。保留原本 Dijkstra 與內湖 golden 回歸測試。
+- 路網保留 OSM node ID，遵守 `oneway:foot`、`foot`／`access` 限制；涵蓋雙北及邊界緩衝區，沒有高程資料。避難所狀態以位置比對，新增手動選擇災害類型篩選，類別不明時保留並警告。
 - CLOSED 道路和 CRITICAL 危險區**封鎖**；PARTIAL 道路和 HIGH 危險區**加權**。
 - 群眾回報（`UNVERIFIED`）**只加權、不封鎖**，避免一筆假回報就能把所有人導離最佳路線。
 - `EXPIRED` 事件不參與計算，但要提示使用者。
@@ -203,9 +205,9 @@
 
 - [x] **G1. 道路圖建構與雙北擴充**：`tools/maps/build_taipei_walk_graph.py` 產生 `android/app/src/main/assets/routing/taipei-walk.rgmz`（28,891,043 bytes，Git LFS），共 1,085,665 節點、1,183,752 路段。原始內湖 `walk-roads.json`、產生工具與 golden 檔保留。來源與雜湊見 [雙北路網文件](taipei-offline-routing.md)。
 - [x] **G2. 災情覆蓋層**：`HazardOverlay`，規則表與測試一一對應。危險區改用事件類型白名單（`FLOOD_WARNING`、`LANDSLIDE_RISK`、`DEBRIS_FLOW_WARNING`）：打包的全台 NCDR 熱傷害、供水警戒，以及 SHELTER_STATUS／MEDICAL 事件也是 CRITICAL／HIGH 多邊形，照「任何 CRITICAL 多邊形」會封掉整片路網。
-- [x] **G3. 避難所目的地**：`ShelterState` 以位置（100 m 內或多邊形包含）比對 `SHELTER_STATUS`；未開設、額滿、位在 CRITICAL 危險區都回 `no_route` 並附原因；沒有狀態事件時照常規劃，但附「狀態未知」警告。災害類型過濾**未做**：`calculateEvacuationRoute` 契約只帶避難所 id 與座標；Android 已打包全台避難所圖層，之後可依 id 查 `disaster_types`。
+- [x] **G3. 避難所目的地**：`ShelterState` 以位置（100 m 內或多邊形包含）比對 `SHELTER_STATUS`；未開設、額滿、位在 CRITICAL 危險區都回 `no_route` 並附原因；沒有狀態事件時照常規劃，但附「狀態未知」警告。災害類型篩選已實作：Flutter 預篩推薦，Android 從已驗證圖層依 id 核對 `disaster_types`；明確不符回 `no_route`，類別不明保留警告。契約新增可選 `disaster_type`，不自動推斷情境。
 - [x] **G4. 路線計算**：`EvacuationRouter` 的規劃路徑使用單目標 A*，每次請求一個避難所，前幾名由 Flutter 依 Android 距離排序。起點離路網超過 300 m、避難所離路網超過 100 m、全部被封、起點在危險區內，都有明確狀態或警告；`blocked_event_ids` 列出被避開的封路。內湖五個生活圈 golden 測試仍通過；雙北 41 個行政區各有可達避難所的測試通過。
-- [x] **G5. 重算**：Flutter 已在事件指紋改變時標示「路線資訊已變更，請重新計算」；Android 端覆蓋層依事件快照快取，事件一變就重建。
+- [x] **G5. 重算**：Flutter 對影響路線的事件更新、移除、到期與災害情境變更自動重算，合併 600 ms 內連續更新、丟棄舊回應；手動目的地保留，推薦會重新比較候選避難所，並呈現更新原因及目的地。背景／其他主分頁暫停新增請求；Android 覆蓋層依最新快照重建。實作與驗證見 [自動重算](automatic-route-refresh.md)。完整兩機 mesh 災情改道演練仍待驗收。
 - [x] **G6. UI**：已由 UI 計畫完成；目前 App 只有 MapLibre 離線底圖一種 renderer。Pixel 8a 上已驗證實際定位推薦、街道拖動及停止後標記保留；飛航模式路線專項驗收仍待補測。
 - [x] **G7. Demo 情境**：`pipeline/tools/generate-evacuation-scenario.mjs` → `data/fixtures/neihu/evacuation-scenario.json` 與兩個簽章 chunk；`EvacuationScenarioTest` 重播三個步驟。實機演練尚未做。
 - [x] **G8. 文件與限制說明。**

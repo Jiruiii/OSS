@@ -20,6 +20,7 @@ import '../data/map_administrative.dart';
 import '../data/map_models.dart';
 import '../data/maplibre_map_config.dart';
 import '../data/map_runtime_state.dart';
+import '../data/route_event_snapshot.dart';
 import '../data/map_search.dart';
 import '../data/map_search_asset.dart';
 import '../data/ncdr_map_filter.dart';
@@ -30,6 +31,7 @@ import '../widgets/evacuation_route_sheet.dart';
 import '../widgets/layer_filter_panel.dart';
 import '../widgets/map_canvas.dart';
 import '../widgets/map_layers.dart' show MapIconCatalog, featureName;
+import 'sync_status_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({
@@ -43,6 +45,8 @@ class MapScreen extends StatefulWidget {
     this.locationController,
     this.themeMode = ThemeMode.system,
     this.animationEnabled = true,
+    this.active = true,
+    this.routeClock,
   });
 
   /// Optional deterministic inputs keep widget tests independent of channels.
@@ -61,12 +65,16 @@ class MapScreen extends StatefulWidget {
   final LocationController? locationController;
   final ThemeMode themeMode;
   final bool animationEnabled;
+  final bool active;
+
+  /// Deterministic expiry clock for widget tests.
+  final DateTime Function()? routeClock;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   late final MapBridge _bridge;
   late final LocationController _locationController;
   final TextEditingController _searchController = TextEditingController();
@@ -111,16 +119,35 @@ class _MapScreenState extends State<MapScreen> {
   StaticFeature? _routeDestination;
   EvacuationRouteResult? _routeResult;
   String? _routeErrorMessage;
-  String? _routeEventFingerprint;
   bool _routeSheetVisible = false;
   bool _routeLoading = false;
   bool _routeStale = false;
   String? _routeLoadingMessage;
   int _routeRequestToken = 0;
+  DisasterType? _disasterType;
+  StaticFeature? _requestedRouteDestination;
+  bool _routeRecommendation = false;
+  bool _routeWorkRunning = false;
+  bool _routeRefreshReady = false;
+  bool _foreground = true;
+  Timer? _routeRefreshTimer;
+  Timer? _routeExpiryTimer;
+  RouteEventSnapshot? _observedRouteEvents;
+  String? _routeUpdateReason;
+  String? _routeUpdateNotice;
+
+  DateTime get _routeNow =>
+      (widget.routeClock?.call() ?? DateTime.now()).toUtc();
+  String _eventFingerprint(Iterable<MeshEvent> events) =>
+      RouteEventSnapshot(events, _routeNow).fingerprint;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _foreground =
+        WidgetsBinding.instance.lifecycleState == null ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     _bridge = widget.bridge ?? MapBridge();
     _locationController = widget.locationController ?? LocationController();
     _locationSubscription = _locationController.locations.listen((location) {
@@ -140,6 +167,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void didUpdateWidget(covariant MapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.active != widget.active) _refreshRouteVisibility();
     final nextFeatures = widget.staticFeatures;
     if (nextFeatures != null &&
         !identical(oldWidget.staticFeatures, nextFeatures)) {
@@ -164,6 +192,9 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _routeRefreshTimer?.cancel();
+    _routeExpiryTimer?.cancel();
     _searchWorker?.close();
     if (!kReleaseMode) AppPerformance.search = null;
     _eventSubscription?.cancel();
@@ -320,14 +351,163 @@ class _MapScreenState extends State<MapScreen> {
 
   void _applyEventSnapshot(List<MeshEvent> events) {
     if (!mounted) return;
-    final changedSinceRouteStart =
-        _routeDestination != null &&
-        _routeEventFingerprint != null &&
-        _eventFingerprint(events) != _routeEventFingerprint;
     setState(() {
       _persistedEvents = events;
-      if (changedSinceRouteStart) _routeStale = true;
     });
+    _checkRouteEvents();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    _refreshRouteVisibility();
+  }
+
+  void _refreshRouteVisibility() {
+    if (!_foreground || !widget.active) {
+      _routeExpiryTimer?.cancel();
+      return;
+    }
+    _checkRouteEvents();
+    _maybeRunRouteRefresh();
+  }
+
+  void _checkRouteEvents() {
+    if (!_routeSheetVisible) return;
+    final snapshot = RouteEventSnapshot(_persistedEvents, _routeNow);
+    final reason = _observedRouteEvents?.changeReason(snapshot);
+    _observedRouteEvents = snapshot;
+    if (reason != null) _invalidateRoute(reason);
+    _armRouteExpiry();
+  }
+
+  void _armRouteExpiry() {
+    _routeExpiryTimer?.cancel();
+    if (!_routeSheetVisible || !_foreground || !widget.active) return;
+    final expires = RouteEventSnapshot.nextExpiry(_persistedEvents, _routeNow);
+    if (expires == null) return;
+    _routeExpiryTimer = Timer(expires.difference(_routeNow), _checkRouteEvents);
+  }
+
+  void _invalidateRoute(String reason) {
+    if (!_routeSheetVisible) return;
+    // Native work cannot be cancelled. Invalidate its response and wait before
+    // starting another request, so bursts never queue overlapping native work.
+    _routeRequestToken++;
+    _routeUpdateReason = reason;
+    setState(() {
+      _routeResult = null;
+      _routeErrorMessage = null;
+      _routeStale = true;
+      _routeLoading = true;
+      _routeLoadingMessage = '正在更新逃生路線…';
+      _routeUpdateNotice = '$reason，正在自動重新規劃';
+    });
+    _routeRefreshReady = false;
+    _routeRefreshTimer?.cancel();
+    _routeRefreshTimer = Timer(const Duration(milliseconds: 600), () {
+      _routeRefreshReady = true;
+      _maybeRunRouteRefresh();
+    });
+  }
+
+  void _maybeRunRouteRefresh() {
+    if (!mounted ||
+        !_routeSheetVisible ||
+        !_routeRefreshReady ||
+        _routeWorkRunning ||
+        !_foreground ||
+        !widget.active) {
+      return;
+    }
+    unawaited(_runRouteRequest());
+  }
+
+  Future<void> _calculateRouteTo(StaticFeature shelter) async {
+    if (_routeLoading) return;
+    _requestedRouteDestination = shelter;
+    _routeRecommendation = false;
+    await _startRouteRequest();
+  }
+
+  Future<void> _recommendNearestShelter() async {
+    if (_routeLoading) return;
+    _requestedRouteDestination = null;
+    _routeRecommendation = true;
+    await _startRouteRequest();
+  }
+
+  Future<void> _startRouteRequest() async {
+    _routeRefreshTimer?.cancel();
+    _routeUpdateReason = null;
+    _routeUpdateNotice = null;
+    _observedRouteEvents = RouteEventSnapshot(_persistedEvents, _routeNow);
+    _routeSheetVisible = true;
+    _routeRefreshReady = true;
+    _armRouteExpiry();
+    if (_routeWorkRunning) {
+      setState(() {
+        _routeLoading = true;
+        _routeDestination = _requestedRouteDestination;
+        _routeResult = null;
+        _routeErrorMessage = null;
+        _routeStale = false;
+        _selectedFeature = null;
+        _selectedEvent = null;
+      });
+      return;
+    }
+    await _runRouteRequest();
+  }
+
+  Future<void> _runRouteRequest() async {
+    _routeRefreshReady = false;
+    _routeWorkRunning = true;
+    _routeLoading = false;
+    final reason = _routeUpdateReason;
+    final requestToken = _routeRequestToken + 1;
+    try {
+      if (_routeRecommendation) {
+        await _performShelterRecommendation();
+      } else {
+        await _performRouteTo(_requestedRouteDestination!);
+      }
+      if (mounted &&
+          requestToken == _routeRequestToken &&
+          _routeSheetVisible &&
+          !_routeRefreshReady &&
+          !_routeStale &&
+          reason != null) {
+        setState(() {
+          _routeUpdateNotice =
+              _routeErrorMessage != null
+                  ? '$reason，重新規劃失敗，請重試'
+                  : '$reason，已自動重新規劃';
+        });
+      }
+    } on Object catch (error) {
+      if (mounted &&
+          requestToken == _routeRequestToken &&
+          _routeSheetVisible &&
+          !_routeStale) {
+        setState(() {
+          _routeLoading = false;
+          _routeResult = null;
+          _routeErrorMessage = _routeErrorMessageFor(error);
+        });
+      }
+    } finally {
+      _routeWorkRunning = false;
+      if (mounted) {
+        _armRouteExpiry();
+        _maybeRunRouteRefresh();
+      }
+    }
+  }
+
+  void _retryRoute() {
+    if (_routeLoading) return;
+    unawaited(_startRouteRequest());
   }
 
   List<MeshEvent> get _visibleEvents {
@@ -399,13 +579,12 @@ class _MapScreenState extends State<MapScreen> {
     _selectedEvent = null;
   });
 
-  Future<void> _calculateRouteTo(StaticFeature shelter) async {
+  Future<void> _performRouteTo(StaticFeature shelter) async {
     if (_routeLoading) return;
     final requestToken = ++_routeRequestToken;
     final eventFingerprint = _eventFingerprint(_persistedEvents);
     setState(() {
       _routeDestination = shelter;
-      _routeEventFingerprint = eventFingerprint;
       _routeResult = null;
       _routeErrorMessage = null;
       _routeLoading = true;
@@ -449,6 +628,7 @@ class _MapScreenState extends State<MapScreen> {
     try {
       final result = await _bridge.calculateEvacuationRoute(
         origin: origin,
+        disasterType: _disasterType,
         destination: ShelterRouteCandidate(
           id: shelterId,
           location: shelterPoint,
@@ -456,6 +636,10 @@ class _MapScreenState extends State<MapScreen> {
       );
       if (!mounted || requestToken != _routeRequestToken) return;
       final stale = _eventFingerprint(_persistedEvents) != eventFingerprint;
+      if (stale) {
+        _checkRouteEvents();
+        return;
+      }
       setState(() {
         _routeLoading = false;
         _routeLoadingMessage = null;
@@ -474,13 +658,12 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  Future<void> _recommendNearestShelter() async {
+  Future<void> _performShelterRecommendation() async {
     if (_routeLoading) return;
     final requestToken = ++_routeRequestToken;
     final eventFingerprint = _eventFingerprint(_persistedEvents);
     setState(() {
       _routeDestination = null;
-      _routeEventFingerprint = eventFingerprint;
       _routeResult = null;
       _routeErrorMessage = null;
       _routeLoading = true;
@@ -508,12 +691,21 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     final features = _staticFeatures?.features ?? const <StaticFeature>[];
-    final candidates = shortlistShelterCandidates(origin, features);
+    final candidates = shortlistShelterCandidates(
+      origin,
+      features,
+      limit: 50,
+      maxDistanceM: 20000,
+      disasterType: _disasterType,
+    );
     if (candidates.isEmpty) {
       if (!mounted || requestToken != _routeRequestToken) return;
       setState(() {
         _routeLoading = false;
-        _routeErrorMessage = '目前沒有可推薦的避難所';
+        _routeErrorMessage =
+            _disasterType == null
+                ? '20 公里內沒有可推薦的避難所'
+                : '20 公里內沒有適用於${_disasterType!.label}或類別不明的候選避難所';
       });
       return;
     }
@@ -525,10 +717,21 @@ class _MapScreenState extends State<MapScreen> {
     EvacuationRouteResult? bestRoute;
     EvacuationRouteResult? failedRoute;
     StaticFeature? bestFeature;
+    final searchClock = Stopwatch()..start();
+    var checked = 0;
     for (var index = 0; index < candidates.length; index += 1) {
+      if (searchClock.elapsed > const Duration(seconds: 15)) break;
+      // Snap-to-graph may remove up to 300 m at the origin and 100 m at the shelter.
+      // Beyond this bound, a candidate cannot improve the shortest route already found.
+      if (index >= 5 &&
+          bestRoute != null &&
+          shelterAirDistanceM(origin, candidates[index].location) >
+              bestRoute.distanceM! + 400) {
+        break;
+      }
       if (!mounted || requestToken != _routeRequestToken) return;
       if (_eventFingerprint(_persistedEvents) != eventFingerprint) {
-        _finishRecommendationWithError(requestToken, '事件資料已更新，請重新計算推薦避難所');
+        _checkRouteEvents();
         return;
       }
       setState(() {
@@ -540,7 +743,9 @@ class _MapScreenState extends State<MapScreen> {
         result = await _bridge.calculateEvacuationRoute(
           origin: origin,
           destination: candidates[index],
+          disasterType: _disasterType,
         );
+        checked++;
       } on Object catch (error) {
         if (!mounted || requestToken != _routeRequestToken) return;
         _finishRecommendationWithError(
@@ -551,7 +756,7 @@ class _MapScreenState extends State<MapScreen> {
       }
       if (!mounted || requestToken != _routeRequestToken) return;
       if (_eventFingerprint(_persistedEvents) != eventFingerprint) {
-        _finishRecommendationWithError(requestToken, '事件資料已更新，請重新計算推薦避難所');
+        _checkRouteEvents();
         return;
       }
 
@@ -594,15 +799,24 @@ class _MapScreenState extends State<MapScreen> {
 
     if (!mounted || requestToken != _routeRequestToken) return;
     if (_eventFingerprint(_persistedEvents) != eventFingerprint) {
-      _finishRecommendationWithError(requestToken, '事件資料已更新，請重新計算推薦避難所');
+      _checkRouteEvents();
       return;
     }
     setState(() {
       _routeLoading = false;
       _routeLoadingMessage = null;
-      _routeResult = bestRoute ?? failedRoute ?? _noRouteResult;
+      _routeResult = (bestRoute ?? failedRoute ?? _noRouteResult).withWarning(
+        RouteWarning(
+          code: 'RECOMMENDATION_SCOPE',
+          eventId: null,
+          message: '已比較 $checked 處候選避難所；搜尋限於 20 公里內、最多 50 處，推薦不涵蓋範圍外設施',
+        ),
+      );
+      if (bestRoute == null && checked == 0) {
+        _routeErrorMessage = '已檢查 $checked 處候選避難所（20 公里內，最多 50 處），未找到可達路線';
+      }
       _routeDestination = bestFeature;
-      _routeErrorMessage = null;
+      if (bestRoute != null || checked > 0) _routeErrorMessage = null;
     });
   }
 
@@ -618,6 +832,12 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _closeRoute() {
+    _routeRefreshTimer?.cancel();
+    _routeExpiryTimer?.cancel();
+    _routeRefreshReady = false;
+    _observedRouteEvents = null;
+    _routeUpdateReason = null;
+    _routeUpdateNotice = null;
     // Incrementing the token means a late native response cannot reopen or
     // replace a route the user dismissed.
     _routeRequestToken += 1;
@@ -625,7 +845,6 @@ class _MapScreenState extends State<MapScreen> {
       _routeDestination = null;
       _routeResult = null;
       _routeErrorMessage = null;
-      _routeEventFingerprint = null;
       _routeSheetVisible = false;
       _routeLoading = false;
       _routeLoadingMessage = null;
@@ -645,16 +864,48 @@ class _MapScreenState extends State<MapScreen> {
     _ => '路線計算失敗，請稍後再試',
   };
 
-  Future<void> _openLayerPanel() => showModalBottomSheet<void>(
-    context: context,
-    builder:
-        (context) => StatefulBuilder(
-          builder:
-              (context, modalSetState) => LayerFilterPanel(
+  Future<void> _openLayerPanel() async {
+    StateSetter? updateModal;
+    var panelOpen = true;
+    var modeChanged = false;
+    // Open immediately even if a preview host has no native channel.
+    unawaited(
+      _bridge
+          .getInitialState()
+          .then((state) {
+            if (!mounted || !panelOpen || modeChanged) return;
+            setState(() => _emergencyModeEnabled = state.emergencyModeEnabled);
+            updateModal?.call(() {});
+          })
+          .catchError((Object _) {}),
+    );
+    await showModalBottomSheet<void>(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder: (context, modalSetState) {
+              updateModal = modalSetState;
+              return LayerFilterPanel(
                 showShelters: _showShelters,
                 showMedical: _showMedical,
                 showEvents: _showEvents,
                 emergencyModeEnabled: _emergencyModeEnabled,
+                disasterType: _disasterType,
+                onDisasterTypeChanged:
+                    _routeLoading
+                        ? null
+                        : (value) {
+                          if (value == _disasterType) return;
+                          setState(() {
+                            _disasterType = value;
+                          });
+                          _invalidateRoute('災害情境變更');
+                          modalSetState(() {});
+                        },
+                onOpenSyncStatus: () {
+                  Navigator.of(context).pop();
+                  unawaited(_openSyncStatus());
+                },
                 onSheltersChanged: (value) {
                   setState(() => _showShelters = value);
                   modalSetState(() {});
@@ -668,12 +919,32 @@ class _MapScreenState extends State<MapScreen> {
                   modalSetState(() {});
                 },
                 onEmergencyModeChanged: (value) async {
+                  modeChanged = true;
                   await _setEmergencyMode(value);
                   if (context.mounted) modalSetState(() {});
                 },
-              ),
-        ),
-  );
+              );
+            },
+          ),
+    );
+    panelOpen = false;
+  }
+
+  Future<void> _openSyncStatus() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SyncStatusScreen(bridge: _bridge),
+      ),
+    );
+    try {
+      final status = await _bridge.getSyncStatus();
+      if (mounted) {
+        setState(() => _emergencyModeEnabled = status.emergencyModeEnabled);
+      }
+    } catch (_) {
+      /* Status page exposes the error; preserve the last mode. */
+    }
+  }
 
   Future<void> _setEmergencyMode(bool enabled) async {
     try {
@@ -882,7 +1153,7 @@ class _MapScreenState extends State<MapScreen> {
         _reportSheetVisible = false;
         _reportStep = CrowdReportSheetStep.edit;
       });
-      _showMessage('告警已建立：未驗證／待同步');
+      _showMessage('警示已建立：未驗證／待同步');
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _reportSubmitting = false);
@@ -893,13 +1164,13 @@ class _MapScreenState extends State<MapScreen> {
   String _reportErrorMessage(Object error) => switch (error) {
     BridgeFailure(:final code) => switch (code) {
       BridgeFailureCode.unavailable => '此功能需要 Android App，Chrome 僅供地圖與資料預覽',
-      BridgeFailureCode.signingUnavailable => '裝置安全簽署不可用，告警未送出',
-      BridgeFailureCode.storageUnavailable => '告警無法儲存至待同步佇列，未送出',
-      BridgeFailureCode.invalidInput => '告警資料無效，未送出',
-      _ => '告警未送出，請稍後再試',
+      BridgeFailureCode.signingUnavailable => '裝置安全簽署不可用，警示未送出',
+      BridgeFailureCode.storageUnavailable => '警示無法儲存至待同步佇列，未送出',
+      BridgeFailureCode.invalidInput => '警示資料無效，未送出',
+      _ => '警示未送出，請稍後再試',
     },
-    FormatException() => '告警資料格式錯誤，未送出',
-    _ => '告警未送出，請稍後再試',
+    FormatException() => '警示資料格式錯誤，未送出',
+    _ => '警示未送出，請稍後再試',
   };
 
   void _setZoomPercentage(int percentage) => setState(() {
@@ -1013,7 +1284,7 @@ class _MapScreenState extends State<MapScreen> {
             onMapTap: _closeDetails,
             onReportCameraIdle: _reportPicking ? _onReportCameraSettled : null,
             showReportLocationPicker: _reportPicking,
-            route: _routeResult,
+            route: _routeStale ? null : _routeResult,
             searchSelection: _searchSelection,
             focusPoint: _focusPoint,
             focusRequestId: _focusRequestId,
@@ -1074,8 +1345,17 @@ class _MapScreenState extends State<MapScreen> {
                       child: Card(
                         child: Padding(
                           padding: EdgeInsets.all(10),
-                          child: Text('請拖動地圖，讓中心圖釘對準告警位置'),
+                          child: Text('請拖動地圖，讓中心圖釘對準警示位置'),
                         ),
+                      ),
+                    ),
+                  if (!_reportPicking && !_reportSheetVisible)
+                    PointerInterceptor(
+                      child: ActionChip(
+                        key: const ValueKey('evacuation-disaster-context'),
+                        avatar: const Icon(Icons.tune, size: 18),
+                        label: Text('避難情境：${_disasterType?.label ?? '不限類型'}'),
+                        onPressed: _routeLoading ? null : _openLayerPanel,
                       ),
                     ),
                   const Spacer(),
@@ -1148,10 +1428,12 @@ class _MapScreenState extends State<MapScreen> {
                 errorMessage: _routeErrorMessage,
                 stale: _routeStale,
                 loadingMessage: _routeLoadingMessage,
-                onRecalculate:
+                updateNotice: _routeUpdateNotice,
+                destinationName:
                     _routeDestination == null
                         ? null
-                        : () => _calculateRouteTo(_routeDestination!),
+                        : featureName(_routeDestination!),
+                onRecalculate: _retryRoute,
                 onClose: _closeRoute,
               ),
             ),
@@ -1214,8 +1496,8 @@ class _StatusOverlay extends StatelessWidget {
               key: ValueKey<String>('static-features-failed'),
             ),
           if (reportDeliveryEventId != null) ...<Widget>[
-            const Text('民眾告警：未驗證／待同步'),
-            Text('告警編號：$reportDeliveryEventId'),
+            const Text('民眾警示：未驗證／待同步'),
+            Text('警示編號：$reportDeliveryEventId'),
           ],
         ],
       ),
@@ -1235,7 +1517,7 @@ class _MapQuickActions extends StatelessWidget {
     children: <Widget>[
       _QuickActionButton(
         key: const ValueKey<String>('open-crowd-report-action'),
-        label: '回報告警',
+        label: '回報警示',
         icon: Icons.warning_amber_rounded,
         onPressed: onReport,
         buttonKey: const ValueKey<String>('open-crowd-report'),
@@ -1393,9 +1675,3 @@ const EvacuationRouteResult _noRouteResult = EvacuationRouteResult(
   warnings: <RouteWarning>[],
   blockedEventIds: <String>[],
 );
-
-String _eventFingerprint(Iterable<MeshEvent> events) {
-  final identities = events.map(meshEventIdentity).toList(growable: false)
-    ..sort();
-  return jsonEncode(identities);
-}

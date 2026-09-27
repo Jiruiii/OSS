@@ -49,7 +49,7 @@ void main() {
     expect(find.text('預估步行時間：2 分鐘'), findsOneWidget);
     expect(find.text('路網版本：taiwan-walk-test'), findsOneWidget);
     expect(find.text('事件快照：2026-09-25T00:00:00Z'), findsOneWidget);
-    expect(find.text('附近有未驗證告警，請現場確認'), findsOneWidget);
+    expect(find.text('附近有未驗證警示，請現場確認'), findsOneWidget);
     expect(find.text('受路線快照排除事件：road:closed'), findsOneWidget);
   });
 
@@ -170,7 +170,7 @@ EvacuationRouteResult _route({
             RouteWarning(
               code: 'UNVERIFIED_CROWD_REPORT',
               eventId: 'report:test',
-              message: '附近有未驗證告警，請現場確認',
+              message: '附近有未驗證警示，請現場確認',
             ),
           ]
           : const <RouteWarning>[],

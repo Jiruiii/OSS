@@ -5,6 +5,7 @@ import 'app/map_app_controller.dart';
 import 'data/app_performance.dart';
 import 'data/offline_map_web_protocol.dart';
 import 'data/maplibre_web_runtime.dart';
+import 'debug/route_validation_app.dart';
 import 'screens/map_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/profile_screen.dart';
@@ -20,6 +21,13 @@ Future<void> main() async {
     await registerOfflineMapProtocol();
   }
   runApp(const ResilientGeoApp());
+}
+
+@pragma('vm:entry-point')
+void routeValidationMain() {
+  if (kReleaseMode) return;
+  WidgetsFlutterBinding.ensureInitialized();
+  runRouteValidationApp();
 }
 
 class ResilientGeoApp extends StatefulWidget {
@@ -91,32 +99,56 @@ class _MapAppHomeState extends State<_MapAppHome> {
     }
 
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
+      body: Column(
         children: <Widget>[
-          MapScreen(
-            key: const ValueKey<String>('home-map'),
-            staticFeatures: controller.staticFeatures,
-            staticFeaturesPending: controller.staticFeaturesPending,
-            staticFeaturesFailed:
-                controller.nativeBridgeAvailable &&
-                controller.staticFeatureLoadError != null,
-            initialState: controller.initialState,
-            bridge: controller.bridge,
-            eventUpdates: controller.eventUpdates,
-            themeMode: controller.themeMode,
-            animationEnabled: controller.animationEnabled,
-          ),
-          NotificationsScreen(
-            events: controller.unreadEvents,
-            attestationSource: controller.events,
-            onEventRead: controller.markEventRead,
-          ),
-          ProfileScreen(
-            themeMode: controller.themeMode,
-            animationEnabled: controller.animationEnabled,
-            onThemeModeChanged: controller.setThemeMode,
-            onAnimationChanged: controller.setAnimationEnabled,
+          if (controller.eventUpdateError != null)
+            SafeArea(
+              bottom: false,
+              child: MaterialBanner(
+                content: const Text('事件更新失敗，目前顯示上次取得的資料'),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed:
+                        controller.retryingEvents
+                            ? null
+                            : controller.retryEventUpdates,
+                    child: Text(controller.retryingEvents ? '重試中…' : '重試'),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: <Widget>[
+                MapScreen(
+                  key: const ValueKey<String>('home-map'),
+                  staticFeatures: controller.staticFeatures,
+                  staticFeaturesPending: controller.staticFeaturesPending,
+                  staticFeaturesFailed:
+                      controller.nativeBridgeAvailable &&
+                      controller.staticFeatureLoadError != null,
+                  initialState: controller.initialState,
+                  bridge: controller.bridge,
+                  eventUpdates: controller.eventUpdates,
+                  themeMode: controller.themeMode,
+                  animationEnabled: controller.animationEnabled,
+                  active: _selectedIndex == 0,
+                ),
+                NotificationsScreen(
+                  events: controller.unreadEvents,
+                  attestationSource: controller.events,
+                  onEventRead: controller.markEventRead,
+                ),
+                ProfileScreen(
+                  bridge: controller.bridge,
+                  themeMode: controller.themeMode,
+                  animationEnabled: controller.animationEnabled,
+                  onThemeModeChanged: controller.setThemeMode,
+                  onAnimationChanged: controller.setAnimationEnabled,
+                ),
+              ],
+            ),
           ),
         ],
       ),

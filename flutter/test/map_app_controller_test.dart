@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:resilientgeo_flutter/app/map_app_controller.dart';
@@ -10,6 +11,36 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+  });
+
+  tearDown(() {
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  test(
+    'stream errors preserve data and retry reconnects to native events',
+    () async {
+      final bridge = _RecoverableBridge();
+      final controller = MapAppController(bridge: bridge);
+      addTearDown(controller.dispose);
+      addTearDown(bridge.updates.close);
+      await controller.load();
+      bridge.updates.addError(StateError('database unavailable'));
+      await pumpEventQueue();
+      expect(controller.eventUpdateError, isA<StateError>());
+      expect(controller.nativeBridgeAvailable, isTrue);
+      await controller.retryEventUpdates();
+      expect(controller.eventUpdateError, isNull);
+      expect(bridge.subscriptions, 2);
+      expect(controller.retryingEvents, isFalse);
+      bridge.updates.add(const <MeshEvent>[]);
+      await pumpEventQueue();
+      expect(controller.eventUpdateError, isNull);
+    },
+  );
 
   test(
     'native bridge without verified layers fails closed instead of using preview JSON',
@@ -80,6 +111,7 @@ void main() {
   test(
     'loads the real NCDR demo snapshot when the native bridge is unavailable',
     () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
       final event = MeshEvent.fromJson(<String, dynamic>{
         'namespace': 'official.ncdr',
         'event_id': 'ncdr:demo',
@@ -102,6 +134,94 @@ void main() {
       expect(controller.initialState.events, contains(event));
     },
   );
+
+  for (final error in <Object>[
+    PlatformException(code: 'map_bridge_error', message: 'verification failed'),
+    const FormatException('invalid native state'),
+    StateError('storage unavailable'),
+  ]) {
+    test('native failure $error does not load preview data', () async {
+      // Exercise a preview-capable platform too: the error type, not just
+      // platform detection, must prevent unverified asset fallback.
+      debugDefaultTargetPlatformOverride = TargetPlatform.windows;
+      var demoLoads = 0;
+      final controller = MapAppController(
+        bridge: _FailingBridge(error),
+        demoEventLoader: () async {
+          demoLoads++;
+          return <MeshEvent>[];
+        },
+      );
+      addTearDown(controller.dispose);
+
+      await controller.load();
+
+      expect(controller.loadError, same(error));
+      expect(controller.staticFeatures, isNull);
+      expect(controller.events, isEmpty);
+      expect(demoLoads, 0);
+      expect(controller.isLoading, isFalse);
+    });
+  }
+
+  test('missing Android bridge fails closed', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    var demoLoads = 0;
+    final controller = MapAppController(
+      bridge: _UnavailableBridge(),
+      demoEventLoader: () async {
+        demoLoads++;
+        return <MeshEvent>[];
+      },
+    );
+    addTearDown(controller.dispose);
+
+    await controller.load();
+
+    expect(controller.loadError, isA<MissingPluginException>());
+    expect(controller.staticFeatures, isNull);
+    expect(demoLoads, 0);
+  });
+
+  test('native state loads without reading preview assets', () async {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    var assetReads = 0;
+    messenger.setMockMessageHandler('flutter/assets', (_) async {
+      assetReads++;
+      return null;
+    });
+    addTearDown(() => messenger.setMockMessageHandler('flutter/assets', null));
+    final controller = MapAppController(bridge: _EmptyVerifiedBridge());
+    addTearDown(controller.dispose);
+
+    await controller.load();
+
+    expect(controller.loadError, isNull);
+    expect(controller.nativeBridgeAvailable, isTrue);
+    expect(assetReads, 0);
+  });
+
+  test(
+    'disposing during startup does not subscribe to native events',
+    () async {
+      final pending = Completer<MapInitialState>();
+      final bridge = _PendingBridge(pending);
+      final controller = MapAppController(bridge: bridge);
+      final load = controller.load();
+      controller.dispose();
+      pending.complete(
+        const MapInitialState(
+          events: <MeshEvent>[],
+          emergencyModeEnabled: false,
+        ),
+      );
+
+      await load;
+
+      expect(bridge.eventSubscriptions, 0);
+    },
+  );
 }
 
 class _EmptyVerifiedBridge extends MapBridge {
@@ -114,6 +234,17 @@ class _EmptyVerifiedBridge extends MapBridge {
 
   @override
   Stream<List<MeshEvent>> get events => const Stream<List<MeshEvent>>.empty();
+}
+
+class _RecoverableBridge extends _EmptyVerifiedBridge {
+  final updates = StreamController<List<MeshEvent>>.broadcast();
+  int subscriptions = 0;
+
+  @override
+  Stream<List<MeshEvent>> get events {
+    subscriptions++;
+    return updates.stream;
+  }
 }
 
 class _SlowStaticLayerBridge extends MapBridge {
@@ -134,5 +265,30 @@ class _UnavailableBridge extends MapBridge {
   @override
   Future<MapInitialState> getInitialState() async {
     throw MissingPluginException('native bridge unavailable');
+  }
+}
+
+class _FailingBridge extends MapBridge {
+  _FailingBridge(this.error);
+
+  final Object error;
+
+  @override
+  Future<MapInitialState> getInitialState() async => throw error;
+}
+
+class _PendingBridge extends MapBridge {
+  _PendingBridge(this.pending);
+
+  final Completer<MapInitialState> pending;
+  int eventSubscriptions = 0;
+
+  @override
+  Future<MapInitialState> getInitialState() => pending.future;
+
+  @override
+  Stream<List<MeshEvent>> get events {
+    eventSubscriptions++;
+    return const Stream<List<MeshEvent>>.empty();
   }
 }

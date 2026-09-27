@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/evacuation_models.dart';
 
 class LayerFilterPanel extends StatelessWidget {
   const LayerFilterPanel({
@@ -11,6 +12,9 @@ class LayerFilterPanel extends StatelessWidget {
     required this.onMedicalChanged,
     required this.onEventsChanged,
     required this.onEmergencyModeChanged,
+    this.disasterType,
+    this.onDisasterTypeChanged,
+    this.onOpenSyncStatus,
   });
 
   final bool showShelters;
@@ -21,6 +25,9 @@ class LayerFilterPanel extends StatelessWidget {
   final ValueChanged<bool> onMedicalChanged;
   final ValueChanged<bool> onEventsChanged;
   final ValueChanged<bool> onEmergencyModeChanged;
+  final DisasterType? disasterType;
+  final ValueChanged<DisasterType?>? onDisasterTypeChanged;
+  final VoidCallback? onOpenSyncStatus;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -47,11 +54,46 @@ class LayerFilterPanel extends StatelessWidget {
               onChanged: onEventsChanged,
             ),
             const Divider(),
+            if (onDisasterTypeChanged != null) ...[
+              DropdownButtonFormField<String>(
+                key: const ValueKey('disaster-type-selector'),
+                value: disasterType?.wireValue ?? 'all',
+                decoration: const InputDecoration(labelText: '避難災害情境'),
+                items: [
+                  const DropdownMenuItem(value: 'all', child: Text('不限災害類型')),
+                  ...DisasterType.values.map(
+                    (type) => DropdownMenuItem(
+                      value: type.wireValue,
+                      child: Text(type.label),
+                    ),
+                  ),
+                ],
+                onChanged:
+                    (value) => onDisasterTypeChanged!(
+                      value == 'all'
+                          ? null
+                          : DisasterType.values.firstWhere(
+                            (type) => type.wireValue == value,
+                          ),
+                    ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('用於避難所推薦與路線規劃；類別不明的場所會附警告，不代表已確認適用。'),
+              ),
+            ],
             SwitchListTile(
               title: const Text('緊急模式'),
               value: emergencyModeEnabled,
               onChanged: onEmergencyModeChanged,
             ),
+            if (onOpenSyncStatus != null)
+              ListTile(
+                leading: const Icon(Icons.sync),
+                title: const Text('同步狀態'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: onOpenSyncStatus,
+              ),
           ],
         ),
       ),

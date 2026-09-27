@@ -12,6 +12,7 @@ import com.resilientgeo.mesh.transport.PeerAdvertisement
 import com.resilientgeo.mesh.transport.PeerTransport
 import com.resilientgeo.mesh.transport.TransferResult
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.test.TestScope
@@ -35,7 +36,127 @@ import java.util.concurrent.atomic.AtomicInteger
  * item 4 did on real hardware for the human-driven demo, but for the
  * automatic path and without needing a second physical device.
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AutoPeerSyncEngineTest {
+
+    @Test fun `server stays connected until a large outgoing transfer finishes`() = runTest {
+        val medium = FakeMedium()
+        val a = FakeTransport("large-client", medium)
+        val b = FakeTransport("large-server", medium)
+        medium.register(a); medium.register(b)
+        var serverClosed = false
+        val slowServer = object : PeerTransport by b {
+            override suspend fun send(connection: Connection, payload: ByteArray): TransferResult {
+                if (JSONObject(String(payload)).getString("type") == "TRANSFER") {
+                    delay(1500)
+                    assertFalse("Server disconnected during its outgoing transfer", serverClosed)
+                }
+                return b.send(connection, payload)
+            }
+            override suspend fun close(connection: Connection) { serverClosed = true; b.close(connection) }
+        }
+        val chunk = JSONObject().put("dataset_id", "demo").put("namespace", "official")
+            .put("chunk_id", "demo:chunk:large").put("chunk_hash", "sha256:fake").put("size_bytes", 2048)
+        val client = AutoPeerSyncEngine(a, "client", { summaryJson("client", emptyList()) }, { _, _, _ -> null },
+            { ChunkIngestResult.Applied(emptyList()) }, backgroundScope,
+            requestedChunkTimeoutMillis = 1000, receptiveWindowMillis = 100)
+        val server = AutoPeerSyncEngine(slowServer, "server", { summaryJson("server", listOf(chunk)) }, { _, _, _ -> chunk },
+            { ChunkIngestResult.Applied(emptyList()) }, backgroundScope, receptiveWindowMillis = 100)
+        client.start(); server.start(); runCurrent()
+        a.advertise(b.peerId); b.advertise(a.peerId); runCurrent()
+        advanceTimeBy(500); runCurrent()
+        assertFalse(serverClosed)
+        assertEquals(0, server.stats().peersSynced)
+        advanceTimeBy(1600); runCurrent()
+        assertEquals(1, client.stats().chunksApplied)
+        assertEquals(1, client.stats().peersSynced)
+        assertEquals(1, server.stats().peersSynced)
+        client.stop(); server.stop()
+    }
+
+    @Test fun `discovery failure is reported without claiming a successful sync`() = runTest {
+        val radio = FakeTransport("failed", FakeMedium())
+        val failed = object : PeerTransport by radio {
+            override fun discover(): Flow<PeerAdvertisement> = kotlinx.coroutines.flow.flow { throw IllegalStateException("scan failed") }
+        }
+        val outcomes = mutableListOf<AutoPeerSyncEngine.SyncOutcome>()
+        val engine = AutoPeerSyncEngine(failed, "node", { summaryJson("node", emptyList()) }, { _, _, _ -> null }, { ChunkIngestResult.Rejected("unused") }, backgroundScope, onSyncOutcome = { outcomes += it })
+        engine.start()
+        runCurrent()
+        assertEquals(listOf(AutoPeerSyncEngine.SyncOutcome(false, "discovery_failed")), outcomes)
+        assertEquals(0, engine.stats().peersSynced)
+        engine.stop()
+    }
+
+    @Test
+    fun `advertised and incoming private addresses map to the same transport session`() = runTest {
+        val medium = FakeMedium()
+        val a = FakeTransport("advertised-a", medium, "ble:aaaaaaaaaaaaaaaa", "private-a")
+        val b = FakeTransport("advertised-b", medium, "ble:bbbbbbbbbbbbbbbb", "private-b")
+        medium.register(a)
+        medium.register(b)
+        val chunk = JSONObject().put("dataset_id", "demo").put("namespace", "official")
+            .put("chunk_id", "demo:chunk:identity").put("chunk_hash", "sha256:fake").put("size_bytes", 10)
+        val held = ConcurrentHashMap<String, JSONObject>()
+        val outcomes = mutableListOf<AutoPeerSyncEngine.SyncOutcome>()
+        val engineA = AutoPeerSyncEngine(a, "node-a", { summaryJson("node-a", held.values.toList()) },
+            { _, _, id -> held[id] }, { received ->
+                held[received.getString("chunk_id")] = received
+                ChunkIngestResult.Applied(listOf(IngestResult.Inserted(false, ApplyState.CURRENT)))
+            }, backgroundScope, receptiveWindowMillis = 100, onSyncOutcome = { outcomes += it })
+        val engineB = AutoPeerSyncEngine(b, "node-b", { summaryJson("node-b", listOf(chunk)) },
+            { _, _, _ -> chunk }, { ChunkIngestResult.Applied(emptyList()) },
+            backgroundScope, receptiveWindowMillis = 100)
+        engineA.start()
+        engineB.start()
+        runCurrent()
+        a.advertise(b.peerId)
+        b.advertise(a.peerId)
+        settle()
+        assertTrue(held.containsKey("demo:chunk:identity"))
+        assertEquals(1, engineA.stats().peersSynced)
+        assertEquals(1, engineB.stats().peersSynced)
+        assertEquals(listOf(AutoPeerSyncEngine.SyncOutcome(true)), outcomes)
+        engineA.stop()
+        engineB.stop()
+    }
+
+    @Test
+    fun `rejected transfers and missing cache timeouts do not count as successful syncs`() = runTest {
+        for (missingCache in listOf(false, true)) {
+            val medium = FakeMedium()
+            val nodeA = FakeTransport("requester-$missingCache", medium)
+            val nodeB = FakeTransport("server-$missingCache", medium)
+            medium.register(nodeA)
+            medium.register(nodeB)
+            val chunk = JSONObject().put("dataset_id", "demo").put("namespace", "official")
+                .put("chunk_id", "demo:chunk:failure").put("chunk_hash", "sha256:fake").put("size_bytes", 10)
+            val logs = mutableListOf<String>()
+            val outcomes = mutableListOf<AutoPeerSyncEngine.SyncOutcome>()
+            val engineA = AutoPeerSyncEngine(nodeA, "requester",
+                { summaryJson("requester", emptyList()) }, { _, _, _ -> null },
+                { ChunkIngestResult.Rejected("bad signature") }, backgroundScope, onLog = { logs += it },
+                helloTimeoutMillis = 1000, requestedChunkTimeoutMillis = 1000, receptiveWindowMillis = 100,
+                onSyncOutcome = { outcomes += it })
+            val engineB = AutoPeerSyncEngine(nodeB, "server",
+                { summaryJson("server", listOf(chunk)) }, { _, _, _ -> if (missingCache) null else chunk },
+                { ChunkIngestResult.Applied(emptyList()) }, backgroundScope,
+                helloTimeoutMillis = 1000, requestedChunkTimeoutMillis = 1000, receptiveWindowMillis = 100)
+            engineA.start()
+            engineB.start()
+            runCurrent()
+            nodeA.advertise(nodeB.peerId)
+            nodeB.advertise(nodeA.peerId)
+            advanceTimeBy(1500)
+            runCurrent()
+            assertEquals(0, engineA.stats().peersSynced)
+            assertEquals(0, engineA.stats().chunksApplied)
+            assertTrue(logs.any { it.contains("incomplete") })
+            assertEquals(listOf(AutoPeerSyncEngine.SyncOutcome(false, "transfer_incomplete")), outcomes)
+            engineA.stop()
+            engineB.stop()
+        }
+    }
 
     // --- pure scheduling policy, no coroutines involved ---
 
@@ -90,8 +211,8 @@ class AutoPeerSyncEngineTest {
             chunkIngestor = { chunk ->
                 nodeAChunks[chunk.getString("chunk_id")] = chunk
                 appliedOnA += chunk.getString("chunk_id")
-                // stats().chunksApplied sums the per-event results of each chunk.
-                ChunkIngestResult.Applied(listOf(IngestResult.Inserted(insertedIntoSeparateNamespace = false, state = ApplyState.CURRENT)))
+                // One received chunk counts once even when it contains several events.
+                ChunkIngestResult.Applied(List(2) { IngestResult.Inserted(insertedIntoSeparateNamespace = false, state = ApplyState.CURRENT) })
             },
             scope = backgroundScope,
             connectTimeoutMillis = 1_000,
@@ -323,6 +444,8 @@ class AutoPeerSyncEngineTest {
             transports[transport.peerId] = transport
         }
 
+        fun identityOf(peerId: String): String? = transports[peerId]?.localIdentity
+
         fun deliver(to: String, from: String, payload: ByteArray) {
             transports[to]?.receive(from, payload)
         }
@@ -334,7 +457,12 @@ class AutoPeerSyncEngineTest {
      * fake's `receivedMessages` flow via [FakeMedium] — enough to exercise
      * AutoPeerSyncEngine's negotiation logic without any Android/BLE stack.
      */
-    private class FakeTransport(val peerId: String, private val medium: FakeMedium) : PeerTransport {
+    private class FakeTransport(
+        val peerId: String,
+        private val medium: FakeMedium,
+        override val localIdentity: String? = null,
+        private val incomingAddress: String = peerId,
+    ) : PeerTransport {
         private val discoverFlow = MutableSharedFlow<PeerAdvertisement>(extraBufferCapacity = 64)
         private val received = MutableSharedFlow<Pair<String, ByteArray>>(extraBufferCapacity = 64)
         override val receivedMessages: SharedFlow<Pair<String, ByteArray>> get() = received
@@ -349,7 +477,7 @@ class AutoPeerSyncEngineTest {
         }
 
         override suspend fun send(connection: Connection, payload: ByteArray): TransferResult {
-            medium.deliver(to = connection.peerId, from = this.peerId, payload)
+            medium.deliver(to = connection.peerId, from = incomingAddress, payload)
             return TransferResult.Success(bytesTransferred = payload.size.toLong(), durationMillis = 0)
         }
 
@@ -363,7 +491,7 @@ class AutoPeerSyncEngineTest {
         }
 
         fun advertise(peerId: String) {
-            discoverFlow.tryEmit(PeerAdvertisement(peerId = peerId, rssi = null, discoveredAtMillis = 0))
+            discoverFlow.tryEmit(PeerAdvertisement(peerId = peerId, rssi = null, discoveredAtMillis = 0, transportIdentity = medium.identityOf(peerId)))
         }
     }
 }

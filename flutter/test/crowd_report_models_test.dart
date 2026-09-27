@@ -95,7 +95,7 @@ void main() {
       locationSource: null,
       description: '',
     );
-    expect(missingLocation.validate(), '請選擇告警位置');
+    expect(missingLocation.validate(), '請選擇警示位置');
     expect(() => missingLocation.toChannelArguments(), throwsFormatException);
 
     const invalidLocation = CrowdReportDraft(
@@ -104,7 +104,7 @@ void main() {
       locationSource: CrowdReportLocationSource.mapPick,
       description: '',
     );
-    expect(invalidLocation.validate(), '告警位置座標無效');
+    expect(invalidLocation.validate(), '警示位置座標無效');
   });
 
   test('parses only the required unverified pending submission state', () {

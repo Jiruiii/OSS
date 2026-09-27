@@ -74,12 +74,14 @@ class EmergencyModeService : Service() {
     private var transport: BleGattTransport? = null
     private var engine: AutoPeerSyncEngine? = null
     private var discoveryActive = false
+    private val syncStatus by lazy { SyncStatusStore(applicationContext) }
 
     private fun activePeerCount(): Int = engine?.visiblePeerCount(PEER_STALE_AFTER_MS) ?: 0
 
     override fun onCreate() {
         super.onCreate()
         startedAtMillis = System.currentTimeMillis()
+        syncStatus.started()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification(aliveSeconds = 0, peers = 0, chunksSynced = 0))
         Log.i(TAG, "onCreate: foreground service started")
@@ -94,6 +96,7 @@ class EmergencyModeService : Service() {
                 val aliveSeconds = (System.currentTimeMillis() - startedAtMillis) / 1000
                 val peers = activePeerCount()
                 val stats = engine?.stats()
+                syncStatus.heartbeat(discoveryActive, peers, stats)
                 // Kept at INFO: this line is what the lock-screen survival
                 // runs in ADR-001 grep for to prove the process is alive.
                 Log.i(
@@ -115,6 +118,7 @@ class EmergencyModeService : Service() {
         val aliveSeconds = (System.currentTimeMillis() - startedAtMillis) / 1000
         Log.i(TAG, "onDestroy: service stopping after alive_s=$aliveSeconds")
         stopAutoSync()
+        syncStatus.stopped()
         heartbeatJob?.cancel()
         scope.cancel()
         super.onDestroy()
@@ -147,6 +151,10 @@ class EmergencyModeService : Service() {
                 chunkIngestor = { chunk -> repository.ingestChunk(chunk) },
                 scope = scope,
                 onLog = { line -> Log.i(TAG, "[auto-sync] $line") },
+                onSyncOutcome = { outcome ->
+                    if (outcome.failureCode == "discovery_failed") discoveryActive = false
+                    syncStatus.record(outcome)
+                },
             )
             syncEngine.start()
             transport = ble
@@ -158,6 +166,7 @@ class EmergencyModeService : Service() {
             // between the check above and the call. Degrade to the
             // process-alive-only mode rather than crashing the service.
             discoveryActive = false
+            syncStatus.record(AutoPeerSyncEngine.SyncOutcome(false, "discovery_failed"))
             Log.e(TAG, "failed to start auto-sync: ${error.message}")
         }
     }

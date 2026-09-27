@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "government:collect": "node --env-file-if-exists=pipeline/.env pipeline/government-publisher.mjs",
+    "government:serve": "node pipeline/serve-government.mjs",
+    "government:deploy": "node pipeline/deploy-government.mjs",
     "test": "node --test pipeline/test/*.test.mjs simulator/test/*.test.mjs",
     "test:sim": "node --test simulator/test/*.test.mjs",
     "sim:matrix": "node simulator/cli.mjs matrix --out experiments/results",

@@ -4,6 +4,7 @@ import 'bridge_failure.dart';
 import 'crowd_report_models.dart';
 import 'evacuation_models.dart';
 import 'map_models.dart';
+import 'sync_status.dart';
 
 /// Typed, read-only access to Android-owned map state.
 class MapBridge {
@@ -17,9 +18,33 @@ class MapBridge {
   final MethodChannel _methodChannel;
   final EventChannel _eventChannel;
 
+  Future<Map<String, dynamic>> getGovernmentSyncStatus() =>
+      _invokeRequiredMap('getGovernmentSyncStatus');
+
+  Future<Map<String, dynamic>> configureGovernmentSync({
+    required String url,
+    required bool enabled,
+    String area = 'taipei',
+  }) => _invokeRequiredMap('configureGovernmentSync', {
+    'url': url,
+    'enabled': enabled,
+    'area': area,
+  });
+
+  Future<Map<String, dynamic>> syncGovernmentNow() =>
+      _invokeRequiredMap('syncGovernmentNow');
+
   Future<MapInitialState> getInitialState() async {
     final response = await _invokeRequiredMap('getInitialState');
     return MapInitialState.fromJson(response);
+  }
+
+  Future<SyncStatus> getSyncStatus() async {
+    try {
+      return SyncStatus.fromMessage(await _invokeRequiredMap('getSyncStatus'));
+    } catch (error) {
+      throw _normalizeFeatureError(error);
+    }
   }
 
   /// Verified nationwide static layers. Android verifies them in the
@@ -72,6 +97,7 @@ class MapBridge {
     required GeoPoint origin,
     required ShelterRouteCandidate destination,
     String mode = 'walk',
+    DisasterType? disasterType,
   }) async {
     if (mode != 'walk') {
       throw const FormatException(
@@ -88,6 +114,7 @@ class MapBridge {
           },
           'destination': destination.toChannelArguments(),
           'mode': mode,
+          if (disasterType != null) 'disaster_type': disasterType.wireValue,
         },
       );
       return EvacuationRouteResult.fromMessage(response);

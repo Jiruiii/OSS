@@ -1,5 +1,6 @@
 # Local key material and generated bundles.
 .stage2-keys/
+.government-public/
 .stage2-bundle/
 .neihu-bundle/
 .neihu-scale/

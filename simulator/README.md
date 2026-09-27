@@ -6,10 +6,10 @@ peer sync 交換分片，量測四個指標。
 
 ## 是什麼 / 不是什麼
 
-- **是**：可重播的軟體模擬。跟手機 App 共用同一套決策與驗證邏輯（`pipeline/lib/peer-sync.mjs`、
-  `contract.mjs`、`geo.mjs`），只有「傳輸層」換成種子化的接觸模型。
-- **不是**：實機量測。接觸機率、傳輸速率、失敗率都是 `fixtures/sim-config.json` 裡的工程
-  估計值，待組員 C 的兩台實機 spike 校準。**不宣稱在任何固定時間覆蓋全城。**
+- **是**：可重播的軟體模擬，直接使用 `pipeline/lib` 的 JavaScript 決策與驗證函式。
+  Android App 使用 Kotlin 移植版本，透過共同資料契約與 fixture 核對行為；接觸由種子化模型產生。
+- **不是**：實機量測。`fixtures/sim-config.json` 的每輪傳輸預算已依 BLE 實機吞吐量校準，
+  接觸機率與失敗率仍是工程估計值。**不宣稱在任何固定時間覆蓋全城。**
 - **Energy Cost 未建模**（需指定機型實機量測，`system.md` §7）。
 
 ## 指標

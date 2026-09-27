@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,10 +18,12 @@ import '../data/ncdr_demo_events.dart';
 /// notifications tab.
 typedef DemoEventLoader = Future<List<MeshEvent>> Function();
 
-class MapAppController extends ChangeNotifier {
+class MapAppController extends ChangeNotifier with WidgetsBindingObserver {
   MapAppController({MapBridge? bridge, DemoEventLoader? demoEventLoader})
     : bridge = bridge ?? MapBridge(),
-      _demoEventLoader = demoEventLoader ?? _loadBundledNcdrDemoEvents;
+      _demoEventLoader = demoEventLoader ?? _loadBundledNcdrDemoEvents {
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   static const _themePreference = 'map.theme_mode';
   static const _animationPreference = 'map.animation_enabled';
@@ -32,6 +35,9 @@ class MapAppController extends ChangeNotifier {
       StreamController<List<MeshEvent>>.broadcast();
 
   StreamSubscription<List<MeshEvent>>? _eventSubscription;
+  Timer? _expiryTimer;
+  Object? eventUpdateError;
+  bool retryingEvents = false;
   final Set<String> _readEventKeys = <String>{};
   StaticFeatureCollection? staticFeatures;
   List<MeshEvent> persistedEvents = const <MeshEvent>[];
@@ -77,6 +83,7 @@ class MapAppController extends ChangeNotifier {
     try {
       try {
         final loadedState = await bridge.getInitialState();
+        if (_disposed) return;
         final verifiedEvents = _withoutDemoEvents(loadedState.events);
         initialState = MapInitialState(
           events: verifiedEvents,
@@ -109,15 +116,18 @@ class MapAppController extends ChangeNotifier {
           staticFeaturesPending = true;
           unawaited(_loadVerifiedStaticFeatures());
         }
-      } on Object {
-        // Preview builds without the Android host use the real NCDR snapshot.
-        // Android remains authoritative when its bridge is available.
+      } on MissingPluginException {
+        // Only hosts without the Android bridge may use preview assets.
+        // Verification, storage and decoding failures must reach the error UI.
+        if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) rethrow;
         final rawStatic = await _loadPreferredStaticAsset();
+        if (_disposed) return;
         staticFeatures = StaticFeatureCollection.fromJson(
           Map<String, dynamic>.from(jsonDecode(rawStatic) as Map),
         );
         try {
           final demoEvents = await _demoEventLoader();
+          if (_disposed) return;
           persistedEvents = List<MeshEvent>.unmodifiable(demoEvents);
           initialState = MapInitialState(
             events: persistedEvents,
@@ -133,8 +143,11 @@ class MapAppController extends ChangeNotifier {
         }
       }
 
+      if (_disposed) return;
       await _loadPreferences();
+      if (_disposed) return;
       if (nativeBridgeAvailable) _listenToNativeEvents();
+      _scheduleExpiryRefresh();
     } on Object catch (error) {
       loadError = error;
     } finally {
@@ -180,13 +193,74 @@ class MapAppController extends ChangeNotifier {
   }
 
   void _listenToNativeEvents() {
-    _eventSubscription = bridge.events.listen((events) {
+    _eventSubscription = bridge.events.listen(
+      (events) {
+        if (_disposed) return;
+        final verifiedEvents = _withoutDemoEvents(events);
+        persistedEvents = verifiedEvents;
+        eventUpdateError = null;
+        _eventUpdates.add(List<MeshEvent>.unmodifiable(verifiedEvents));
+        _scheduleExpiryRefresh();
+        _notifyIfAlive();
+      },
+      onError: (Object error) {
+        if (_disposed) return;
+        eventUpdateError = error;
+        _notifyIfAlive();
+      },
+    );
+  }
+
+  Future<void> retryEventUpdates() async {
+    if (_disposed || retryingEvents || !nativeBridgeAvailable) return;
+    retryingEvents = true;
+    _notifyIfAlive();
+    try {
+      await _eventSubscription?.cancel();
+      _eventSubscription = null;
+      final state = await bridge.getInitialState();
       if (_disposed) return;
-      final verifiedEvents = _withoutDemoEvents(events);
-      persistedEvents = verifiedEvents;
-      _eventUpdates.add(List<MeshEvent>.unmodifiable(verifiedEvents));
+      persistedEvents = _withoutDemoEvents(state.events);
+      eventUpdateError = null;
+      _eventUpdates.add(List<MeshEvent>.unmodifiable(persistedEvents));
+      _listenToNativeEvents();
+      _scheduleExpiryRefresh();
+    } on Object catch (error) {
+      eventUpdateError = error;
+    } finally {
+      retryingEvents = false;
       _notifyIfAlive();
-    }, onError: (_) {});
+    }
+  }
+
+  void _scheduleExpiryRefresh() {
+    _expiryTimer?.cancel();
+    final now = DateTime.now().toUtc();
+    DateTime? next;
+    for (final event in persistedEvents) {
+      final expires = DateTime.tryParse(event.expiresAt ?? '')?.toUtc();
+      if (expires != null &&
+          expires.isAfter(now) &&
+          (next == null || expires.isBefore(next))) {
+        next = expires;
+      }
+    }
+    if (next == null || _disposed) return;
+    _expiryTimer = Timer(next.difference(now), () {
+      if (_disposed) return;
+      _eventUpdates.add(List<MeshEvent>.unmodifiable(persistedEvents));
+      _notifyIfAlive();
+      _scheduleExpiryRefresh();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || _disposed) return;
+    _eventUpdates.add(List<MeshEvent>.unmodifiable(persistedEvents));
+    _scheduleExpiryRefresh();
+    _notifyIfAlive();
+    if (eventUpdateError != null) unawaited(retryEventUpdates());
   }
 
   Future<void> markEventRead(MeshEvent event) async {
@@ -215,6 +289,8 @@ class MapAppController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    WidgetsBinding.instance.removeObserver(this);
+    _expiryTimer?.cancel();
     _eventSubscription?.cancel();
     _eventUpdates.close();
     super.dispose();

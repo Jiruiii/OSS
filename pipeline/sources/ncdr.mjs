@@ -562,6 +562,22 @@ export function normalizeNcdrHazards(rawSnapshot, options = {}) {
     .filter(Boolean);
 }
 
+/** CAP references, rather than a missing list item, authorize withdrawal. */
+export function normalizeNcdrFeed(rawSnapshot, options = {}) {
+  assertRawSnapshot(rawSnapshot);
+  const records = recordsFromPayload(rawSnapshot.payload);
+  const cancelledEventIds = records.flatMap(record => {
+    const type = String(record.msgType ?? record.MsgType ?? '').toLowerCase();
+    if (!['cancel', 'update'].includes(type)) return [];
+    return String(record.references ?? record.References ?? '').split(/\s+/u).filter(Boolean)
+      .map(reference => reference.split(',')[1]).filter(Boolean)
+      .map(identifier => `ncdr:${normalizeId(identifier, 'CAP reference')}`);
+  });
+  const active = records.filter(record => String(record.msgType ?? record.MsgType ?? '').toLowerCase() !== 'cancel');
+  const events = normalizeNcdrHazards({ ...rawSnapshot, payload: { records: active } }, options);
+  return { events, cancelledEventIds: [...new Set(cancelledEventIds)] };
+}
+
 function credentialValue(credentials) {
   if (typeof credentials === 'string') return credentials;
   return firstValue(

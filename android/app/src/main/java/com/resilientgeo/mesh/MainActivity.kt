@@ -14,6 +14,11 @@ import com.resilientgeo.mesh.bridge.SharedPreferencesEmergencyModeState
 import com.resilientgeo.mesh.emergency.EmergencyModeService
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import com.resilientgeo.mesh.online.GovernmentSyncManager
 
 /**
  * Flutter map launcher.
@@ -27,6 +32,24 @@ class MainActivity : FlutterFragmentActivity() {
 
     private var mapBridge: FlutterMapBridge? = null
     private var offlineMapAssetBridge: OfflineMapAssetBridge? = null
+    private var governmentCheck: Job? = null
+
+    override fun onResume() {
+        super.onResume()
+        governmentCheck?.cancel()
+        governmentCheck = lifecycleScope.launch {
+            while (true) {
+                GovernmentSyncManager.get(applicationContext).sync(automatic = true)
+                delay(5 * 60_000L)
+            }
+        }
+    }
+
+    override fun onPause() {
+        governmentCheck?.cancel()
+        governmentCheck = null
+        super.onPause()
+    }
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),

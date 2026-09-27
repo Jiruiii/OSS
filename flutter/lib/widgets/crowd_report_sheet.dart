@@ -77,9 +77,9 @@ class CrowdReportSheet extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        _header(context, '回報告警'),
+        _header(context, '回報警示'),
         const SizedBox(height: 8),
-        Text('告警類型', style: Theme.of(context).textTheme.titleMedium),
+        Text('警示類型', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 4),
         ...CrowdReportCategory.values.map(
           (category) => RadioListTile<CrowdReportCategory>(
@@ -94,7 +94,7 @@ class CrowdReportSheet extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Text('告警位置', style: Theme.of(context).textTheme.titleMedium),
+        Text('警示位置', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 4),
         Text(_locationText()),
         const SizedBox(height: 8),
@@ -154,7 +154,7 @@ class CrowdReportSheet extends StatelessWidget {
   Widget _confirmationBody(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: <Widget>[
-      _header(context, '確認告警內容'),
+      _header(context, '確認警示內容'),
       const SizedBox(height: 8),
       Text('請確認以下資訊後送出。'),
       const SizedBox(height: 12),
@@ -324,13 +324,13 @@ class CrowdReportMapPickerBar extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Text(
-                '拖動地圖調整告警位置',
+                '拖動地圖調整警示位置',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 4),
               Text(
                 draft.locationHint == null
-                    ? '將中心圖釘放在告警發生的位置'
+                    ? '將中心圖釘放在警示發生的位置'
                     : '已定位到「${draft.locationHint!.label}」，請拖動地圖微調',
               ),
               const SizedBox(height: 6),

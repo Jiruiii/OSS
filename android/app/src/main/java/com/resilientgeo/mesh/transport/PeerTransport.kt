@@ -10,6 +10,9 @@ package com.resilientgeo.mesh.transport
  */
 interface PeerTransport {
 
+    /** Opaque identity for this transport instance, independent of rotating radio addresses. */
+    val localIdentity: String? get() = null
+
     /** Start advertising + scanning. Emits a PeerAdvertisement each time a peer is (re)seen. */
     fun discover(): kotlinx.coroutines.flow.Flow<PeerAdvertisement>
 
@@ -37,6 +40,7 @@ data class PeerAdvertisement(
     val peerId: String,
     val rssi: Int?,
     val discoveredAtMillis: Long,
+    val transportIdentity: String? = null,
 )
 
 data class Connection(

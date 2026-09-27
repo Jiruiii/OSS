@@ -18,7 +18,7 @@ void main() {
     await tester.pumpWidget(_app(bridge: bridge));
     await _finishLoad(tester);
 
-    await tester.tap(find.bySemanticsLabel('回報告警'));
+    await tester.tap(find.bySemanticsLabel('回報警示'));
     await tester.pump();
     await tester.tap(find.text('使用目前位置'));
     await tester.pump();
@@ -36,8 +36,8 @@ void main() {
     await tester.pump();
 
     expect(bridge.submitCalls, 1);
-    expect(find.text('民眾告警：未驗證／待同步'), findsOneWidget);
-    expect(find.text('告警編號：report:test'), findsOneWidget);
+    expect(find.text('民眾警示：未驗證／待同步'), findsOneWidget);
+    expect(find.text('警示編號：report:test'), findsOneWidget);
     expect(find.text('事件：道路阻斷'), findsNothing);
   });
 
@@ -47,7 +47,7 @@ void main() {
     await tester.pumpWidget(_app(bridge: _FakeMapBridge()));
     await _finishLoad(tester);
 
-    await tester.tap(find.bySemanticsLabel('回報告警'));
+    await tester.tap(find.bySemanticsLabel('回報警示'));
     await tester.pump();
     await tester.enterText(
       find.byKey(const ValueKey<String>('crowd-report-description')),
@@ -89,7 +89,7 @@ void main() {
     );
     await _finishLoad(tester);
 
-    await tester.tap(find.bySemanticsLabel('回報告警'));
+    await tester.tap(find.bySemanticsLabel('回報警示'));
     await tester.pump();
     await tester.tap(find.text('使用目前位置'));
     await tester.pump();
@@ -116,7 +116,7 @@ void main() {
     await _fillAndSubmit(tester);
 
     expect(find.text('此功能需要 Android App，Chrome 僅供地圖與資料預覽'), findsOneWidget);
-    expect(find.text('民眾告警：未驗證／待同步'), findsNothing);
+    expect(find.text('民眾警示：未驗證／待同步'), findsNothing);
   });
 
   testWidgets('does not claim success when secure signing fails', (
@@ -135,7 +135,7 @@ void main() {
     await _finishLoad(tester);
     await _fillAndSubmit(tester);
 
-    expect(find.text('民眾告警：未驗證／待同步'), findsNothing);
+    expect(find.text('民眾警示：未驗證／待同步'), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('crowd-report-submit')),
       findsOneWidget,
@@ -158,7 +158,7 @@ void main() {
     await _finishLoad(tester);
     await _fillAndSubmit(tester);
 
-    expect(find.text('民眾告警：未驗證／待同步'), findsNothing);
+    expect(find.text('民眾警示：未驗證／待同步'), findsNothing);
     expect(
       find.byKey(const ValueKey<String>('crowd-report-submit')),
       findsOneWidget,
@@ -184,7 +184,7 @@ void main() {
 
     pending.complete(_submission());
     await tester.pump();
-    expect(find.text('民眾告警：未驗證／待同步'), findsOneWidget);
+    expect(find.text('民眾警示：未驗證／待同步'), findsOneWidget);
   });
 }
 
@@ -198,7 +198,7 @@ Future<void> _fillAndSubmit(WidgetTester tester) async {
 }
 
 Future<void> _openAndSetLocation(WidgetTester tester) async {
-  await tester.tap(find.bySemanticsLabel('回報告警'));
+  await tester.tap(find.bySemanticsLabel('回報警示'));
   await tester.pump();
   await tester.tap(find.text('使用目前位置'));
   await tester.pump();
