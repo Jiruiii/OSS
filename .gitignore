@@ -26,6 +26,7 @@ __pycache__/
 
 # Android
 /android/.gradle/
+/android/.kotlin/
 /android/.idea/
 # Android Studio also writes an .idea/ next to the module when the
 # project is opened at android/app/ rather than android/. Without

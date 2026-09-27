@@ -36,6 +36,17 @@ class MapCameraProjection {
   static const double _tileSize = 512;
   static const double _maxMercatorLatitude = 85.05112878;
 
+  /// Android MapLibre returns physical pixels; Flutter overlays and the
+  /// web/iOS MapLibre projections use logical pixels.
+  static Offset fromNativeScreenPosition(
+    Offset position, {
+    required bool physicalPixels,
+    required double devicePixelRatio,
+  }) {
+    assert(devicePixelRatio > 0 && devicePixelRatio.isFinite);
+    return physicalPixels ? position / devicePixelRatio : position;
+  }
+
   static Offset projectPoint({
     required GeoPoint point,
     required GeoPoint cameraTarget,

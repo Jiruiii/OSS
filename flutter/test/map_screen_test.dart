@@ -81,6 +81,47 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('shows shelter verification progress and accepts late layers', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_testApp(pending: true));
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('static-features-pending')),
+      findsOneWidget,
+    );
+
+    // Android finishes verifying: the new collection replaces the empty one.
+    await tester.pumpWidget(
+      _testApp(
+        features: <StaticFeature>[
+          StaticFeature.fromJson(<String, dynamic>{
+            'id': 'shelter:5582',
+            'kind': 'shelter',
+            'name': 'Xihu Elementary',
+            'geometry': <String, dynamic>{
+              'type': 'Point',
+              'coordinates': <double>[121.5657, 25.0838],
+            },
+          }),
+        ],
+      ),
+    );
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('static-features-pending')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(_testApp(failed: true));
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey<String>('static-features-failed')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('layer settings does not expose the bundled fixture loader', (
     tester,
   ) async {
@@ -94,15 +135,21 @@ void main() {
   });
 }
 
-Widget _testApp() => const MaterialApp(
+Widget _testApp({
+  List<StaticFeature> features = const <StaticFeature>[],
+  bool pending = false,
+  bool failed = false,
+}) => MaterialApp(
   home: MapScreen(
     staticFeatures: StaticFeatureCollection(
       schemaVersion: 'test',
       datasetId: 'test',
       snapshotAt: '2026-09-05T00:00:00Z',
-      features: <StaticFeature>[],
+      features: features,
     ),
-    initialState: MapInitialState(
+    staticFeaturesPending: pending,
+    staticFeaturesFailed: failed,
+    initialState: const MapInitialState(
       events: <MeshEvent>[],
       emergencyModeEnabled: false,
     ),

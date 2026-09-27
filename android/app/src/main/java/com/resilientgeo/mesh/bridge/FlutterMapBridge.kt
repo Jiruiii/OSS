@@ -11,6 +11,9 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -55,14 +58,27 @@ class FlutterMapBridge(
     private val eventChannel = EventChannel(messenger, EVENT_CHANNEL_NAME)
     private var eventObservation: Job? = null
 
+    /**
+     * Verified static layers, started as soon as the bridge exists. First
+     * verification of the nationwide shelter layer took 13-28 s on the test
+     * phones, so it runs in the background instead of inside getInitialState
+     * (which Flutter waits on behind the splash screen); later launches hit
+     * VerifiedLayerCache. A failed verification stays failed: nothing
+     * unverified is ever returned.
+     */
+    private val staticFeatures: Deferred<List<Map<String, Any?>>> =
+        scope.async(Dispatchers.Default, start = CoroutineStart.LAZY) { repository.verifiedStaticFeatures() }
+
     init {
         methodChannel.setMethodCallHandler(this)
         eventChannel.setStreamHandler(this)
+        staticFeatures.start()
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             METHOD_GET_INITIAL_STATE -> getInitialState(result)
+            METHOD_GET_STATIC_FEATURES -> getStaticFeatures(result)
             METHOD_LOAD_BUNDLED_FIXTURE -> loadBundledFixture(result)
             METHOD_SET_EMERGENCY_MODE -> setEmergencyMode(call, result)
             METHOD_SUBMIT_CROWD_REPORT -> submitCrowdReport(call, result)
@@ -108,11 +124,20 @@ class FlutterMapBridge(
                     MapBridgeProtocol.initialState(
                         events = repository.observeEvents().first(),
                         emergencyModeEnabled = emergencyMode.isEnabled,
-                        staticFeatures = repository.verifiedStaticFeatures(),
                     ),
                 )
             } catch (error: Throwable) {
                 result.error(METHOD_ERROR, error.message, null)
+            }
+        }
+    }
+
+    private fun getStaticFeatures(result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                result.success(MapBridgeProtocol.staticFeaturesResult(staticFeatures.await()))
+            } catch (error: Throwable) {
+                result.error(STATIC_LAYER_INVALID, error.message, null)
             }
         }
     }
@@ -185,6 +210,8 @@ class FlutterMapBridge(
         const val METHOD_CHANNEL_NAME = "com.resilientgeo.mesh/map"
         const val EVENT_CHANNEL_NAME = "com.resilientgeo.mesh/events"
         const val METHOD_GET_INITIAL_STATE = "getInitialState"
+        const val METHOD_GET_STATIC_FEATURES = "getStaticFeatures"
+        const val STATIC_LAYER_INVALID = "static_layer_invalid"
         const val METHOD_LOAD_BUNDLED_FIXTURE = "loadBundledFixture"
         const val METHOD_SET_EMERGENCY_MODE = "setEmergencyMode"
         const val METHOD_SUBMIT_CROWD_REPORT = "submitCrowdReport"

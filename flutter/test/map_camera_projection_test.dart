@@ -7,6 +7,35 @@ void main() {
   const viewport = Size(1000, 800);
   const cameraTarget = GeoPoint(longitude: 121.0, latitude: 23.5);
 
+  test('Android idle projection agrees with logical camera coordinates', () {
+    final moving = MapCameraProjection.projectPoint(
+      point: cameraTarget,
+      cameraTarget: cameraTarget,
+      zoom: 12,
+      viewportSize: viewport,
+    );
+    for (final ratio in <double>[1, 2.5, 3]) {
+      final idle = MapCameraProjection.fromNativeScreenPosition(
+        moving * ratio,
+        physicalPixels: true,
+        devicePixelRatio: ratio,
+      );
+      expect(idle, moving);
+    }
+  });
+
+  test('web and iOS screen coordinates are already logical pixels', () {
+    const position = Offset(500, 400);
+    expect(
+      MapCameraProjection.fromNativeScreenPosition(
+        position,
+        physicalPixels: false,
+        devicePixelRatio: 3,
+      ),
+      position,
+    );
+  });
+
   test('projects the camera target to the viewport center', () {
     final screen = MapCameraProjection.projectPoint(
       point: cameraTarget,

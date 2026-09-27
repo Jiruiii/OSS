@@ -312,16 +312,18 @@ class MapInitialState {
     return MapInitialState(
       events: eventsFromMessage(json['events']),
       emergencyModeEnabled: json['emergency_mode_enabled'] as bool,
-      staticFeatures: (json['static_features'] is List
-              ? (json['static_features'] as List)
-              : const <Object?>[])
-          .map(_asStringMap)
-          .whereType<Map<String, dynamic>>()
-          .map(StaticFeature.fromJson)
-          .toList(growable: false),
+      staticFeatures: staticFeaturesFromMessage(json['static_features']),
     );
   }
 }
+
+/// Verified static features as Android sends them (`static_features`).
+List<StaticFeature> staticFeaturesFromMessage(Object? value) =>
+    (value is List ? value : const <Object?>[])
+        .map(_asStringMap)
+        .whereType<Map<String, dynamic>>()
+        .map(StaticFeature.fromJson)
+        .toList(growable: false);
 
 class FixtureLoadSummary {
   const FixtureLoadSummary({

@@ -71,11 +71,31 @@ data class ShelterState(val availability: Availability, val event: RouteEvent?) 
  * queue's ordering, so the same inputs always give the same route.
  */
 object EvacuationRouter {
+    /** Reused under the route service mutex; stamps avoid clearing region-sized arrays per shelter. */
+    class SearchWorkspace(nodes: Int) {
+        internal val distance = DoubleArray(nodes)
+        internal val previous = IntArray(nodes)
+        internal val visited = IntArray(nodes)
+        internal val settled = IntArray(nodes)
+        internal var generation = 0
+        internal fun begin(): Int {
+            if (generation == Int.MAX_VALUE) { visited.fill(0); settled.fill(0); generation = 0 }
+            return ++generation
+        }
+    }
     /** Conservative walking speed for a disaster (crowds, debris, carrying things). */
     const val WALKING_SPEED_M_PER_S = 1.0
 
     /** Leaving a blocking hazard you already stand in is allowed, just strongly discouraged. */
     const val EXIT_HAZARD_PENALTY = 10.0
+
+    /**
+     * Shelters must sit next to the network. Every Neihu shelter is within
+     * ~50 m of a walkable node, while shelters just outside the Neihu snapshot
+     * (e.g. 中山區 across the Keelung River) are 180-300 m from its edge; with
+     * the 300 m origin limit their routes would end at the edge and look short.
+     */
+    const val DESTINATION_SNAP_LIMIT_METERS = 100.0
 
     fun plan(
         graph: RoadGraph,
@@ -84,6 +104,7 @@ object EvacuationRouter {
         destination: LonLat,
         shelter: ShelterState,
         snapshotAt: String,
+        workspace: SearchWorkspace? = null,
     ): RouteResult {
         val version = graph.graphVersion
         fun noRoute(vararg warnings: RouteWarning, blocked: List<String> = emptyList()) =
@@ -102,9 +123,9 @@ object EvacuationRouter {
             return noRoute(RouteWarning("SHELTER_IN_HAZARD", hazard.eventId, "此避難所位於危險區域內，已排除"))
         }
         val originNode = graph.nearestNode(origin)
-            ?: return noRoute(RouteWarning("ORIGIN_OFF_GRAPH", null, "起點距離離線路網超過 300 公尺，無法規劃路線"))
-        val targetNode = graph.nearestNode(destination)
-            ?: return noRoute(RouteWarning("DESTINATION_OFF_GRAPH", null, "避難所距離離線路網超過 300 公尺，無法規劃路線"))
+            ?: return noRoute(RouteWarning("ORIGIN_OFF_GRAPH", null, "起點距離離線步行路網超過 300 公尺（涵蓋${graph.coverageName}），無法規劃路線"))
+        val targetNode = graph.nearestNode(destination, DESTINATION_SNAP_LIMIT_METERS)
+            ?: return noRoute(RouteWarning("DESTINATION_OFF_GRAPH", null, "避難所距離離線步行路網超過 100 公尺（涵蓋${graph.coverageName}），無法規劃路線"))
 
         val warnings = mutableListOf<RouteWarning>()
         var effective = overlay
@@ -118,13 +139,15 @@ object EvacuationRouter {
             warnings += RouteWarning("SHELTER_STATUS_UNKNOWN", null, "沒有此避難所的官方開設狀態，請現場確認")
         }
 
-        val baseline = shortestPath(graph, originNode, targetNode) { graph.edgeLengthMeters(it) }
+        // No unweighted second search is needed when there are no closures.
+        val search = workspace ?: SearchWorkspace(graph.nodeCount)
+        val baseline = if (effective.hasBlockedEdges) shortestPath(graph, originNode, targetNode, useHeuristic = true, workspace = search) { graph.edgeLengthMeters(it) } else null
         val avoided = baseline.orEmpty()
             .flatMap { edge -> effective.effects(edge).filter { it.kind == EdgeEffect.Kind.BLOCK && effective.isBlocked(edge) } }
             .map { it.event.eventId }
             .distinct()
             .sorted()
-        val path = shortestPath(graph, originNode, targetNode) { edge ->
+        val path = shortestPath(graph, originNode, targetNode, useHeuristic = true, workspace = search) { edge ->
             if (effective.isBlocked(edge)) Double.POSITIVE_INFINITY else graph.edgeLengthMeters(edge) * effective.penalty(edge)
         } ?: return noRoute(
             RouteWarning("NO_PASSABLE_PATH", null, "所有路徑都被封鎖，請聯絡 119 或前往附近較高樓層"),
@@ -182,32 +205,44 @@ object EvacuationRouter {
      * Edge ids from [source] to [target] in travel order, or null when
      * unreachable. [weight] returning +Infinity removes an edge.
      */
-    fun shortestPath(graph: RoadGraph, source: Int, target: Int, weight: (Int) -> Double): List<Int>? {
-        val distance = DoubleArray(graph.nodeCount) { Double.POSITIVE_INFINITY }
-        val previousEdge = IntArray(graph.nodeCount) { -1 }
-        val settled = BooleanArray(graph.nodeCount)
+    fun shortestPath(graph: RoadGraph, source: Int, target: Int, useHeuristic: Boolean = false,
+                     workspace: SearchWorkspace = SearchWorkspace(graph.nodeCount), weight: (Int) -> Double): List<Int>? {
+        require(workspace.distance.size == graph.nodeCount)
+        val generation = workspace.begin()
+        val distance = workspace.distance
+        val previousEdge = workspace.previous
+        val visited = workspace.visited
+        val settled = workspace.settled
         val queue = PriorityQueue<QueueEntry>()
+        val goal = graph.node(target)
+        // Safe for the route engine: every permitted cost is >= physical length.
+        // Custom callers retain Dijkstra unless they explicitly opt in.
+        fun estimate(node: Int) = if (useHeuristic) GeoMath.haversineMeters(graph.node(node), goal) * 0.999999 else 0.0
         distance[source] = 0.0
-        queue += QueueEntry(0.0, source)
+        visited[source] = generation
+        queue += QueueEntry(estimate(source), source)
         while (queue.isNotEmpty()) {
-            val (cost, node) = queue.poll()!!
-            if (settled[node]) continue
-            settled[node] = true
+            val (_, node) = queue.poll()!!
+            if (settled[node] == generation) continue
+            settled[node] = generation
             if (node == target) break
+            val cost = distance[node]
             for (index in graph.adjacencyRange(node)) {
                 val edge = graph.adjacencyEdge(index)
+                if (!graph.canWalkFrom(edge, node)) continue
                 val w = weight(edge)
                 if (w.isInfinite()) continue
                 val next = graph.otherEnd(edge, node)
                 val candidate = cost + w
-                if (candidate < distance[next]) {
+                if (visited[next] != generation || candidate < distance[next]) {
+                    visited[next] = generation
                     distance[next] = candidate
                     previousEdge[next] = edge
-                    queue += QueueEntry(candidate, next)
+                    queue += QueueEntry(candidate + estimate(next), next)
                 }
             }
         }
-        if (!settled[target]) return null
+        if (settled[target] != generation) return null
         val edges = ArrayList<Int>()
         var node = target
         while (node != source) {

@@ -140,6 +140,11 @@ Chunk 的 `chunk_hash` 覆蓋 canonical chunk content（dataset metadata、prior
 進入 `feature-v0`；開設中、額滿、關閉等狀態進入獨立的
 `SHELTER_STATUS` `event-v0`，不把會變動的狀態簽進靜態位置 Feature。
 
+Android 端每個 layer 驗證通過後，會以「信任清單、manifest、所有 chunk 的原始位元組」算出的
+SHA-256 為鍵，把驗證後的 Feature 快取在 app 私有目錄（`VerifiedLayerCache`）。任何一個位元組或
+信任金鑰改變，快取就失效並重新完整驗證；驗證失敗仍然 fail closed。這讓全台避難所圖層
+（5,907 筆）不必每次啟動都重驗全部簽章。
+
 ## Static Raster／Network Artifact Metadata
 
 Task 6 的 `pipeline/sources/raster-catalog.json` 是來源與 artifact metadata

@@ -60,6 +60,14 @@ class MapBridgeProtocolTest {
     }
 
     @Test
+    fun `static features reply wraps the verified list and initial state no longer waits for it`() {
+        val feature = mapOf<String, Any?>("id" to "shelter:5582", "kind" to "shelter", "address" to null)
+        assertEquals(mapOf("static_features" to listOf(feature)), MapBridgeProtocol.staticFeaturesResult(listOf(feature)))
+        val initial = MapBridgeProtocol.initialState(events = emptyList(), emergencyModeEnabled = false)
+        assertEquals(emptyList<Any>(), initial["static_features"])
+    }
+
+    @Test
     fun `emergency reply exposes the enabled boolean`() {
         val reply = MapBridgeProtocol.emergencyModeResult(enabled = false)
 

@@ -4,6 +4,17 @@
 >
 > 狀態：2026-09-24 規劃；**2026-09-26 實作完成（實機演練除外）**。任務總覽見 `docs/mvp-remaining-tasks.md` G 段。
 
+## 最新進度（2026-09-27）
+
+- [x] 正式路網擴大到雙北及邊界緩衝區：預建 `.rgmz` 約 28.9 MB，1,085,665 節點／1,183,752 路段。內湖 JSON、generator、golden 與 demo 情境保留。
+- [x] Android 規劃改用 A*、重用搜尋陣列與災情覆蓋層、加入路段空間索引；保留 pedestrian access／方向與 OSM node ID。
+- [x] 41 個行政區避難所連通測試、Pixel 8a 路線 instrumentation 及 profile App 六組短程／兩組較長跨市請求通過；實際定位推薦操作顯示約 406 公尺路線。
+- [x] 234 項 Flutter、135 項 Android JVM、4 項 generator 測試、analyze 與 APK 資產檢查通過。首次 App 路線約 1.8 秒、含較長路線的暖機 p95 約 68.6 ms。
+- [ ] 飛航模式路線專項驗收與 Task 7 的兩機災情改道錄影；本次單機 USB 量測不代替這兩項。
+- [ ] 災害類型過濾、高程／垂直避難、跨機型長時間負載驗證。
+
+詳細來源、條件與數據見 [雙北路線文件](../../taipei-offline-routing.md)。下列 2026-09-24 規劃與 2026-09-26 實作記錄保留為歷史；其中內湖規模、Dart／Dijkstra 和資料缺口的描述不代表目前雙北實作。
+
 ## 實作記錄與偏離（2026-09-26）
 
 - **計算位置改為 Android（Kotlin，`android/.../routing/`）**，不是 Flutter 純 Dart。之後合併的 Flutter UI 計畫（`2026-09-24-flutter-crowd-alert-evacuation-ui.md`）規定 Flutter 不得計算路線，只呈現 Android `calculateEvacuationRoute` 的結果，UI 與測試都已照這個契約完成。Android 也本來就持有已驗證事件，所以「只用 Android 驗證過的事件」自然成立。
@@ -12,10 +23,11 @@
 - **路網來源**：`pipeline/tools/generate-walk-graph.mjs` 把 `flutter/assets/data/neihu/static-features.json` 的可步行道路轉成 `android/app/src/main/assets/routing/walk-roads.json`；Flutter 目前不再打包這份 Neihu 檔案。可步行類別多了 `primary`／`primary_link`（內湖資料中沒有，但人行道可走）。
 - **最近節點優先落在主路網**：快照有約 60 個零碎小段，否則 麗山國小 之類的避難所會被判為無法抵達。
 - **危險區用事件類型白名單**（`FLOOD_WARNING`、`LANDSLIDE_RISK`、`DEBRIS_FLOW_WARNING`），不是「任何 CRITICAL 多邊形」：打包的全台 NCDR 熱傷害與供水警戒、以及 SHELTER_STATUS／MEDICAL 事件都是 CRITICAL／HIGH 多邊形。
-- **Task 3 災害類型過濾與 `hazardKind` 推斷未做**：請求只帶避難所 id 與座標，Android 沒有已驗證的避難所圖層可查 `disaster_types`。避難所狀態以位置比對（100 m 內或多邊形包含），不以名稱比對，因為請求不帶名稱。
+- **Task 3 災害類型過濾與 `hazardKind` 推斷未做**：請求只帶避難所 id 與座標；Android 已打包全台避難所圖層（2026-09-27），之後可依 id 查 `disaster_types`，目前尚未實作。避難所狀態以位置比對（100 m 內或多邊形包含），不以名稱比對，因為請求不帶名稱。
 - **Task 5** 的重算與變更提示由 Flutter 既有的事件指紋機制負責（「路線資訊已變更，請重新計算」）；Android 端覆蓋層依事件快照快取。
 - **Task 7 情境**：起點 121.566, 25.081（西湖），封 OSM way 1462339230 → 仍去西湖國小但繞路；西湖國小額滿 → 改去西湖國中。`EvacuationScenarioTest` 以真實簽章 chunk 重播。
-- **未做**：實機演練（Task 6 Step 3、Task 7 Step 3）。Android 也還沒有打包已驗證的避難所圖層，實機演練前要先放入。
+- **避難所離路網上限 100 m**（起點仍是 300 m）：內湖的避難所都在路網 50 m 內，內湖以外的（例如中山區濱江國小，284 m）若用 300 m 會停在路網邊緣、甚至隔著基隆河，距離看起來很短。
+- **未做**：實機演練（Task 6 Step 3、Task 7 Step 3）。全台避難所圖層已於 2026-09-27 打包進 Android。
 
 **Goal:** 用手機上已經有的資料計算步行逃生路線，完全離線：
 - 道路圖來自打包的 OSM 快照。
@@ -204,7 +216,7 @@ App 從使用者的位置出發，找出最近、開設中、而且適用於當�
   - 免責聲明與資料時間永遠顯示。
   - 路線經過未驗證回報的路段時，顯示「經過未驗證回報路段」。
 - [x] **Step 2: 實作。** 路線顏色要和事件分色（CURRENT／EXPIRED／UNVERIFIED）明顯區分，深色模式也要測。 **（2026-09-26：由 UI 計畫完成）**
-- [ ] **Step 3: 實機手動驗證。** 開飛航模式後在 OSM 離線底圖上規劃路線；開網路後在 Google 底圖上看到同一條路線。 **（2026-09-26：未做：需要實機）**
+- [ ] **Step 3: 實機手動驗證。** 開飛航模式後在 OSM 離線底圖上規劃路線；開網路後在 Google 底圖上看到同一條路線。 **（2026-09-27：Pixel 8a 的 MapLibre 畫面、實際定位推薦與 profile 路線請求已驗證；完整飛航模式專項未重跑。App 現僅有 MapLibre，Google renderer 為原規劃歷史，不列入目前驗收。）**
 
 ### Task 7: Demo 情境資料
 

@@ -9,6 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 import java.time.Instant
+import kotlin.math.cos
 
 /**
  * Replays data/fixtures/neihu/evacuation-scenario.json the way a phone would:
@@ -20,11 +21,36 @@ class EvacuationScenarioTest {
     private val now = Instant.parse("2026-09-26T09:00:00Z")
     private val scenario = JSONObject(File("../../data/fixtures/neihu/evacuation-scenario.json").readText())
     private val origin = scenario.getJSONObject("origin").let { LonLat(it.getDouble("lon"), it.getDouble("lat")) }
-    private val shelters = scenario.getJSONArray("shelters").let { list ->
-        (0 until list.length()).map { list.getJSONObject(it) }
-            .associate { it.getString("name") to (it.getString("id") to LonLat(it.getDouble("lon"), it.getDouble("lat"))) }
-    }
     private val graph = RoutingTestSupport.realGraph()
+
+    /**
+     * What Flutter asks Android about: the five packaged shelters nearest by
+     * air distance (shortlistShelterCandidates in evacuation_models.dart),
+     * keyed by name.
+     */
+    private val shelters: Map<String, Pair<String, LonLat>> by lazy {
+        val all = File("src/main/assets/static/taiwan/shelter/chunks").listFiles()!!.sortedBy { it.name }
+            .flatMap { file ->
+                val features = JSONObject(file.readText()).getJSONArray("features")
+                (0 until features.length()).map { features.getJSONObject(it) }
+            }
+            .filter { it.getJSONObject("geometry").optString("type") == "Point" }
+            .map { feature ->
+                val coordinates = feature.getJSONObject("geometry").getJSONArray("coordinates")
+                Triple(
+                    feature.getString("feature_id"),
+                    feature.getJSONObject("properties").optString("name"),
+                    LonLat(coordinates.getDouble(0), coordinates.getDouble(1)),
+                )
+            }
+        val cosLat = cos(Math.toRadians(origin.lat))
+        all.sortedWith(
+            compareBy<Triple<String, String, LonLat>>(
+                { (it.third.lon - origin.lon).let { d -> d * cosLat * d * cosLat } + (it.third.lat - origin.lat).let { d -> d * d } },
+                { it.first },
+            ),
+        ).take(5).associate { (id, name, point) -> name to (id to point) }
+    }
 
     private fun chunkEvents(name: String): List<String> {
         val text = checkNotNull(javaClass.classLoader?.getResourceAsStream("fixtures/evacuation-scenario/$name")) {
@@ -38,16 +64,23 @@ class EvacuationScenarioTest {
     private suspend fun routes(events: List<String>): Map<String, RouteResult> {
         val service = EvacuationRouteService({ graph }, { events }, { now })
         return shelters.mapValues { (_, shelter) -> service.calculate(RouteRequest(origin, shelter.first, shelter.second, "walk")) }
+            .also { results ->
+                println(results.entries.joinToString { (name, r) -> "$name=${r.status.wire}/${r.distanceM?.toInt()}/${r.warnings.firstOrNull()?.code}" })
+            }
     }
 
     private fun recommended(results: Map<String, RouteResult>): String =
-        results.filterValues { it.status == RouteStatus.OK }.minByOrNull { it.value.distanceM!! }!!.key
+        results.filterValues { it.status == RouteStatus.OK }
+            .minWithOrNull(compareBy({ it.value.distanceM!! }, { it.key }))!!.key
 
     @Test
     fun `mesh events reroute and then redirect the evacuation`() = runTest {
         val closure = chunkEvents("step2-road-closed.json")
         val shelterFull = chunkEvents("step3-shelter-full.json")
         val closureId = JSONObject(closure.single()).getString("event_id")
+
+        assertTrue(shelters.keys.containsAll(listOf("西湖國小", "西湖國中")))
+        assertEquals("shelter:5582", shelters.getValue("西湖國小").first)
 
         val step1 = routes(emptyList())
         assertEquals("西湖國小", recommended(step1))

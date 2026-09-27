@@ -1,5 +1,7 @@
 # Flutter Crowd Alert and Evacuation UI Implementation Plan
 
+> Progress update, 2026-09-27: the report/route UI and Android bridge contract are implemented; the latest complete Flutter suite has 234 passing tests and analyze passes. Pixel 8a route presentation, actual-location shelter recommendation, map panning and idle markers were verified with the Taipei/New Taipei graph. Multi-device report/attestation and disaster-rerouting demos remain pending. See [current progress F–H](../../mvp-remaining-tasks.md) and [device latency evidence](../../taipei-offline-routing.md). The original task checklist below is retained as the planning record, not a fresh acceptance report.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add the Flutter-only citizen alert reporting flow and offline evacuation-route presentation while treating Android as the only authority for report persistence/signing and route calculation.

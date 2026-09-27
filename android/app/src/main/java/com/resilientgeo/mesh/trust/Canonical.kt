@@ -25,14 +25,20 @@ object Canonical {
     private const val FORM_FEED_CODE = 0x0C
 
     fun canonicalize(value: Any?): String {
-        return when (value) {
-            null, JSONObject.NULL -> "null"
-            is String -> encodeString(value)
-            is Boolean -> if (value) "true" else "false"
-            is Int -> value.toString()
-            is Long -> value.toString()
-            is Double -> encodeNumber(value)
-            is Float -> encodeNumber(value.toDouble())
+        val out = StringBuilder()
+        append(out, value)
+        return out.toString()
+    }
+
+    private fun append(out: StringBuilder, value: Any?) {
+        when (value) {
+            null, JSONObject.NULL -> out.append("null")
+            is String -> encodeString(out, value)
+            is Boolean -> out.append(if (value) "true" else "false")
+            is Int -> out.append(value)
+            is Long -> out.append(value)
+            is Double -> out.append(encodeNumber(value))
+            is Float -> out.append(encodeNumber(value.toDouble()))
             // org.json's real implementation (used at runtime and by these
             // unit tests) parses JSON decimal literals as BigDecimal, not
             // Double — confirmed by actually running these tests, which
@@ -40,32 +46,58 @@ object Canonical {
             // until this branch was added. JSON/JS has no arbitrary-precision
             // decimal type, so converting to Double here matches what the
             // Node signer/verifier does when it parses the same JSON text.
-            is java.math.BigDecimal -> encodeNumber(value.toDouble())
-            is java.math.BigInteger -> value.toString()
-            is JSONArray -> encodeArray(value)
-            is JSONObject -> encodeObject(value)
-            is List<*> -> encodeArray(JSONArray(value))
-            is Map<*, *> -> encodeObject(JSONObject(value))
+            is java.math.BigDecimal -> out.append(encodeNumber(value.toDouble()))
+            is java.math.BigInteger -> out.append(value.toString())
+            is JSONArray -> appendArray(out, value)
+            is JSONObject -> appendObject(out, value)
+            is List<*> -> appendArray(out, JSONArray(value))
+            is Map<*, *> -> appendObject(out, JSONObject(value))
             else -> throw IllegalArgumentException("unsupported canonical JSON value: ${value::class}")
         }
     }
 
-    private fun encodeArray(array: JSONArray): String {
-        val parts = (0 until array.length()).joinToString(",") { canonicalize(array.get(it)) }
-        return "[$parts]"
+    private fun appendArray(out: StringBuilder, array: JSONArray) {
+        out.append('[')
+        for (i in 0 until array.length()) {
+            if (i > 0) out.append(',')
+            append(out, array.get(i))
+        }
+        out.append(']')
     }
 
-    private fun encodeObject(obj: JSONObject): String {
+    private fun appendObject(out: StringBuilder, obj: JSONObject) {
         val keys = obj.keys().asSequence().toMutableList()
         keys.sortWith(::compareUtf8)
-        val parts = keys.joinToString(",") { key ->
-            "${encodeString(key)}:${canonicalize(obj.get(key))}"
+        out.append('{')
+        keys.forEachIndexed { index, key ->
+            if (index > 0) out.append(',')
+            encodeString(out, key)
+            out.append(':')
+            append(out, obj.get(key))
         }
-        return "{$parts}"
+        out.append('}')
     }
 
-    /** Matches `Buffer.from(a,'utf8').compare(Buffer.from(b,'utf8'))`: unsigned byte-wise order. */
-    private fun compareUtf8(a: String, b: String): Int {
+    /**
+     * Matches `Buffer.from(a,'utf8').compare(Buffer.from(b,'utf8'))`: unsigned
+     * byte-wise order. UTF-8 byte order equals code point order, which equals
+     * UTF-16 unit order except where a surrogate is involved, so only that
+     * rare case pays for the byte conversion.
+     */
+    internal fun compareUtf8(a: String, b: String): Int {
+        val len = minOf(a.length, b.length)
+        for (i in 0 until len) {
+            val ca = a[i]
+            val cb = b[i]
+            if (ca != cb) {
+                if (ca.isSurrogate() || cb.isSurrogate()) return compareUtf8Bytes(a, b)
+                return ca.code - cb.code
+            }
+        }
+        return a.length - b.length
+    }
+
+    private fun compareUtf8Bytes(a: String, b: String): Int {
         val ba = a.toByteArray(StandardCharsets.UTF_8)
         val bb = b.toByteArray(StandardCharsets.UTF_8)
         val len = minOf(ba.size, bb.size)
@@ -77,8 +109,7 @@ object Canonical {
     }
 
     /** Matches JSON.stringify's string escaping (control chars only; Unicode passes through raw). */
-    private fun encodeString(value: String): String {
-        val sb = StringBuilder(value.length + 2)
+    private fun encodeString(sb: StringBuilder, value: String) {
         sb.append('"')
         for (ch in value) {
             when {
@@ -94,7 +125,6 @@ object Canonical {
             }
         }
         sb.append('"')
-        return sb.toString()
     }
 
     private fun encodeNumber(value: Double): String {

@@ -100,6 +100,10 @@ class EvacuationRouteSheet extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Semantics(liveRegion: true, child: Text(statusMessage)),
+          if (result.warnings.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 10),
+            ...result.warnings.map((warning) => Text(warning.message)),
+          ],
           if (onRecalculate != null) ...<Widget>[
             const SizedBox(height: 12),
             _recalculateButton(),

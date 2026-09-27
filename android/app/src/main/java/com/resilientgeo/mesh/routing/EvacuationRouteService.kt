@@ -30,6 +30,7 @@ class EvacuationRouteService(
 ) {
     private val mutex = Mutex()
     private var graph: RoadGraph? = null
+    private var workspace: EvacuationRouter.SearchWorkspace? = null
     private var cachedOverlay: Pair<String, HazardOverlay>? = null
 
     suspend fun calculate(request: RouteRequest): RouteResult = mutex.withLock {
@@ -56,15 +57,17 @@ class EvacuationRouteService(
             destination = request.destination,
             shelter = ShelterState.resolve(request.destination, events),
             snapshotAt = snapshotAt,
+            workspace = workspace ?: EvacuationRouter.SearchWorkspace(loaded.nodeCount).also { workspace = it },
         )
     }
 
     companion object {
-        const val GRAPH_ASSET = "routing/walk-roads.json"
+        // Android automatically unpacks and renames .gz assets during merge.
+        // .rgmz preserves our compressed bytes and the runtime asset name.
+        const val GRAPH_ASSET = "routing/taipei-walk.rgmz"
 
         fun assetGraphLoader(context: Context): () -> RoadGraph = {
-            val text = context.applicationContext.assets.open(GRAPH_ASSET).bufferedReader().use { it.readText() }
-            RoadGraph.fromWalkRoadsJson(text)
+            RoadGraph.fromPrebuilt(context.applicationContext.assets.open(GRAPH_ASSET))
         }
 
         /** Newest issue time among events still in force; the planning time if there are none. */

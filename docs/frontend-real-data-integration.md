@@ -47,6 +47,12 @@ Flutter 目前使用的兩個 Demo 資料檔如下：
 
 Android host 若有可用的 native bridge，會以通過簽章驗證並寫入 Room 的資料為準；Chrome 沒有 Android bridge 時，才使用上面的 Flutter asset fallback。
 
+### Android 路線與搜尋進度（2026-09-27）
+
+Android 使用已驗證的本機狀態，首次載入不再先解析之後會被 native 資料取代的 preview；native bridge 不可用時仍保留 Flutter preview fallback。全台設施、全台道路搜尋和可規劃路線的範圍不同：目前路線引擎使用獨立打包的雙北 OSM 預建圖，沒有線上路線 API，也不因分享 Web Demo 而變成全台路線服務。
+
+Pixel 8a 已完成路線、背景搜尋、街道標記與底圖重用實測；一般搜尋運算 p95 約 31.7 ms，另有 180 ms 輸入 debounce，冷啟動道路索引約 6.8 秒。簽章驗證、事件有效期限與 snapshot 資料的界線不變。詳見 [目前進度](mvp-remaining-tasks.md) 與 [雙北效能紀錄](taipei-offline-routing.md)。
+
 ## 1. 準備環境與秘密設定
 
 在 repository 根目錄執行：

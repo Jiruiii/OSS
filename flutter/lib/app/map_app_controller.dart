@@ -43,6 +43,11 @@ class MapAppController extends ChangeNotifier {
   bool animationEnabled = true;
   bool nativeBridgeAvailable = false;
   bool isLoading = true;
+
+  /// True while Android is still verifying the static layers; the map is
+  /// already usable and shelters appear once verification finishes.
+  bool staticFeaturesPending = false;
+  Object? staticFeatureLoadError;
   Object? loadError;
   Object? demoEventLoadError;
   bool _disposed = false;
@@ -70,11 +75,6 @@ class MapAppController extends ChangeNotifier {
 
   Future<void> load() async {
     try {
-      final rawStatic = await _loadPreferredStaticAsset();
-      staticFeatures = StaticFeatureCollection.fromJson(
-        Map<String, dynamic>.from(jsonDecode(rawStatic) as Map),
-      );
-
       try {
         final loadedState = await bridge.getInitialState();
         final verifiedEvents = _withoutDemoEvents(loadedState.events);
@@ -103,9 +103,19 @@ class MapAppController extends ChangeNotifier {
             features: <StaticFeature>[],
           );
         }
+        if (loadedState.staticFeatures.isEmpty) {
+          // Started before preferences load so the two overlap, and so a
+          // preferences failure cannot keep the verified layer from loading.
+          staticFeaturesPending = true;
+          unawaited(_loadVerifiedStaticFeatures());
+        }
       } on Object {
         // Preview builds without the Android host use the real NCDR snapshot.
         // Android remains authoritative when its bridge is available.
+        final rawStatic = await _loadPreferredStaticAsset();
+        staticFeatures = StaticFeatureCollection.fromJson(
+          Map<String, dynamic>.from(jsonDecode(rawStatic) as Map),
+        );
         try {
           final demoEvents = await _demoEventLoader();
           persistedEvents = List<MeshEvent>.unmodifiable(demoEvents);
@@ -129,6 +139,27 @@ class MapAppController extends ChangeNotifier {
       loadError = error;
     } finally {
       isLoading = false;
+      _notifyIfAlive();
+    }
+  }
+
+  /// Verification of the nationwide layers takes seconds on first launch, so
+  /// it no longer holds the splash screen. A failure keeps the empty verified
+  /// collection: the preview JSON is never used once Android is present.
+  Future<void> _loadVerifiedStaticFeatures() async {
+    try {
+      final features = await bridge.getStaticFeatures();
+      if (_disposed) return;
+      staticFeatures = StaticFeatureCollection(
+        schemaVersion: 'feature-v0',
+        datasetId: 'resilientgeo-taiwan',
+        snapshotAt: null,
+        features: features,
+      );
+    } on Object catch (error) {
+      staticFeatureLoadError = error;
+    } finally {
+      staticFeaturesPending = false;
       _notifyIfAlive();
     }
   }

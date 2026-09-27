@@ -24,6 +24,9 @@ object MapBridgeProtocol {
         "static_features" to staticFeatures,
     )
 
+    fun staticFeaturesResult(staticFeatures: List<Map<String, Any?>>): Map<String, Any?> =
+        mapOf("static_features" to staticFeatures)
+
     fun fixtureLoadSummary(results: List<IngestResult>): Map<String, Int> {
         val inserted = results.count { it is IngestResult.Inserted }
         val updated = results.count { it is IngestResult.Updated }

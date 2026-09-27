@@ -28,6 +28,7 @@ class OfflineMapAssetBridge(
         }
 
         val assets = call.argument<List<String>>(ARG_ASSETS)
+        val versions = call.argument<Map<String, String>>("versions").orEmpty()
         if (assets.isNullOrEmpty()) {
             result.error(INVALID_ARGUMENTS, "copyPmtiles requires assets", null)
             return
@@ -44,10 +45,23 @@ class OfflineMapAssetBridge(
                         "Unsupported map asset: $asset"
                     }
                     val destination = File(mapDirectory, fileName)
-                    applicationContext.assets.open("flutter_assets/$asset").use { input ->
-                        destination.outputStream().use { output ->
-                            input.copyTo(output, DEFAULT_BUFFER_SIZE)
+                    val version = versions[asset]
+                    val stamp = File(mapDirectory, "$fileName.version")
+                    val cached = version != null && destination.isFile && destination.length() > 0 &&
+                        stamp.isFile && stamp.readText() == "$version:${destination.length()}"
+                    if (!cached) {
+                        // Publish only a complete file. An interrupted install
+                        // leaves the prior map available and no valid stamp.
+                        val pending = File(mapDirectory, "$fileName.pending")
+                        applicationContext.assets.open("flutter_assets/$asset").use { input ->
+                            pending.outputStream().buffered(128 * 1024).use { output ->
+                                input.copyTo(output, 128 * 1024)
+                            }
                         }
+                        java.nio.file.Files.move(pending.toPath(), destination.toPath(),
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                            java.nio.file.StandardCopyOption.ATOMIC_MOVE)
+                        if (version != null) stamp.writeText("$version:${destination.length()}")
                     }
                     paths[asset] = destination.absolutePath
                 }

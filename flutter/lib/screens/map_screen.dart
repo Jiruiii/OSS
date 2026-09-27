@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../data/map_bridge.dart';
+import '../data/offline_search_worker.dart';
+import '../data/app_performance.dart';
 import '../data/attestation_index.dart';
 import '../data/bridge_failure.dart';
 import '../data/corroboration.dart';
@@ -32,6 +35,8 @@ class MapScreen extends StatefulWidget {
   const MapScreen({
     super.key,
     this.staticFeatures,
+    this.staticFeaturesPending = false,
+    this.staticFeaturesFailed = false,
     this.initialState,
     this.bridge,
     this.eventUpdates,
@@ -42,6 +47,12 @@ class MapScreen extends StatefulWidget {
 
   /// Optional deterministic inputs keep widget tests independent of channels.
   final StaticFeatureCollection? staticFeatures;
+
+  /// Android is still verifying the nationwide layers (first launch only).
+  final bool staticFeaturesPending;
+
+  /// Verification failed; nothing unverified is shown instead.
+  final bool staticFeaturesFailed;
   final MapInitialState? initialState;
   final MapBridge? bridge;
   final Stream<List<MeshEvent>>? eventUpdates;
@@ -67,6 +78,11 @@ class _MapScreenState extends State<MapScreen> {
   MapAdministrativeIndex? _administrativeIndex;
   TaiwanSearchAsset? _searchAsset;
   MapSearchIndex? _searchIndex;
+  OfflineSearchWorker? _searchWorker;
+  List<MapSearchResult> _mapSearchResults = const [];
+  List<MapSearchResult> _reportSearchResults = const [];
+  int _mapSearchGeneration = 0;
+  int _reportSearchGeneration = 0;
   Timer? _mapSearchDebounce;
   Timer? _reportAddressSearchDebounce;
   List<MeshEvent> _persistedEvents = const <MeshEvent>[];
@@ -109,6 +125,7 @@ class _MapScreenState extends State<MapScreen> {
     _locationController = widget.locationController ?? LocationController();
     _locationSubscription = _locationController.locations.listen((location) {
       if (!mounted) return;
+      if (_runtimeState.currentLocation == location) return;
       setState(() {
         _runtimeState = _runtimeState.copyWith(currentLocation: location);
       });
@@ -123,6 +140,16 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void didUpdateWidget(covariant MapScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final nextFeatures = widget.staticFeatures;
+    if (nextFeatures != null &&
+        !identical(oldWidget.staticFeatures, nextFeatures)) {
+      // Verified layers can arrive after the first frame (see
+      // MapAppController._loadVerifiedStaticFeatures).
+      setState(() {
+        _staticFeatures = nextFeatures;
+        _rebuildSearchIndex();
+      });
+    }
     final preferencesChanged =
         oldWidget.themeMode != widget.themeMode ||
         oldWidget.animationEnabled != widget.animationEnabled;
@@ -137,6 +164,8 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
+    _searchWorker?.close();
+    if (!kReleaseMode) AppPerformance.search = null;
     _eventSubscription?.cancel();
     _locationSubscription?.cancel();
     _mapSearchDebounce?.cancel();
@@ -163,7 +192,8 @@ class _MapScreenState extends State<MapScreen> {
     final staticFeatures = await featureFuture;
     if (!mounted) return;
     setState(() {
-      _staticFeatures = staticFeatures;
+      // A newer collection may have arrived through didUpdateWidget meanwhile.
+      _staticFeatures = widget.staticFeatures ?? staticFeatures;
       _rebuildSearchIndex();
     });
     unawaited(
@@ -224,6 +254,20 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _loadSearchAssetInBackground() async {
     try {
+      if (!kIsWeb) {
+        final raw = await rootBundle.loadString(
+          'assets/map/search/taiwan-roads.json',
+        );
+        final worker = await OfflineSearchWorker.start(raw);
+        if (!mounted) {
+          worker.close();
+          return;
+        }
+        _searchWorker = worker;
+        if (!kReleaseMode) AppPerformance.search = worker.search;
+        _rebuildSearchIndex();
+        return;
+      }
       final asset = await _loadSearchAsset();
       if (!mounted) return;
       setState(() {
@@ -249,6 +293,11 @@ class _MapScreenState extends State<MapScreen> {
           _administrativeIndex?.searchableAreas ??
           const <MapAdministrativeArea>[],
     );
+    _searchWorker?.update(
+      staticFeatures.features,
+      _administrativeIndex?.searchableAreas ?? const [],
+    );
+    if (_searchText.isNotEmpty) unawaited(_refreshSearchResults(_searchText));
   }
 
   Future<MapInitialState> _loadInitialStateSafely() async {
@@ -474,6 +523,7 @@ class _MapScreenState extends State<MapScreen> {
     };
 
     EvacuationRouteResult? bestRoute;
+    EvacuationRouteResult? failedRoute;
     StaticFeature? bestFeature;
     for (var index = 0; index < candidates.length; index += 1) {
       if (!mounted || requestToken != _routeRequestToken) return;
@@ -505,7 +555,23 @@ class _MapScreenState extends State<MapScreen> {
         return;
       }
 
-      if (result.status == EvacuationRouteStatus.noRoute) continue;
+      if (result.status == EvacuationRouteStatus.noRoute) {
+        failedRoute ??= result;
+        // All candidates share this origin. Trying more shelters cannot
+        // make an origin outside the bundled road network routable.
+        if (result.warnings.any(
+          (warning) => warning.code == 'ORIGIN_OFF_GRAPH',
+        )) {
+          setState(() {
+            _routeLoading = false;
+            _routeLoadingMessage = null;
+            _routeResult = result;
+            _routeErrorMessage = null;
+          });
+          return;
+        }
+        continue;
+      }
       if (result.status != EvacuationRouteStatus.ok) {
         setState(() {
           _routeLoading = false;
@@ -534,7 +600,7 @@ class _MapScreenState extends State<MapScreen> {
     setState(() {
       _routeLoading = false;
       _routeLoadingMessage = null;
-      _routeResult = bestRoute ?? _noRouteResult;
+      _routeResult = bestRoute ?? failedRoute ?? _noRouteResult;
       _routeDestination = bestFeature;
       _routeErrorMessage = null;
     });
@@ -716,19 +782,21 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   void _onReportAddressChanged(String value) {
+    _reportSearchGeneration++;
     if (!mounted) return;
     _reportAddressSearchDebounce?.cancel();
     if (value.trim().isEmpty) {
-      setState(() {});
+      unawaited(_refreshSearchResults(value, report: true));
       return;
     }
     _reportAddressSearchDebounce = Timer(const Duration(milliseconds: 180), () {
       if (!mounted) return;
-      setState(() {});
+      unawaited(_refreshSearchResults(value, report: true));
     });
   }
 
   void _onReportAddressSelected(MapSearchResult result) {
+    _reportSearchGeneration++;
     final draft = _reportDraft;
     if (draft == null || _reportSubmitting) return;
     _reportAddressSearchDebounce?.cancel();
@@ -839,6 +907,7 @@ class _MapScreenState extends State<MapScreen> {
   });
 
   void _selectSearchResult(MapSearchResult result) {
+    _mapSearchGeneration++;
     _mapSearchDebounce?.cancel();
     setState(() {
       _searchSelection = result;
@@ -846,22 +915,53 @@ class _MapScreenState extends State<MapScreen> {
       _selectedFeature = result.feature;
       _selectedEvent = null;
       _searchText = '';
+      _mapSearchResults = const [];
       _searchController.clear();
       _focusRequestId += 1;
     });
   }
 
   void _onMapSearchChanged(String value) {
+    _mapSearchGeneration++;
     _mapSearchDebounce?.cancel();
     if (value.trim().isEmpty) {
       if (_searchText.isEmpty) return;
-      setState(() => _searchText = '');
+      setState(() {
+        _searchText = '';
+        _mapSearchResults = const [];
+      });
       return;
     }
     _mapSearchDebounce = Timer(const Duration(milliseconds: 180), () {
       if (!mounted) return;
       setState(() => _searchText = value);
+      unawaited(_refreshSearchResults(value));
     });
+  }
+
+  Future<void> _refreshSearchResults(String text, {bool report = false}) async {
+    final generation =
+        report ? ++_reportSearchGeneration : ++_mapSearchGeneration;
+    try {
+      final results =
+          _searchWorker == null
+              ? _searchIndex?.query(text) ?? const <MapSearchResult>[]
+              : (await _searchWorker!.search(text)).results;
+      if (!mounted ||
+          generation !=
+              (report ? _reportSearchGeneration : _mapSearchGeneration)) {
+        return;
+      }
+      setState(() {
+        if (report) {
+          _reportSearchResults = results;
+        } else {
+          _mapSearchResults = results;
+        }
+      });
+    } on Object {
+      /* Optional index failure leaves the map usable. */
+    }
   }
 
   Future<void> _focusCurrentLocation() async {
@@ -885,15 +985,15 @@ class _MapScreenState extends State<MapScreen> {
     if (staticFeatures == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final searchIndex = _searchIndex;
-    final searchResults =
-        searchIndex?.query(_searchText) ?? const <MapSearchResult>[];
+    final searchResults = _mapSearchResults;
     final reportAddressQuery =
         _reportSheetVisible && _reportStep == CrowdReportSheetStep.edit
             ? _reportAddressController.text
             : '';
     final reportAddressResults =
-        searchIndex?.query(reportAddressQuery) ?? const <MapSearchResult>[];
+        reportAddressQuery.isEmpty
+            ? const <MapSearchResult>[]
+            : _reportSearchResults;
     return Scaffold(
       body: Stack(
         children: <Widget>[
@@ -945,6 +1045,8 @@ class _MapScreenState extends State<MapScreen> {
                             hasCurrentLocation:
                                 _runtimeState.currentLocation != null,
                             reportDeliveryEventId: _reportDeliveryEventId,
+                            staticFeaturesPending: widget.staticFeaturesPending,
+                            staticFeaturesFailed: widget.staticFeaturesFailed,
                           ),
                         ),
                       ),
@@ -1064,11 +1166,15 @@ class _StatusOverlay extends StatelessWidget {
     required this.snapshotAt,
     required this.hasCurrentLocation,
     required this.reportDeliveryEventId,
+    this.staticFeaturesPending = false,
+    this.staticFeaturesFailed = false,
   });
 
   final String? snapshotAt;
   final bool hasCurrentLocation;
   final String? reportDeliveryEventId;
+  final bool staticFeaturesPending;
+  final bool staticFeaturesFailed;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -1097,6 +1203,16 @@ class _StatusOverlay extends StatelessWidget {
             ),
           ),
           Text('目前位置：${hasCurrentLocation ? '已取得' : '尚未取得'}'),
+          if (staticFeaturesPending)
+            const Text(
+              '避難所資料驗證中…',
+              key: ValueKey<String>('static-features-pending'),
+            ),
+          if (staticFeaturesFailed)
+            const Text(
+              '避難所資料驗證失敗，未顯示',
+              key: ValueKey<String>('static-features-failed'),
+            ),
           if (reportDeliveryEventId != null) ...<Widget>[
             const Text('民眾告警：未驗證／待同步'),
             Text('告警編號：$reportDeliveryEventId'),

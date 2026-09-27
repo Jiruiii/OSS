@@ -206,12 +206,16 @@ function positionsFromGeometry(geometry) {
 function envelope(geometry) {
   const positions = positionsFromGeometry(geometry);
   if (positions.length === 0) throw new GeoValidationError('geometry has no positions');
-  return {
-    minX: Math.min(...positions.map((position) => position[0])),
-    minY: Math.min(...positions.map((position) => position[1])),
-    maxX: Math.max(...positions.map((position) => position[0])),
-    maxY: Math.max(...positions.map((position) => position[1])),
-  };
+  // A loop, not Math.min(...spread): a county boundary has far more vertices
+  // than a spread argument list can hold.
+  const box = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  for (const [x, y] of positions) {
+    if (x < box.minX) box.minX = x;
+    if (y < box.minY) box.minY = y;
+    if (x > box.maxX) box.maxX = x;
+    if (y > box.maxY) box.maxY = y;
+  }
+  return box;
 }
 
 function envelopesIntersect(left, right) {
@@ -252,14 +256,37 @@ function pointInGeometry(point, geometry) {
   return false;
 }
 
+const preparedBoundaryCache = new WeakMap();
+
+/**
+ * Validated boundary geometries with their envelopes, computed once per
+ * boundary object. Nationwide collection tests thousands of records against
+ * the same 390-area catalog; re-validating every polygon vertex for each
+ * record made that effectively unbounded. Boundaries are treated as
+ * immutable once passed in.
+ */
+function preparedBoundaries(boundaryInput) {
+  const cacheable = boundaryInput !== null && typeof boundaryInput === 'object';
+  const cached = cacheable ? preparedBoundaryCache.get(boundaryInput) : undefined;
+  if (cached) return cached;
+  const prepared = collectGeometries(boundaryInput).map((geometry) => ({ geometry, box: envelope(geometry) }));
+  if (cacheable) preparedBoundaryCache.set(boundaryInput, prepared);
+  return prepared;
+}
+
 export function isGeometryInBoundary(geometryInput, boundaryInput) {
   const geometry = asGeometry(geometryInput);
   validateGeometry(geometry, 'geometry');
-  const boundaries = collectGeometries(boundaryInput);
+  const boundaries = preparedBoundaries(boundaryInput);
   const point = geometry.type === 'Point' ? geometry.coordinates : null;
-  if (point) return boundaries.some((boundary) => pointInGeometry(point, boundary));
+  if (point) {
+    const pointBox = { minX: point[0], minY: point[1], maxX: point[0], maxY: point[1] };
+    return boundaries.some(({ geometry: boundary, box }) => (
+      envelopesIntersect(pointBox, box) && pointInGeometry(point, boundary)
+    ));
+  }
   const geometryEnvelope = envelope(geometry);
-  return boundaries.some((boundary) => envelopesIntersect(geometryEnvelope, envelope(boundary)));
+  return boundaries.some(({ box }) => envelopesIntersect(geometryEnvelope, box));
 }
 
 export function isGeometryInNeihu(geometryInput, boundaryInput) {

@@ -39,6 +39,7 @@ class HazardOverlay private constructor(
     /** CURRENT blocking area hazards, for origin/shelter-in-hazard checks. */
     val blockingAreas: List<Pair<RouteEvent, PolygonRings>>,
 ) {
+    val hasBlockedEdges: Boolean = blocked.any { it }
     fun isBlocked(edge: Int): Boolean = blocked[edge]
     fun penalty(edge: Int): Double = penalty[edge]
     fun effects(edge: Int): List<EdgeEffect> = effects[edge].orEmpty()
@@ -199,9 +200,7 @@ class HazardOverlay private constructor(
         }
 
         private inline fun forEdgesNear(graph: RoadGraph, box: BBox, action: (Int) -> Unit) {
-            for (edge in 0 until graph.edgeCount) {
-                if (graph.edgeBBox(edge).intersects(box)) action(edge)
-            }
+            for (edge in graph.edgesNear(box)) action(edge)
         }
     }
 }

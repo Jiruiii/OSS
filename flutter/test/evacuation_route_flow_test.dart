@@ -11,6 +11,43 @@ import 'package:resilientgeo_flutter/data/map_models.dart';
 import 'package:resilientgeo_flutter/screens/map_screen.dart';
 
 void main() {
+  for (final code in <String>['ORIGIN_OFF_GRAPH', 'SHELTER_FULL']) {
+    testWidgets('recommendation keeps the native failure reason: $code', (
+      tester,
+    ) async {
+      final route = EvacuationRouteResult.fromMessage(<String, dynamic>{
+        'status': 'no_route',
+        'graph_version': 'neihu-walk-test',
+        'event_snapshot_at': '2026-09-27T00:00:00Z',
+        'warnings': <Map<String, dynamic>>[
+          <String, dynamic>{
+            'code': code,
+            'event_id': null,
+            'message':
+                code == 'ORIGIN_OFF_GRAPH'
+                    ? '目前只涵蓋內湖區，起點不在離線路網範圍內'
+                    : '官方狀態顯示此避難所已額滿',
+          },
+        ],
+        'blocked_event_ids': <String>[],
+      });
+      final bridge = _RouteBridge(result: route);
+      await tester.pumpWidget(
+        _app(
+          bridge: bridge,
+          features: const <StaticFeature>[_shelterA, _shelterB],
+        ),
+      );
+      await _finishLoad(tester);
+      await tester.tap(find.bySemanticsLabel('推薦最近避難所'));
+      await tester.pump();
+
+      expect(find.text(route.warnings.single.message), findsOneWidget);
+      expect(find.textContaining('距離：'), findsNothing);
+      expect(bridge.routeCalls, code == 'ORIGIN_OFF_GRAPH' ? 1 : 2);
+    });
+  }
+
   testWidgets('plans a route with the exact Android request and presents it', (
     tester,
   ) async {

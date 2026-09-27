@@ -117,6 +117,11 @@ class OfflineMapAssetStore {
     return jsonEncode(decoded);
   }
 
+  /// Android AssetManager sees Flutter's bundle below `flutter_assets/`.
+  /// MapLibre reads glyphs and sprites directly, outside Flutter's asset loader.
+  static String rewriteAndroidStyleAssetUris(String styleJson) =>
+      styleJson.replaceAll('asset://assets/', 'asset://flutter_assets/assets/');
+
   Future<String> loadStyle({
     required String styleAsset,
     required bool installNativeAssets,
@@ -128,7 +133,13 @@ class OfflineMapAssetStore {
     if (!installNativeAssets) return hydratedStyle;
 
     final installed = await installPmtiles();
-    return rewriteStyleAssetUris(hydratedStyle, assetFiles: installed);
+    final rewritten = rewriteStyleAssetUris(
+      hydratedStyle,
+      assetFiles: installed,
+    );
+    return defaultTargetPlatform == TargetPlatform.android
+        ? rewriteAndroidStyleAssetUris(rewritten)
+        : rewritten;
   }
 
   Future<Map<String, String>> installPmtiles() {
@@ -138,12 +149,18 @@ class OfflineMapAssetStore {
   Future<Map<String, String>> _installPmtiles() async {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       try {
-        final response = await _nativeChannel
-            .invokeMethod<Object?>('copyPmtiles', <String, dynamic>{
-              'assets': OfflineMapPackageCatalog.all
-                  .map((package) => package.assetPath)
-                  .toList(growable: false),
-            });
+        final response = await _nativeChannel.invokeMethod<Object?>(
+          'copyPmtiles',
+          <String, dynamic>{
+            'assets': OfflineMapPackageCatalog.all
+                .map((package) => package.assetPath)
+                .toList(growable: false),
+            'versions': <String, String>{
+              for (final package in OfflineMapPackageCatalog.all)
+                package.assetPath: package.sha256,
+            },
+          },
+        );
         if (response is Map) {
           final installed = <String, String>{};
           for (final package in OfflineMapPackageCatalog.all) {

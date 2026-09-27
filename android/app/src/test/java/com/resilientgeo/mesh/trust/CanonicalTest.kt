@@ -64,4 +64,23 @@ class CanonicalTest {
             Canonical.sha256Canonical(JSONObject()),
         )
     }
+
+    @Test
+    fun `fast key comparison agrees with UTF-8 byte order, surrogates included`() {
+        // U+E000..U+FFFF sort *before* surrogate pairs in UTF-16 units but *after*
+        // them in UTF-8 bytes; the comparator must follow the bytes.
+        val samples = listOf(
+            "", "a", "A", "ab", "abc", "b", "\u00e9", "\u4e2d", "\u4e2d\u6587", "\ue000", "\uffff",
+            "\ud83c\udf0a", "\ud83d\ude00", "a\ud83c\udf0a", "a\ue000", "z", "\u0000",
+        )
+        for (x in samples) {
+            for (y in samples) {
+                val bytes = x.toByteArray(Charsets.UTF_8).map { it.toInt() and 0xFF }
+                val other = y.toByteArray(Charsets.UTF_8).map { it.toInt() and 0xFF }
+                val expected = bytes.zip(other).firstOrNull { (p, q) -> p != q }?.let { (p, q) -> p - q }
+                    ?: (bytes.size - other.size)
+                assertEquals("compare($x, $y)", Integer.signum(expected), Integer.signum(Canonical.compareUtf8(x, y)))
+            }
+        }
+    }
 }
