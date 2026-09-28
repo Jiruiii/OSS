@@ -411,7 +411,7 @@ export async function fetchShelterStatuses({
         throw directError;
       const relay = new URL(relayEndpoint);
       if (relay.protocol !== 'https:' || relay.pathname !== '/api/emic-shelters'
-          || !/^resilientgeo-emic-bridge\.[a-z0-9-]+\.workers\.dev$/u.test(relay.hostname)
+          || !/^resilientgeo-emic-bridge(?:-preview)?\.[a-z0-9-]+\.workers\.dev$/u.test(relay.hostname)
           || relay.search || relay.hash) throw directError;
       const response = await fetchImpl(relay.href, {
         method: 'GET', headers: requestOptions.headers,
