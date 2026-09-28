@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   DEFAULT_TDX_NATIONWIDE_ENDPOINTS,
+  DEFAULT_TDX_CITY_CODES,
   TdxCredentialError,
   TdxSourceError,
   collectTdxRoadEvents,
@@ -157,6 +158,10 @@ test('fetches multiple TDX city endpoints for Taiwan scope and retains endpoint 
   assert.equal(snapshot.payload.Events.length, 2);
   assert.deepEqual(snapshot.payload.sources.map((source) => source.endpoint), endpoints);
   assert.deepEqual(DEFAULT_TDX_NATIONWIDE_ENDPOINTS.length > 10, true);
+  assert.equal(DEFAULT_TDX_CITY_CODES.length, 12);
+  assert.equal(DEFAULT_TDX_NATIONWIDE_ENDPOINTS.length, 14);
+  assert.match(DEFAULT_TDX_NATIONWIDE_ENDPOINTS.at(-2), /\/Highway\?/u);
+  assert.match(DEFAULT_TDX_NATIONWIDE_ENDPOINTS.at(-1), /\/Freeway\?/u);
   assert.doesNotMatch(JSON.stringify(snapshot), /access-token-for-test/u);
 });
 

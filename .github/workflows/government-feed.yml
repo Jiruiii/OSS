@@ -9,6 +9,10 @@ on:
         description: Read-only government source network diagnostics (no publication)
         type: boolean
         default: false
+      diagnostic_source:
+        description: Restrict read-only diagnostics to emic, tdx, or all
+        type: string
+        default: all
       initial:
         description: First deployment only (no existing signed publisher state)
         type: boolean
@@ -74,4 +78,6 @@ jobs:
           fi
       - name: Diagnose sources without publishing
         if: ${{ inputs.diagnostics == true }}
+        env:
+          DIAGNOSTIC_SOURCE: ${{ inputs.diagnostic_source }}
         run: node pipeline/tools/diagnose-government-sources.mjs
