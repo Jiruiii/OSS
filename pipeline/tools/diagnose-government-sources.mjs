@@ -1,7 +1,10 @@
 // Read-only network verification for the source adapters. No raw records or
 // credentials are printed, and the signed public feed is never modified.
 import { fetchShelterStatuses } from '../sources/shelter.mjs';
-import { fetchTdxRoadEvents, DEFAULT_TDX_NATIONWIDE_ENDPOINTS } from '../sources/tdx.mjs';
+import { fetchTdxRoadEvents, normalizeTdxRoadEventsReport,
+  DEFAULT_TDX_NATIONWIDE_ENDPOINTS } from '../sources/tdx.mjs';
+import { normalizeAreaCatalog, areaBoundary, createAreaResolvers } from '../sources/areas.mjs';
+import { readFile } from 'node:fs/promises';
 
 const selected = process.env.DIAGNOSTIC_SOURCE || 'all';
 if (!['all', 'emic', 'tdx'].includes(selected)) throw Error('Invalid diagnostic source');
@@ -46,8 +49,15 @@ try {
 if (selected === 'all' || selected === 'tdx') {
 try {
   const raw = await fetchTdxRoadEvents({ scope: 'taiwan', endpoints: DEFAULT_TDX_NATIONWIDE_ENDPOINTS });
+  const catalog = normalizeAreaCatalog(JSON.parse(await readFile(
+    new URL('../../data/boundaries/geojson/town.geojson', import.meta.url), 'utf8')));
+  const curated = normalizeTdxRoadEventsReport(raw, {
+    scope: 'taiwan', coverage: 'TW', boundary: areaBoundary(catalog), ...createAreaResolvers(catalog),
+  });
   console.log(JSON.stringify({ source: 'TDX', status: raw.payload.partial ? 'partial' : 'ok',
     endpoints: raw.payload.sources.length, successful: raw.payload.sources.filter(s => s.status === 200).length,
+    rawEvents: raw.payload.Events.length, curatedEvents: curated.events.length,
+    unresolved: curated.unresolved.length,
     errors: raw.payload.sources.filter(s => s.error_code).map(s => ({
       city: new URL(s.endpoint).pathname.split('/').at(-1), status: s.status, code: s.error_code,
     })) }));
