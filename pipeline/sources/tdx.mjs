@@ -568,12 +568,17 @@ export async function fetchTdxRoadEvents({
   fetchImpl = globalThis.fetch,
   retrievedAt = new Date().toISOString(),
   timeoutMs = 30000,
+  requestIntervalMs = 12500,
+  sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
+  now = Date.now,
 } = {}) {
   if (typeof clientId !== 'string' || clientId.length === 0 || typeof clientSecret !== 'string' || clientSecret.length === 0) {
     throw new TdxCredentialError();
   }
   if (typeof fetchImpl !== 'function') throw new TypeError('fetchImpl must be a function');
   if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) throw new TypeError('timeoutMs must be positive');
+  if (!Number.isFinite(requestIntervalMs) || requestIntervalMs < 0)
+    throw new TypeError('requestIntervalMs must be non-negative');
   assertTimestamp(retrievedAt, 'retrievedAt');
 
   const accessToken = await fetchTdxAccessToken({
@@ -594,6 +599,12 @@ export async function fetchTdxRoadEvents({
   const allowPartial = scope === 'taiwan' && requestedEndpoints.length > 1;
   const results = [];
   const sourceEntries = [];
+  let nextRequestAt = 0;
+  const beforeRequest = async () => {
+    const delay = Math.max(0, nextRequestAt - now());
+    if (delay) await sleep(delay);
+    nextRequestAt = now() + requestIntervalMs;
+  };
   for (const requestedEndpoint of requestedEndpoints) {
     try {
       const result = await requestJson(requestedEndpoint, {
@@ -603,6 +614,7 @@ export async function fetchTdxRoadEvents({
           Authorization: `Bearer ${accessToken}`,
         },
         timeoutMs,
+        beforeRequest, sleep, now,
       });
       const records = eventRecords(result.payload);
       const entry = { endpoint: requestedEndpoint, ...result };
@@ -666,5 +678,5 @@ export async function fetchTdxRoadEvents({
 export async function collectTdxRoadEvents(options = {}) {
   const rawSnapshot = await fetchTdxRoadEvents(options);
   const normalized = normalizeTdxRoadEventsReport(rawSnapshot, options);
-  return { rawSnapshot, ...normalized };
+  return { rawSnapshot, ...normalized, unresolvedCount: normalized.unresolved.length };
 }

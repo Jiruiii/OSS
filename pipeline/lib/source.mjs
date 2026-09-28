@@ -171,6 +171,17 @@ function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+export function retryDelay(headers, attempt, now = Date.now()) {
+  const value = readHeader(headers, 'retry-after');
+  if (value !== undefined && value !== null && String(value).trim() !== '') {
+    const seconds = Number(value);
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.ceil(seconds * 1000);
+    const date = Date.parse(value);
+    if (Number.isFinite(date)) return Math.max(0, date - now);
+  }
+  return Math.min(250 * 2 ** (attempt - 1), 2000);
+}
+
 export async function requestJson(url, {
   fetchImpl = globalThis.fetch,
   headers = {},
@@ -178,6 +189,10 @@ export async function requestJson(url, {
   allowedSensitiveQueryNames = [],
   timeoutMs = 30000,
   maxAttempts = 3,
+  beforeRequest = async () => {},
+  sleep = wait,
+  now = Date.now,
+  maxRetryDelayMs = 120000,
 } = {}) {
   const allowedSensitiveNames = new Set(allowedSensitiveQueryNames.map((name) => String(name).toLowerCase()));
   const requestUrl = urlWithQuery(url, query, allowedSensitiveNames);
@@ -188,6 +203,7 @@ export async function requestJson(url, {
 
   let lastError;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    await beforeRequest();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -211,7 +227,13 @@ export async function requestJson(url, {
         });
         if (attempt === maxAttempts || !shouldRetryStatus(response.status)) throw error;
         lastError = error;
-        await wait(Math.min(250 * 2 ** (attempt - 1), 2000));
+        const delay = retryDelay(response.headers, attempt, now());
+        if (delay > maxRetryDelayMs) throw new SourceRequestError('source retry delay exceeds collection budget', {
+          code: 'RETRY_DELAY_EXCEEDED', status: response.status, url: safeRequestUrl,
+        });
+        clearTimeout(timer);
+        await response.body?.cancel?.();
+        await sleep(delay);
         continue;
       }
       let payload;
@@ -245,7 +267,8 @@ export async function requestJson(url, {
         });
         if (attempt === maxAttempts) throw lastError;
       }
-      if (attempt < maxAttempts) await wait(Math.min(250 * 2 ** (attempt - 1), 2000));
+      clearTimeout(timer);
+      if (attempt < maxAttempts) await sleep(Math.min(250 * 2 ** (attempt - 1), 2000));
     } finally {
       clearTimeout(timer);
     }

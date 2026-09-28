@@ -8,6 +8,7 @@ import {
   SourceRequestError,
   makeRawSnapshot,
   requestJson,
+  retryDelay,
   requestText,
   validateRawSnapshot,
 } from '../lib/source.mjs';
@@ -174,6 +175,27 @@ test('requestJson returns payload and safe response metadata', async () => {
     },
     payload: { records: [{ id: '2' }] },
   });
+});
+
+test('requestJson observes Retry-After before retrying 429 without retaining the attempt timer', async () => {
+  const calls = [];
+  const delays = [];
+  const result = await requestJson('https://example.gov.tw/limited', {
+    fetchImpl: async (_url, options) => {
+      calls.push(options.signal);
+      return calls.length === 1
+        ? response({ status: 429, headers: { 'Retry-After': '47' } })
+        : response({ payload: { ok: true } });
+    },
+    timeoutMs: 20,
+    sleep: async ms => { delays.push(ms); await new Promise(resolve => setTimeout(resolve, 30)); },
+  });
+  assert.deepEqual(delays, [47000]);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].aborted, false);
+  assert.deepEqual(result.payload, { ok: true });
+  assert.equal(retryDelay(new Headers({ 'Retry-After': 'Wed, 09 Sep 2026 00:01:00 GMT' }), 1,
+    Date.parse('2026-09-09T00:00:00Z')), 60000);
 });
 
 test('requestText returns body and safe response metadata', async () => {

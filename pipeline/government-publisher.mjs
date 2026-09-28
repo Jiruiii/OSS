@@ -56,7 +56,7 @@ export async function collectGovernmentSources(scope, now = new Date(), sourceId
 // Keep a large or malformed government response from blocking every other
 // source, the signing step and the update schedule. Workers are disposable;
 // the signed previous release remains the durable state.
-export async function collectWithDeadline(timeoutMs = 180000) {
+export async function collectWithDeadline(timeoutMs) {
   return Promise.all(['ncdr', 'cwa-earthquake', 'cwa-warning', 'cwa-typhoon', 'tdx-road', 'shelter-status'].map(id =>
     new Promise(resolve => {
       const worker = new Worker(new URL('./government-collector-worker.mjs', import.meta.url), {
@@ -73,7 +73,7 @@ export async function collectWithDeadline(timeoutMs = 180000) {
       const timer = setTimeout(() => {
         console.log(`Source ${id}: unavailable (collection deadline)`);
         finish({ id, status: 'unavailable' });
-      }, timeoutMs);
+      }, timeoutMs ?? (id === 'tdx-road' ? 600000 : 180000));
       worker.once('message', finish);
       worker.once('error', () => finish({ id, status: 'unavailable' }));
       worker.once('exit', () => finish({ id, status: 'unavailable' }));

@@ -24,7 +24,11 @@ for (const [name, chunk] of events.chunks) {
   await writeFile(target, JSON.stringify(chunk));
 }
 for (const name of ['feed.json', '_headers', 'index.html']) await writeFile(path.join(upload, name), await readFile(path.join(publicDir, name)));
-if (events.chunks.size + 3 > 20000) throw new Error('Pages file limit exceeded');
+for (const name of ['_worker.js', '_routes.json']) {
+  const source = name === '_worker.js' ? 'pipeline/cloudflare/emic-worker.mjs' : 'pipeline/cloudflare/emic-routes.json';
+  await writeFile(path.join(upload, name), await readFile(source));
+}
+if (events.chunks.size + 5 > 20000) throw new Error('Pages file limit exceeded');
 const files = [JSON.stringify(feed), ...[...events.chunks.values()].map(chunk => JSON.stringify(chunk))];
 if (files.some(file => Buffer.byteLength(file) > 25 * 1024 * 1024)) throw new Error('Pages asset size limit exceeded');
 if (process.argv.includes('--prepare-only')) console.log(`Validated public upload directory: ${upload}`);

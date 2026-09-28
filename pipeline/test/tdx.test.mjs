@@ -147,6 +147,7 @@ test('fetches multiple TDX city endpoints for Taiwan scope and retains endpoint 
     scope: 'taiwan',
     fetchImpl,
     retrievedAt: RETRIEVED_AT,
+    requestIntervalMs: 0,
   });
 
   assert.deepEqual(calls, [
@@ -179,6 +180,7 @@ test('keeps successful Taiwan endpoints when one TDX city endpoint is unavailabl
       return response({ payload: tdxPayload() });
     },
     retrievedAt: RETRIEVED_AT,
+    requestIntervalMs: 0,
   });
 
   assert.equal(snapshot.payload.partial, true);
@@ -186,6 +188,26 @@ test('keeps successful Taiwan endpoints when one TDX city endpoint is unavailabl
   assert.equal(snapshot.payload.sources[1].status, 401);
   assert.equal(snapshot.payload.sources[1].error_code, 'HTTP_ERROR');
   assert.doesNotMatch(JSON.stringify(snapshot), /access-token-for-test/u);
+});
+
+test('spaces TDX city requests and honors rate-limit recovery before the next city', async () => {
+  let clock = 1000;
+  const calls = [];
+  const endpoints = ['https://tdx.test/City/Taipei', 'https://tdx.test/City/NewTaipei'];
+  const snapshot = await fetchTdxRoadEvents({
+    clientId: 'test-id', clientSecret: 'test-secret', endpoints, scope: 'taiwan',
+    retrievedAt: RETRIEVED_AT, now: () => clock,
+    sleep: async ms => { clock += ms; },
+    fetchImpl: async url => {
+      if (url.includes('/auth/')) return response({ payload: { access_token: 'test-token' } });
+      calls.push({ url, at: clock });
+      if (calls.length === 1) return response({ status: 429, headers: { 'Retry-After': '47' } });
+      return response({ payload: { Events: [] } });
+    },
+  });
+  assert.deepEqual(calls.map(call => call.at), [1000, 48000, 60500]);
+  assert.deepEqual(calls.map(call => call.url), [endpoints[0], endpoints[0], endpoints[1]]);
+  assert.equal(snapshot.payload.partial, false);
 });
 
 test('normalizes TDX events, preserves Raw outside Neihu, and keeps unmapped fields', () => {

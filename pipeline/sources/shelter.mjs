@@ -395,13 +395,36 @@ export async function fetchShelterStatuses({
   fetchImpl = globalThis.fetch,
   retrievedAt = new Date().toISOString(),
   timeoutMs = 30000,
+  relayEndpoint = process.env.SHELTER_STATUS_RELAY_ENDPOINT ?? 'https://resilientgeo-feed.pages.dev/api/emic-shelters',
+  allowRelay = fetchImpl === globalThis.fetch,
 } = {}) {
   try {
-    const result = await requestText(endpoint, {
-      fetchImpl,
-      timeoutMs,
-      headers: { Accept: 'application/xml, text/xml;q=0.9' },
-    });
+    const requestOptions = { fetchImpl, timeoutMs,
+      headers: { Accept: 'application/xml, text/xml;q=0.9' } };
+    let result;
+    let transport = 'direct';
+    try { result = await requestText(endpoint, requestOptions); }
+    catch (directError) {
+      // Only the official feed may use the controlled Pages relay. A caller's
+      // injected source or fetch stub must never be silently replaced.
+      if (endpoint !== DEFAULT_SHELTER_STATUS_ENDPOINT || !allowRelay)
+        throw directError;
+      const relay = new URL(relayEndpoint);
+      if (relay.protocol !== 'https:' || relay.pathname !== '/api/emic-shelters'
+          || !['resilientgeo-feed.pages.dev', 'fix-government-sources.resilientgeo-feed.pages.dev'].includes(relay.hostname)
+          || relay.search || relay.hash) throw directError;
+      const response = await fetchImpl(relay.href, {
+        method: 'GET', headers: requestOptions.headers,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (response.status !== 200 || response.headers.get('x-government-source') !== endpoint)
+        throw directError;
+      result = { status: response.status, headers: {
+        'Last-Modified': response.headers.get('last-modified') ?? undefined,
+        'Content-Type': response.headers.get('content-type') ?? undefined,
+      }, body: await response.text() };
+      transport = 'cloudflare-relay';
+    }
     return makeRawSnapshot({
       sourceId: 'taiwan-shelter-status',
       request: { method: 'GET', url: endpoint, query: {} },
@@ -412,6 +435,7 @@ export async function fetchShelterStatuses({
         format: 'xml',
         records: parseShelterStatusXml(result.body),
         raw_xml: result.body,
+        transport,
       },
     });
   } catch (error) {
