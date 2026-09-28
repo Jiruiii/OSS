@@ -37,6 +37,7 @@ jobs:
       CWA_API_KEY: ${{ secrets.CWA_API_KEY }}
       TDX_CLIENT_ID: ${{ secrets.TDX_CLIENT_ID }}
       TDX_CLIENT_SECRET: ${{ secrets.TDX_CLIENT_SECRET }}
+      SHELTER_STATUS_RELAY_ENDPOINT: ${{ vars.SHELTER_STATUS_RELAY_ENDPOINT }}
     steps:
       - uses: actions/checkout@v4
         with:

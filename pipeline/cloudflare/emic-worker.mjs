@@ -36,10 +36,3 @@ export async function relayEmic(request, fetchImpl = globalThis.fetch) {
       headers: { 'Cache-Control': 'no-store' } });
   } finally { clearTimeout(timer); }
 }
-
-export default {
-  fetch(request, env) {
-    return new URL(request.url).pathname === EMIC_PATH
-      ? relayEmic(request) : env.ASSETS.fetch(request);
-  },
-};

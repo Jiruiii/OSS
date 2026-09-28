@@ -395,7 +395,7 @@ export async function fetchShelterStatuses({
   fetchImpl = globalThis.fetch,
   retrievedAt = new Date().toISOString(),
   timeoutMs = 30000,
-  relayEndpoint = process.env.SHELTER_STATUS_RELAY_ENDPOINT ?? 'https://resilientgeo-feed.pages.dev/api/emic-shelters',
+  relayEndpoint = process.env.SHELTER_STATUS_RELAY_ENDPOINT,
   allowRelay = fetchImpl === globalThis.fetch,
 } = {}) {
   try {
@@ -407,11 +407,11 @@ export async function fetchShelterStatuses({
     catch (directError) {
       // Only the official feed may use the controlled Pages relay. A caller's
       // injected source or fetch stub must never be silently replaced.
-      if (endpoint !== DEFAULT_SHELTER_STATUS_ENDPOINT || !allowRelay)
+      if (endpoint !== DEFAULT_SHELTER_STATUS_ENDPOINT || !allowRelay || !relayEndpoint)
         throw directError;
       const relay = new URL(relayEndpoint);
       if (relay.protocol !== 'https:' || relay.pathname !== '/api/emic-shelters'
-          || !['resilientgeo-feed.pages.dev', 'fix-government-sources.resilientgeo-feed.pages.dev'].includes(relay.hostname)
+          || !/^resilientgeo-emic-bridge\.[a-z0-9-]+\.workers\.dev$/u.test(relay.hostname)
           || relay.search || relay.hash) throw directError;
       const response = await fetchImpl(relay.href, {
         method: 'GET', headers: requestOptions.headers,

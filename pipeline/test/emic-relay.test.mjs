@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { relayEmic, EMIC_URL } from '../cloudflare/emic-worker.mjs';
+import bridge from '../cloudflare/emic-bridge.mjs';
 import { fetchShelterStatuses, DEFAULT_SHELTER_STATUS_ENDPOINT } from '../sources/shelter.mjs';
 
 const XML = '<root><shelter><shelterCode>S-1</shelterCode><county>Taipei</county><town>Neihu</town><lat>25.08</lat><lon>121.58</lon><openstatus>開設</openstatus></shelter></root>';
@@ -22,13 +23,14 @@ test('Pages relay serves only live official XML with source and modification hea
   assert.equal((await relayEmic(new Request('https://relay.test/api/emic-shelters', {
     method: 'POST',
   }))).status, 405);
+  assert.equal((await bridge.fetch(new Request('https://relay.test/elsewhere'))).status, 404);
 });
 
 test('EMIC collector uses controlled relay only after official feed is unreachable', async () => {
   const calls = [];
   const raw = await fetchShelterStatuses({
     retrievedAt: '2026-09-28T08:05:00Z', allowRelay: true,
-    relayEndpoint: 'https://fix-government-sources.resilientgeo-feed.pages.dev/api/emic-shelters',
+    relayEndpoint: 'https://resilientgeo-emic-bridge.example.workers.dev/api/emic-shelters',
     fetchImpl: async url => {
       calls.push(url);
       if (url === DEFAULT_SHELTER_STATUS_ENDPOINT) throw new Error('unreachable');

@@ -19,7 +19,7 @@ function causes(error) {
 if (selected === 'all' || selected === 'emic') {
 try {
   const raw = await fetchShelterStatuses({
-    relayEndpoint: 'https://fix-government-sources.resilientgeo-feed.pages.dev/api/emic-shelters',
+    relayEndpoint: process.env.SHELTER_STATUS_RELAY_ENDPOINT,
     allowRelay: true,
     fetchImpl: async (url, options) => {
       try {
