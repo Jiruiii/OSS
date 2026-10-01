@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-val splashResDir = layout.buildDirectory.dir("generated/res/splash/main")
+val launcherIconResDir = layout.buildDirectory.dir("generated/res/launcher/main")
 android {
     namespace = "com.resilientgeo.mesh"
     // MapLibre GL 0.27.1 and its Android dependencies require API 36.
@@ -63,7 +63,7 @@ android {
         noCompress += listOf("pmtiles", "rgmz", "gz")
     }
 
-    sourceSets["main"].res.srcDir(splashResDir)
+    sourceSets["main"].res.srcDir(launcherIconResDir)
 
     testOptions {
         unitTests {
@@ -120,18 +120,18 @@ dependencies {
     androidTestImplementation(libs.androidx.room.testing)
 }
 
-val copySplashLightLogo = tasks.register<Copy>("copySplashLightLogo") {
+val copyLauncherLightLogo = tasks.register<Copy>("copyLauncherLightLogo") {
     from(project.file("../../flutter/assets/Geo_light_square_logo.png"))
-    into(splashResDir.map { it.dir("drawable-nodpi") })
-    rename { "resilientgeo_logo.png" }
+    into(launcherIconResDir.map { it.dir("drawable-nodpi") })
+    rename { "app_icon.png" }
 }
 
-val copySplashDarkLogo = tasks.register<Copy>("copySplashDarkLogo") {
+val copyLauncherDarkLogo = tasks.register<Copy>("copyLauncherDarkLogo") {
     from(project.file("../../flutter/assets/Geo_dark_square_logo.png"))
-    into(splashResDir.map { it.dir("drawable-night-nodpi") })
-    rename { "resilientgeo_logo.png" }
+    into(launcherIconResDir.map { it.dir("drawable-night-nodpi") })
+    rename { "app_icon.png" }
 }
 
 tasks.named("preBuild").configure {
-    dependsOn(copySplashLightLogo, copySplashDarkLogo)
+    dependsOn(copyLauncherLightLogo, copyLauncherDarkLogo)
 }
