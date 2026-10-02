@@ -180,7 +180,10 @@ class EmergencyModeService : Service() {
     }
 
     private fun hasBluetoothPermissions(): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+        }
         // BLUETOOTH_CONNECT wasn't required by the discovery-only version
         // this replaced (advertise + scan don't need it), but AutoPeerSyncEngine
         // now actually calls BleGattTransport.connect() -> device.connectGatt(),

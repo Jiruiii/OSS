@@ -6,7 +6,6 @@ import com.resilientgeo.mesh.protocol.DatasetSummary
 import com.resilientgeo.mesh.protocol.DiffResult
 import com.resilientgeo.mesh.protocol.PeerSummary
 import com.resilientgeo.mesh.protocol.PeerSync
-import com.resilientgeo.mesh.protocol.PeerSyncException
 import com.resilientgeo.mesh.protocol.RequestMessage
 import com.resilientgeo.mesh.transport.Connection
 import com.resilientgeo.mesh.transport.PeerTransport
@@ -15,10 +14,15 @@ import com.resilientgeo.mesh.transport.TransferResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.catch
@@ -30,7 +34,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
@@ -128,33 +131,41 @@ class AutoPeerSyncEngine(
             return latestRemoteSummary
         }
 
-        val pendingByChunkId = ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
+        val pendingChunks = ConcurrentHashMap<ChunkKey, CompletableDeferred<Boolean>>()
 
-        /** REQUESTs that arrived before [connection] was set — see [drainBufferedRequests]. */
-        val bufferedRequests = ConcurrentLinkedQueue<JSONObject>()
+        /** One serial sender per session; serving must never block the receive collector. */
+        val bufferedRequests = Channel<JSONObject>(64)
         val outgoingRequests = AtomicInteger(0)
+        @Volatile var servingFailed = false
     }
 
     data class Stats(val peersSynced: Int, val chunksApplied: Int, val activeSessions: Int)
     data class SyncOutcome(val succeeded: Boolean, val failureCode: String? = null)
+    private data class ChunkKey(val datasetId: String, val namespace: String, val chunkId: String, val chunkHash: String)
 
     private val sessions = ConcurrentHashMap<String, PeerSession>()
     private val semaphore = Semaphore(maxConcurrentSessions)
-    private var discoverJob: Job? = null
-    private var receiveJob: Job? = null
+    private var runningScope: CoroutineScope? = null
 
     private val peersSyncedCounter = AtomicInteger(0)
     private val chunksAppliedCounter = AtomicInteger(0)
 
     fun start() {
+        if (runningScope != null) return
+        val workers = CoroutineScope(scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]))
+        runningScope = workers
         onLog("AutoPeerSyncEngine starting as $localNodeId")
-        receiveJob = scope.launch {
+        workers.launch(start = CoroutineStart.UNDISPATCHED) {
             transport.receivedMessages.collect { (peerId, bytes) ->
-                runCatching { handleIncoming(peerId, bytes) }
-                    .onFailure { onLog("error handling message from $peerId: ${it.message}") }
+                try {
+                    handleIncoming(peerId, bytes)
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    onLog("error handling message from $peerId: ${error.message}")
+                }
             }
         }
-        discoverJob = scope.launch {
+        workers.launch {
             transport.discover().catch { error ->
                 onLog("discovery failed: ${error.message}")
                 onSyncOutcome(SyncOutcome(false, "discovery_failed"))
@@ -162,10 +173,10 @@ class AutoPeerSyncEngine(
         }
     }
 
-    /** Cancels discovery/receive collection. Does not close GATT connections — call `transport.teardown()` for that. */
+    /** Cancels all engine work; session finally blocks close their client connections. */
     fun stop() {
-        discoverJob?.cancel()
-        receiveJob?.cancel()
+        runningScope?.cancel()
+        runningScope = null
         sessions.clear()
     }
 
@@ -190,6 +201,7 @@ class AutoPeerSyncEngine(
     }
 
     private fun onPeerSeen(advertisement: PeerAdvertisement) {
+        val workers = runningScope ?: return
         // Active scans may report the primary advertisement before its scan response.
         // Wait for the identity so the inbound central address and advertised address
         // cannot create separate sessions for the same device.
@@ -212,34 +224,50 @@ class AutoPeerSyncEngine(
             session.phase = Phase.DISCOVERED
             return
         }
-        scope.launch {
-            try {
-                runSession(session)
-            } finally {
-                semaphore.release()
-            }
+        workers.launch {
+            runSession(session)
+        }.invokeOnCompletion {
+            // Also releases the slot when stop() cancels a queued coroutine
+            // before its body ever starts.
+            semaphore.release()
         }
     }
 
-    private suspend fun runSession(session: PeerSession) {
+    private suspend fun runSession(session: PeerSession): Unit = coroutineScope {
         val peerId = session.peerId
-        session.pendingByChunkId.entries.removeIf { it.value.isCompleted }
+        // Every encounter has a fresh diff. A timed-out request from a previous
+        // encounter may no longer be advertised and must not poison this one.
+        session.pendingChunks.clear()
+        session.servingFailed = false
+        var servingJob: Job? = null
         try {
             val conn = withTimeoutOrNull(connectTimeoutMillis) { transport.connect(session.connectionAddress ?: peerId) }
             if (conn == null) {
                 onLog("connect timeout/failed for $peerId")
                 fail(session, "connection_failed")
-                return
+                return@coroutineScope
             }
             session.connection = conn
             session.phase = Phase.EXCHANGING
             onLog("connected to $peerId")
-            drainBufferedRequests(session)
+            servingJob = launch {
+                for (request in session.bufferedRequests) {
+                    try {
+                        if (!serveRequest(conn, request)) session.servingFailed = true
+                    } catch (error: Exception) {
+                        if (error is CancellationException) throw error
+                        session.servingFailed = true
+                        onLog("serving $peerId failed: ${error.message}")
+                    } finally {
+                        session.outgoingRequests.decrementAndGet()
+                    }
+                }
+            }
 
             val localSummaryJson = localSummaryProvider()
             if (!sendEnvelope(conn, JSONObject().put("type", "HELLO").put("summary", localSummaryJson))) {
                 fail(session, "send_failed")
-                return
+                return@coroutineScope
             }
 
             val remoteSummary = withTimeoutOrNull(helloTimeoutMillis) {
@@ -253,15 +281,20 @@ class AutoPeerSyncEngine(
             if (remoteSummary == null) {
                 onLog("no HELLO from $peerId within timeout")
                 fail(session, "hello_timeout")
-                return
+                return@coroutineScope
             }
 
             val localSummary = PeerSummary.fromJson(localSummaryJson)
             val requests = buildRequestsForMissingData(localSummary, remoteSummary)
             for (request in requests) {
-                for (chunk in request.chunks) session.pendingByChunkId[chunk.chunkId] = CompletableDeferred()
+                for (chunk in request.chunks) {
+                    session.pendingChunks[ChunkKey(request.datasetId, request.namespace, chunk.chunkId, chunk.chunkHash)] = CompletableDeferred()
+                }
                 if (sendEnvelope(conn, JSONObject().put("type", "REQUEST").put("request", request.toEnvelopeJson()))) {
                     onLog("sent REQUEST to $peerId for ${request.chunks.map { it.chunkId }}")
+                } else {
+                    fail(session, "send_failed")
+                    return@coroutineScope
                 }
             }
             if (requests.isEmpty()) onLog("nothing to request from $peerId, already in sync")
@@ -271,7 +304,7 @@ class AutoPeerSyncEngine(
             // receptiveWindowMillis regardless, so a peer with nothing to
             // request from *us* still gets a window to ask.
             val completed = coroutineScope {
-                val pending = session.pendingByChunkId.values.toList()
+                val pending = session.pendingChunks.values.toList()
                 val allRequestedDone = async {
                     if (pending.isEmpty()) true
                     else withTimeoutOrNull(maxOf(requestedChunkTimeoutMillis,
@@ -282,8 +315,8 @@ class AutoPeerSyncEngine(
                 delay(receptiveWindowMillis)
                 val received = allRequestedDone.await()
                 val served = withTimeoutOrNull(300_000L) {
-                    while (session.outgoingRequests.get() > 0 || session.bufferedRequests.isNotEmpty()) delay(100)
-                    true
+                    while (session.outgoingRequests.get() > 0) delay(100)
+                    !session.servingFailed
                 } ?: false
                 received && served
             }
@@ -291,7 +324,7 @@ class AutoPeerSyncEngine(
             if (!completed) {
                 onLog("sync with $peerId incomplete: a requested chunk timed out or was rejected")
                 fail(session, "transfer_incomplete")
-                return
+                return@coroutineScope
             }
 
             session.phase = Phase.SYNCED
@@ -304,6 +337,9 @@ class AutoPeerSyncEngine(
             onLog("session with $peerId failed: ${e.message}")
             fail(session, "session_failed")
         } finally {
+            withContext(NonCancellable) { servingJob?.cancelAndJoin() }
+            while (session.bufferedRequests.tryReceive().isSuccess) session.outgoingRequests.decrementAndGet()
+            session.pendingChunks.clear()
             val conn = session.connection
             session.connection = null
             if (conn != null) {
@@ -346,12 +382,8 @@ class AutoPeerSyncEngine(
 
     private fun buildRequestsForMissingData(local: PeerSummary, remote: PeerSummary): List<RequestMessage> =
         remote.datasets.mapNotNull { remoteDataset ->
-            val diff = try {
-                diffAgainstLocal(local, remote, remoteDataset)
-            } catch (e: PeerSyncException) {
-                onLog("diff failed for ${remoteDataset.namespace}/${remoteDataset.datasetId}: ${e.message}")
-                return@mapNotNull null
-            }
+            // Conflicting manifests are a failed negotiation, not an empty diff.
+            val diff = diffAgainstLocal(local, remote, remoteDataset)
             if (diff.missingChunks.isEmpty() && diff.staleChunks.isEmpty()) null else PeerSync.buildRequest(diff)
         }
 
@@ -372,27 +404,16 @@ class AutoPeerSyncEngine(
         }
     }
 
-    private suspend fun handleRequest(session: PeerSession, requestJson: JSONObject) {
+    private fun handleRequest(session: PeerSession, requestJson: JSONObject) {
         session.outgoingRequests.incrementAndGet()
-        val conn = session.connection
-        if (conn == null) {
-            // Our own connect() to this peer hasn't finished yet — drained
-            // by drainBufferedRequests once it does. See PeerSyncMilestoneActivity's
-            // pendingRemoteSummaryJson for the same two-sided race on HELLO.
-            session.bufferedRequests.add(requestJson)
-            return
-        }
-        try { serveRequest(conn, requestJson) } finally { session.outgoingRequests.decrementAndGet() }
-    }
-
-    private fun drainBufferedRequests(session: PeerSession) {
-        val conn = session.connection ?: return
-        generateSequence { session.bufferedRequests.poll() }.forEach { requestJson ->
-            scope.launch { try { serveRequest(conn, requestJson) } finally { session.outgoingRequests.decrementAndGet() } }
+        if (!session.bufferedRequests.trySend(requestJson).isSuccess) {
+            session.outgoingRequests.decrementAndGet()
+            session.servingFailed = true
         }
     }
 
-    private suspend fun serveRequest(conn: Connection, requestJson: JSONObject) {
+    private suspend fun serveRequest(conn: Connection, requestJson: JSONObject): Boolean {
+        var complete = true
         val datasetId = requestJson.getString("dataset_id")
         val namespace = requestJson.getString("namespace")
         val chunksRequested = requestJson.getJSONArray("chunks")
@@ -401,16 +422,24 @@ class AutoPeerSyncEngine(
             val chunkJson = chunkProvider(datasetId, namespace, chunkId)
             if (chunkJson == null) {
                 onLog("asked for $chunkId but it's not in the local cache, skipping")
+                complete = false
                 continue
             }
             val payload = withSenderIdentity(JSONObject().put("type", "TRANSFER").put("chunk", chunkJson))
                 .toString().toByteArray(StandardCharsets.UTF_8)
             when (val result = transport.send(conn, payload)) {
                 is TransferResult.Success -> onLog("sent TRANSFER for $chunkId, ${result.bytesTransferred} bytes")
-                is TransferResult.Interrupted -> onLog("TRANSFER for $chunkId interrupted at ${result.bytesTransferred} bytes")
-                is TransferResult.Failed -> onLog("TRANSFER for $chunkId failed: ${result.reason}")
+                is TransferResult.Interrupted -> {
+                    complete = false
+                    onLog("TRANSFER for $chunkId interrupted at ${result.bytesTransferred} bytes")
+                }
+                is TransferResult.Failed -> {
+                    complete = false
+                    onLog("TRANSFER for $chunkId failed: ${result.reason}")
+                }
             }
         }
+        return complete
     }
 
     private suspend fun handleTransfer(session: PeerSession, chunkJson: JSONObject) {
@@ -423,7 +452,9 @@ class AutoPeerSyncEngine(
             }
             is ChunkIngestResult.Rejected -> onLog("rejected TRANSFER for $chunkId: ${result.reason}")
         }
-        session.pendingByChunkId[chunkId]?.complete(result is ChunkIngestResult.Applied)
+        val key = ChunkKey(chunkJson.optString("dataset_id"), chunkJson.optString("namespace"),
+            chunkId, chunkJson.optString("chunk_hash"))
+        session.pendingChunks[key]?.complete(result is ChunkIngestResult.Applied)
     }
 
     private suspend fun sendEnvelope(conn: Connection, envelope: JSONObject): Boolean =
@@ -463,7 +494,8 @@ class AutoPeerSyncEngine(
 
     companion object {
         private const val MAX_CONCURRENT_SESSIONS = 2
-        private const val CONNECT_TIMEOUT_MS = 15_000L
+        // Includes connect (15s), service discovery (10s), CCCD (5s) and MTU (5s).
+        private const val CONNECT_TIMEOUT_MS = 40_000L
         private const val HELLO_TIMEOUT_MS = 300_000L
         private const val HELLO_POLL_INTERVAL_MS = 200L
         private const val REQUESTED_CHUNK_TIMEOUT_MS = 20_000L

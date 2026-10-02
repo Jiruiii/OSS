@@ -120,12 +120,14 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun requestBlePermissionsIfNeeded() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
-        val needed = listOf(
+        val permissions = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            listOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        } else listOf(
             Manifest.permission.BLUETOOTH_SCAN,
             Manifest.permission.BLUETOOTH_ADVERTISE,
             Manifest.permission.BLUETOOTH_CONNECT,
-        ).filter {
+        )
+        val needed = permissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
         if (needed.isNotEmpty()) blePermissionLauncher.launch(needed.toTypedArray())
