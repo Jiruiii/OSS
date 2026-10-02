@@ -159,7 +159,7 @@ class _SyncStatusScreenState extends State<SyncStatusScreen>
                   if (!status.bluetoothEnabled && status.bluetoothAvailable)
                     const Padding(
                       padding: EdgeInsets.all(16),
-                      child: Text('請在系統設定開啟藍牙，再重新開啟緊急模式。'),
+                      child: Text('請在系統設定開啟藍牙；緊急模式會自動恢復掃描。Android 11 以下也需開啟定位服務。'),
                     ),
                   if (!status.notificationsEnabled)
                     const Padding(
