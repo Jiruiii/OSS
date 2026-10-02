@@ -8,14 +8,18 @@ import android.app.Service
 import android.bluetooth.BluetoothManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.core.location.LocationManagerCompat
 import com.resilientgeo.mesh.data.MeshRepository
 import com.resilientgeo.mesh.transport.BleGattTransport
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -67,16 +71,31 @@ class EmergencyModeService : Service() {
         private const val PEER_STALE_AFTER_MS = 30_000L
     }
 
-    private val scope = CoroutineScope(SupervisorJob())
+    // Lifecycle, retry decisions and published status are serialized on main.
+    // Parsing and the sync engine still run off the UI thread.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val syncScope = CoroutineScope(scope.coroutineContext + Dispatchers.Default)
+    private val discoveryRecovery = DiscoveryRecovery()
     private var heartbeatJob: Job? = null
     private var startedAtMillis = 0L
 
     private var transport: BleGattTransport? = null
     private var engine: AutoPeerSyncEngine? = null
     private var discoveryActive = false
+    private var completedBeforeRestart = 0
+    private var chunksBeforeRestart = 0
     private val syncStatus by lazy { SyncStatusStore(applicationContext) }
 
     private fun activePeerCount(): Int = engine?.visiblePeerCount(PEER_STALE_AFTER_MS) ?: 0
+
+    private fun currentStats(): AutoPeerSyncEngine.Stats {
+        val current = engine?.stats()
+        return AutoPeerSyncEngine.Stats(
+            completedBeforeRestart + (current?.peersSynced ?: 0),
+            chunksBeforeRestart + (current?.chunksApplied ?: 0),
+            current?.activeSessions ?: 0,
+        )
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -86,26 +105,27 @@ class EmergencyModeService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification(aliveSeconds = 0, peers = 0, chunksSynced = 0))
         Log.i(TAG, "onCreate: foreground service started")
 
-        startAutoSync()
+        maintainDiscovery()
 
         heartbeatJob = scope.launch {
             var tick = 0
             while (true) {
                 delay(HEARTBEAT_INTERVAL_MS)
+                maintainDiscovery()
                 tick++
                 val aliveSeconds = (System.currentTimeMillis() - startedAtMillis) / 1000
                 val peers = activePeerCount()
-                val stats = engine?.stats()
+                val stats = currentStats()
                 syncStatus.heartbeat(discoveryActive, peers, stats)
                 // Kept at INFO: this line is what the lock-screen survival
                 // runs in ADR-001 grep for to prove the process is alive.
                 Log.i(
                     TAG,
                     "HEARTBEAT tick=$tick alive_s=$aliveSeconds peers=$peers discovery=$discoveryActive " +
-                        "synced_peers=${stats?.peersSynced ?: 0} chunks_applied=${stats?.chunksApplied ?: 0} " +
-                        "active_sessions=${stats?.activeSessions ?: 0}",
+                        "synced_peers=${stats.peersSynced} chunks_applied=${stats.chunksApplied} " +
+                        "active_sessions=${stats.activeSessions}",
                 )
-                updateNotification(aliveSeconds, peers, stats?.chunksApplied ?: 0)
+                updateNotification(aliveSeconds, peers, stats.chunksApplied)
             }
         }
     }
@@ -122,6 +142,22 @@ class EmergencyModeService : Service() {
         heartbeatJob?.cancel()
         scope.cancel()
         super.onDestroy()
+    }
+
+    private fun maintainDiscovery() {
+        val ready = hasBluetoothPermissions() && runCatching {
+            val adapter = getSystemService(BluetoothManager::class.java)?.adapter
+            adapter?.isEnabled == true && (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ||
+                getSystemService(LocationManager::class.java)?.let { LocationManagerCompat.isLocationEnabled(it) } == true)
+        }.getOrDefault(false)
+        when (discoveryRecovery.nextAction(SystemClock.elapsedRealtime(), ready, discoveryActive, transport != null)) {
+            DiscoveryRecovery.Action.NONE -> Unit
+            DiscoveryRecovery.Action.STOP -> stopAutoSync()
+            DiscoveryRecovery.Action.RESTART -> {
+                stopAutoSync()
+                startAutoSync()
+            }
+        }
     }
 
     private fun startAutoSync() {
@@ -149,23 +185,28 @@ class EmergencyModeService : Service() {
                 localSummaryProvider = { repository.allLocalPeerSummaries(nodeId) },
                 chunkProvider = { datasetId, namespace, chunkId -> repository.cachedChunkJson(datasetId, namespace, chunkId) },
                 chunkIngestor = { chunk -> repository.ingestChunk(chunk) },
-                scope = scope,
+                scope = syncScope,
                 onLog = { line -> Log.i(TAG, "[auto-sync] $line") },
                 onSyncOutcome = { outcome ->
-                    if (outcome.failureCode == "discovery_failed") discoveryActive = false
-                    syncStatus.record(outcome)
+                    scope.launch {
+                        // Ignore a late result from an engine already replaced.
+                        if (transport === ble) {
+                            if (outcome.failureCode == "discovery_failed") discoveryActive = false
+                            syncStatus.record(outcome)
+                        }
+                    }
                 },
             )
-            syncEngine.start()
             transport = ble
             engine = syncEngine
             discoveryActive = true
+            syncEngine.start()
             Log.i(TAG, "auto-sync started (advertise + scan + automatic HELLO/DIFF/REQUEST/TRANSFER)")
         }.onFailure { error ->
             // A SecurityException here means permissions were revoked
             // between the check above and the call. Degrade to the
             // process-alive-only mode rather than crashing the service.
-            discoveryActive = false
+            stopAutoSync()
             syncStatus.record(AutoPeerSyncEngine.SyncOutcome(false, "discovery_failed"))
             Log.e(TAG, "failed to start auto-sync: ${error.message}")
         }
@@ -173,6 +214,10 @@ class EmergencyModeService : Service() {
 
     private fun stopAutoSync() {
         engine?.stop()
+        engine?.stats()?.let {
+            completedBeforeRestart += it.peersSynced
+            chunksBeforeRestart += it.chunksApplied
+        }
         engine = null
         runCatching { transport?.teardown() }.onFailure { error -> Log.w(TAG, "error tearing down transport: ${error.message}") }
         transport = null

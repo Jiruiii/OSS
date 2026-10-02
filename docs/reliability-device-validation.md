@@ -109,3 +109,52 @@ cd android
 - 本輪未新增應用層的雙向完成／驗證回執。BLE ACK 只代表重組完成，發送端不能因此證明接收端已驗證寫入；6 秒接收窗口與慢速多資料集的交互仍應在實機確認。
 - 5 分鐘的資料等待上限、完整 inventory HELLO，以及接收端驗證速度仍可能影響全國大資料集。真正斷線後的半片續傳仍未持久化；已驗證的完整分片可跨接觸保留。
 - Android 10／11 的背景掃描授權、系統定位開關、執行期間切換藍牙與長時間 Doze 尚未驗收。原始 GATT 重組器的異常 frame／記憶體上限也仍需要獨立強化與測試。
+
+## 2026-10-02：針對互相無法發現的修正與 APK
+
+組員補充實際症狀為「兩台手機無法互相發現」。本輪仍未取得手機型號及雙機 log，
+因此不能把以下修正當作已確認的實機根因。
+
+- 將同步必要的 8-byte transport identity 放入 BLE 主廣播封包；含 flags 共 29 bytes，
+  不超過 legacy advertising 的 31-byte 上限。掃描同時接受 service data 與舊版 UUID list，
+  降低只收到主廣播、未收到 scan response 時無法建立 session 的機會。
+- 未收到 identity 的 mesh 廣播仍顯示為附近節點，並留下診斷訊息；取得 identity 後才同步，
+  避免把 Android 私有位址誤當成跨連線的身分。同一位址稍後補上 identity 不重複計數。
+- 緊急模式每 5 秒重新檢查藍牙、權限及 Android 11 以下的定位服務。
+  使用者補開藍牙／授權後自動恢復；掃描失敗以至少 30 秒間隔重試。
+  重啟 discovery 時保留本次服務累積的同步數，停止時盡力釋放所有 GATT 資源。
+- BLE 與通知權限依序請求，避免兩個權限對話框同時啟動；授權後由服務恢復掃描。
+
+### 完整建置與驗證
+
+本輪已補齊建置環境，取代上一輪僅能使用暫存 JVM runner 的限制：
+
+- Flutter 3.29.2／Dart 3.7.2、JDK 21、Gradle 8.11.1；沿用專案鎖定的套件版本。
+- `flutter analyze` 無問題，`flutter test` 共 258 項通過。
+- Android `:app:testDebugUnitTest` 共 162 項通過，無失敗、錯誤或跳過；
+  `:app:assembleDebug -Ptarget-platform=android-arm,android-arm64,android-x64 --max-workers=2` 成功。
+- APK：`android/app/build/outputs/apk/debug/app-debug.apk`，764,463,020 bytes，
+  minSdk 26（Android 8.0），內含 ARM32、ARM64、x86_64 的 Flutter 引擎與完整離線地圖。
+- `apksigner verify` 通過（debug certificate、APK v2），ZIP 完整性通過；
+  五份 PMTiles 均逐一核對大小與 SHA-256，與原始資產相同。
+- APK SHA-256：`5e83a5ff695834bdac5cdf0d6054a27cbbc796bebd061125b97f65170a9b37ae`。
+- 本次 debug 簽章憑證 SHA-256：`21e932858e75038d87236d4284b803cae328105dc0471fea8ac2c383f9524daf`。
+  保留本機建置金鑰供後續測試更新；跨開發環境的舊 APK 是否使用同一憑證尚未確認。
+- 原始建置、Flutter 測試、簽章及資產核對紀錄在本機忽略目錄 `android/build/`。
+  本輪未連接實機，尚未驗證 APK 安裝與兩機發現；下列步驟仍需組員重測。
+
+### 兩機發現重測
+
+1. 兩台安裝同一版 APK，開啟藍牙、允許附近裝置權限，再開啟緊急模式。
+   Android 11 以下另允許定位權限並開啟系統定位服務。
+2. 先保持螢幕亮起、相距約一公尺，查看同步狀態頁的附近節點數與同步結果。
+   可先觀察 30 秒；這是測試觀察窗口，不是硬體發現時間保證。
+3. 保持緊急模式開啟，將一台藍牙關閉再開啟，確認不用切換緊急模式即可重新發現。
+4. 若仍失敗，擷取兩台同一時段的記錄：
+
+   ```powershell
+   adb -s <serial> logcat -d -v threadtime ResilientGeoEmergency:I ResilientGeoBleGatt:I '*:S'
+   ```
+
+   一併提供手機型號、Android 版本、附近節點數，以及是否出現 `advertise started ok`、
+   `scan failed`、`advertise failed` 或 `without transport identity`。

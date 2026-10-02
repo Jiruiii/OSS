@@ -144,6 +144,8 @@ class AutoPeerSyncEngine(
     private data class ChunkKey(val datasetId: String, val namespace: String, val chunkId: String, val chunkHash: String)
 
     private val sessions = ConcurrentHashMap<String, PeerSession>()
+    private data class Sighting(val identity: String?, val seenAtMillis: Long)
+    private val sightings = ConcurrentHashMap<String, Sighting>()
     private val semaphore = Semaphore(maxConcurrentSessions)
     private var runningScope: CoroutineScope? = null
 
@@ -178,6 +180,7 @@ class AutoPeerSyncEngine(
         runningScope?.cancel()
         runningScope = null
         sessions.clear()
+        sightings.clear()
     }
 
     fun stats(): Stats = Stats(
@@ -197,15 +200,24 @@ class AutoPeerSyncEngine(
      */
     fun visiblePeerCount(staleAfterMillis: Long): Int {
         val now = clock()
-        return sessions.values.count { now - it.lastSeenAtMillis <= staleAfterMillis }
+        sightings.entries.removeIf { now - it.value.seenAtMillis > staleAfterMillis }
+        return sightings.entries.map { it.value.identity ?: it.key }.distinct().size
     }
 
     private fun onPeerSeen(advertisement: PeerAdvertisement) {
         val workers = runningScope ?: return
+        if (advertisement.transportIdentity == transport.localIdentity && transport.localIdentity != null) return
+        val previousSighting = sightings[advertisement.peerId]
+        sightings[advertisement.peerId] = Sighting(
+            advertisement.transportIdentity ?: previousSighting?.identity, clock(),
+        )
         // Active scans may report the primary advertisement before its scan response.
         // Wait for the identity so the inbound central address and advertised address
         // cannot create separate sessions for the same device.
-        if (transport.localIdentity != null && advertisement.transportIdentity == null) return
+        if (transport.localIdentity != null && advertisement.transportIdentity == null) {
+            if (previousSighting == null) onLog("mesh advertisement seen without transport identity; waiting for scan response (update both phones to the same build)")
+            return
+        }
         val peerId = advertisement.transportIdentity ?: advertisement.peerId
         val session = sessions.computeIfAbsent(peerId) { PeerSession(it) }
         session.connectionAddress = advertisement.peerId

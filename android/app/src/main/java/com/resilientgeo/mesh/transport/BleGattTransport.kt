@@ -362,13 +362,15 @@ class BleGattTransport(
             .setConnectable(true)
             .build()
         val data = AdvertiseData.Builder()
-            .addServiceUuid(ParcelUuid(SERVICE_UUID))
+            // 3-byte flags + 2-byte AD header + 16-byte UUID + 8-byte identity
+            // = 29 bytes. Identity is present in the primary packet, so sync
+            // does not depend on receiving/merging an active scan response.
+            .addServiceData(ParcelUuid(SERVICE_UUID), identityBytes)
             .setIncludeDeviceName(false)
             .build()
-        // Keep the service UUID in the advertisement (21 bytes including flags),
-        // and the instance identity in the separate scan response (26 bytes).
+        // Keep the UUID list in the scan response for older discovery harnesses.
         val response = AdvertiseData.Builder()
-            .addServiceData(ParcelUuid(SERVICE_UUID), identityBytes)
+            .addServiceUuid(ParcelUuid(SERVICE_UUID))
             .build()
         advertiser?.startAdvertising(settings, data, response, advertiseCallback)
             ?: Log.e(TAG, "no BLE advertiser available on this device")
@@ -412,15 +414,23 @@ class BleGattTransport(
         }
         scanCallback = callback
         val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
-        val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(SERVICE_UUID)).build()
-        scanner?.startScan(listOf(filter), settings, callback)
+        // Filters are ORed: match self-contained new advertisements as well as
+        // the UUID-list advertisements sent by previous versions.
+        val filters = listOf(
+            ScanFilter.Builder().setServiceData(ParcelUuid(SERVICE_UUID), null).build(),
+            ScanFilter.Builder().setServiceUuid(ParcelUuid(SERVICE_UUID)).build(),
+        )
+        scanner?.startScan(filters, settings, callback)
             ?: Log.e(TAG, "no BLE scanner available on this device")
 
         awaitClose {
             onAdvertisingFailure = null
             onPeerFound = null
-            scanCallback?.let { scanner?.stopScan(it) }
+            // Bluetooth may have been disabled or permission revoked while
+            // scanning. Cleanup must still release the remaining resources.
+            runCatching { scanner?.stopScan(callback) }
             scanCallback = null
+            runCatching { stopAdvertising() }
         }
     }
 
@@ -807,14 +817,14 @@ class BleGattTransport(
 
     /** Stops advertising/scanning/server and releases GATT resources. Not part of PeerTransport — call from the owning Activity's onDestroy(). */
     fun teardown() {
-        stopAdvertising()
-        scanCallback?.let { scanner?.stopScan(it) }
+        runCatching { stopAdvertising() }
+        runCatching { scanCallback?.let { scanner?.stopScan(it) } }
         scanCallback = null
-        gattServer?.close()
+        runCatching { gattServer?.close() }
         gattServer = null
         centralLinks.values.forEach {
-            it.gatt.disconnect()
-            it.gatt.close()
+            runCatching { it.gatt.disconnect() }
+            runCatching { it.gatt.close() }
         }
         centralLinks.clear()
         nextSeqByConnection.clear()

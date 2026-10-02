@@ -40,6 +40,25 @@ import java.util.concurrent.atomic.AtomicInteger
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AutoPeerSyncEngineTest {
 
+    @Test fun `a mesh advertisement without identity is visible but cannot start an ambiguous session`() = runTest {
+        val radio = FakeTransport("a", FakeMedium(), "ble:aaaaaaaaaaaaaaaa")
+        val logs = mutableListOf<String>()
+        val engine = AutoPeerSyncEngine(radio, "a", { summaryJson("a", emptyList()) }, { _, _, _ -> null },
+            { ChunkIngestResult.Applied(emptyList()) }, backgroundScope,
+            onLog = { logs += it }, clock = { testScheduler.currentTime })
+        engine.start(); runCurrent()
+        radio.advertise("older-phone"); runCurrent()
+        assertEquals(1, engine.visiblePeerCount(30_000))
+        assertEquals(0, radio.connectCount.get())
+        assertTrue(logs.any { it.contains("without transport identity") })
+        radio.advertise("older-phone", "ble:bbbbbbbbbbbbbbbb"); runCurrent()
+        radio.advertise("older-phone", null); runCurrent()
+        assertEquals("primary and scan-response sightings must not double count", 1, engine.visiblePeerCount(30_000))
+        advanceTimeBy(30_001)
+        assertEquals(0, engine.visiblePeerCount(30_000))
+        engine.stop()
+    }
+
     @Test fun `slow bidirectional serving does not drop incoming chunks`() = runTest {
         val medium = FakeMedium()
         val a = FakeTransport("a", medium)
@@ -660,8 +679,8 @@ class AutoPeerSyncEngineTest {
             received.tryEmit(from to payload)
         }
 
-        fun advertise(peerId: String) {
-            discoverFlow.tryEmit(PeerAdvertisement(peerId = peerId, rssi = null, discoveredAtMillis = 0, transportIdentity = medium.identityOf(peerId)))
+        fun advertise(peerId: String, transportIdentity: String? = medium.identityOf(peerId)) {
+            discoverFlow.tryEmit(PeerAdvertisement(peerId = peerId, rssi = null, discoveredAtMillis = 0, transportIdentity = transportIdentity))
         }
     }
 }
