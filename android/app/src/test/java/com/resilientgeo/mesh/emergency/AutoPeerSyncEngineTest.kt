@@ -40,6 +40,68 @@ import java.util.concurrent.atomic.AtomicInteger
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class AutoPeerSyncEngineTest {
 
+    @Test fun `a stale requests done marker cannot complete a new encounter`() = runTest {
+        val medium = FakeMedium()
+        val a = FakeTransport("a", medium)
+        val b = FakeTransport("b", medium)
+        medium.register(a); medium.register(b)
+        val staleMarker = object : PeerTransport by b {
+            override suspend fun send(connection: Connection, payload: ByteArray): TransferResult {
+                val envelope = JSONObject(String(payload))
+                if (envelope.getString("type") == "REQUESTS_DONE") envelope.put("session_id", "previous-encounter")
+                return b.send(connection, envelope.toString().toByteArray())
+            }
+        }
+        val outcomes = mutableListOf<AutoPeerSyncEngine.SyncOutcome>()
+        fun engine(radio: PeerTransport, report: (AutoPeerSyncEngine.SyncOutcome) -> Unit = {}) =
+            AutoPeerSyncEngine(radio, "node", { summaryJson("node", emptyList()) }, { _, _, _ -> null },
+                { ChunkIngestResult.Applied(emptyList()) }, backgroundScope, receptiveWindowMillis = 100,
+                onSyncOutcome = report)
+        val receiver = engine(a) { outcomes += it }
+        val sender = engine(staleMarker)
+        receiver.start(); sender.start(); runCurrent()
+        a.advertise("b"); b.advertise("a")
+        settle()
+        assertEquals(0, receiver.stats().peersSynced)
+        assertEquals(1, receiver.stats().activeSessions)
+        advanceTimeBy(300_000); runCurrent()
+        assertEquals(listOf(AutoPeerSyncEngine.SyncOutcome(false, "transfer_incomplete")), outcomes)
+        receiver.stop(); sender.stop()
+    }
+
+    @Test fun `a sender waits for slow requests across multiple datasets before closing`() = runTest {
+        val medium = FakeMedium()
+        val a = FakeTransport("a", medium)
+        val b = FakeTransport("b", medium)
+        medium.register(a); medium.register(b)
+        val first = testChunk("first")
+        val second = testChunk("second").put("dataset_id", "other")
+        val inventory = summaryJson("a", listOf(first)).apply {
+            getJSONArray("datasets").put(summaryJson("a", listOf(second))
+                .getJSONArray("datasets").getJSONObject(0).put("dataset_id", "other"))
+        }
+        val received = mutableSetOf<String>()
+        val delayedRequests = object : PeerTransport by b {
+            override suspend fun send(connection: Connection, payload: ByteArray): TransferResult {
+                if (JSONObject(String(payload)).getString("type") == "REQUEST") delay(2_000)
+                return b.send(connection, payload)
+            }
+        }
+        val sender = AutoPeerSyncEngine(a, "a", { inventory },
+            { _, _, id -> listOf(first, second).find { it.getString("chunk_id") == id } },
+            { ChunkIngestResult.Applied(emptyList()) }, backgroundScope, receptiveWindowMillis = 100)
+        val receiver = AutoPeerSyncEngine(delayedRequests, "b", { summaryJson("b", emptyList()) },
+            { _, _, _ -> null }, { received += it.getString("chunk_id"); ChunkIngestResult.Applied(emptyList()) },
+            backgroundScope, requestedChunkTimeoutMillis = 1_000, receptiveWindowMillis = 100)
+        sender.start(); receiver.start(); runCurrent()
+        a.advertise("b"); b.advertise("a")
+        settle()
+        assertEquals(setOf("first", "second"), received)
+        assertEquals(1, sender.stats().peersSynced)
+        assertEquals(1, receiver.stats().peersSynced)
+        sender.stop(); receiver.stop()
+    }
+
     @Test fun `a mesh advertisement without identity is visible but cannot start an ambiguous session`() = runTest {
         val radio = FakeTransport("a", FakeMedium(), "ble:aaaaaaaaaaaaaaaa")
         val logs = mutableListOf<String>()

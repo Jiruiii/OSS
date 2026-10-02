@@ -394,7 +394,13 @@ class BleGattTransport(
 
         val callback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
-                val identity = result.scanRecord?.getServiceData(ParcelUuid(SERVICE_UUID))
+                val record = result.scanRecord ?: return
+                val serviceData = record.getServiceData(ParcelUuid(SERVICE_UUID))
+                // Do not trust hardware offload to filter every result. Real
+                // devices delivered unrelated advertisements with a null data
+                // pattern, inflating the nearby Mesh count to dozens of nodes.
+                if (serviceData == null && record.serviceUuids?.contains(ParcelUuid(SERVICE_UUID)) != true) return
+                val identity = serviceData
                     ?.takeIf { it.size == 8 }
                     ?.let { bytes -> "ble:" + bytes.joinToString("") { "%02x".format(it) } }
                 onPeerFound?.invoke(
@@ -417,7 +423,7 @@ class BleGattTransport(
         // Filters are ORed: match self-contained new advertisements as well as
         // the UUID-list advertisements sent by previous versions.
         val filters = listOf(
-            ScanFilter.Builder().setServiceData(ParcelUuid(SERVICE_UUID), null).build(),
+            ScanFilter.Builder().setServiceData(ParcelUuid(SERVICE_UUID), byteArrayOf()).build(),
             ScanFilter.Builder().setServiceUuid(ParcelUuid(SERVICE_UUID)).build(),
         )
         scanner?.startScan(filters, settings, callback)

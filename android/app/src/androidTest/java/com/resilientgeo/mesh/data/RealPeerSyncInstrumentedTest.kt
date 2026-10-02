@@ -62,6 +62,7 @@ class RealPeerSyncInstrumentedTest {
             }
             assertEquals(2, db.chunkDao().countSync())
             assertTrue(engine.stats().chunksApplied > 0)
+            assertEquals("Unrelated Bluetooth advertisements must not count as Mesh peers", 1, engine.visiblePeerCount(30_000))
             Log.i("RealPeerSyncTest", "[$seed] FIRST_EXCHANGE_OK ${engine.stats()}")
             engine.stop()
             scope!!.cancel()

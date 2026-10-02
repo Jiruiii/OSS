@@ -158,3 +158,50 @@ cd android
 
    一併提供手機型號、Android 版本、附近節點數，以及是否出現 `advertise started ok`、
    `scan failed`、`advertise failed` 或 `without transport identity`。
+
+## 2026-10-02：Samsung／Pixel 實機追查
+
+裝置為 Samsung SM-A5360（Android 16）與 Pixel 8a（Android 17），以無線 ADB 操作。
+原有 APK 簽章不同，經使用者分別同意後移除舊 App 並安裝測試版；後續更新保留資料。
+
+### 實測找到並修正的問題
+
+- `90f6897` 可互相發現並建立真正的 BLE GATT 連線，但掃描 callback 也收到其他藍牙廣播，
+  UI 曾顯示 25／34 個附近節點。service-data 篩選改用非 null 的空 byte pattern，
+  callback 另核對本 App 的 service UUID／service data，避免依賴硬體篩選而誤計數。
+- 正式資料不對稱時，Pixel 自己沒有缺片，在 Samsung 的大型 REQUEST 完整抵達前便結束
+  6 秒接收窗口並宣告成功。記錄中先出現 `sync ... complete`，後續才收到 32,240-byte REQUEST。
+- HELLO 新增每次連線隨機 `session_id`；新版本在送完全部資料集的 REQUEST 後發出
+  `REQUESTS_DONE`。只有收到對應回合的結束標記、排隊回傳工作完成且本機請求成功後，
+  才結束本輪同步。等待仍有上限；舊版沒有 session id 時沿用原本接收窗口。
+  此標記代表「請求清單已結束」，並非接收端驗證寫入的回執。
+- 回歸測試已重現修正前的慢速多資料集請求完全收不到資料；修正後通過。
+  另驗證舊回合的 `REQUESTS_DONE` 不會誤結束新連線。完整 Android JVM 測試 164 項通過。
+
+修正版 APK 仍位於 `android/app/build/outputs/apk/debug/app-debug.apk`，764,572,711 bytes，
+SHA-256 為 `8c640274448f6cc855f18f05b6da6821354cf1db149c184edb2dc39b05100c4d`；
+APK 簽章、ZIP 完整性與五份地圖資產雜湊均通過核對。
+
+### 修正後的實機結果
+
+- 兩台皆以保留資料方式更新修正版，已安裝的 `base.apk` SHA-256 均與上述建置相同。
+- `RealPeerSyncInstrumentedTest` 在兩台同時執行並各自通過：第一輪各收到並驗證 1 片，
+  庫存補齊至 2 片；重建 transport 後第二輪 `chunksApplied=0`、`already in sync`。
+  另斷言附近只有另一台 Mesh 手機，沒有把環境中的其他藍牙廣播算入。
+  此測試使用記憶體 Room 與暫存快取，結束後釋放，不寫入正式回報資料。
+- 正式緊急模式：兩側 UI／服務 heartbeat 均顯示 `peers=1`。
+  Pixel 向 Samsung 傳送正式缺片，Samsung 收到並驗證 58 片，兩側均完成同步。
+  Pixel 本輪沒有缺片，因此其正式服務接收數為 0；雙向能力由前述互補資料測試驗證。
+- Samsung 藍牙關閉時停止掃描，`peers=0 discovery=false`，既有 58 片累積數保留。
+  重新開啟藍牙後，未重新切換緊急模式，兩側自動恢復 `peers=1 discovery=true`，
+  完成次數增至 2，Samsung 接收數仍為 58，沒有重傳已持有分片。
+- 測試收尾關閉兩台緊急模式，藍牙維持原先開啟狀態；未更動 Wi-Fi 或螢幕逾時設定。
+  App 的 debug 鎖屏顯示測試入口已還原為一般顯示，手機鎖定設定未變更。
+
+本機證據在忽略目錄 `android/build/`：`mesh-*-hardware-test.log`、
+`mesh-*-hardware-logcat.log`、`mesh-*-recovery.log`、`mesh-samsung-radio-off.log`、
+`mesh-*-success.png`、`mesh-device-final-unit.log`；修正前重現記錄為
+`mesh-slow-request-red.log` 與 `mesh-*-initial.log`。
+
+本次證明上述兩台的發現、互補資料交換、再次相遇及藍牙重啟恢復；
+不代表已驗收所有機型、長時間 Doze、三機中繼或大型資料集的所有接觸情境。

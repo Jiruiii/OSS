@@ -33,6 +33,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -114,17 +115,18 @@ class AutoPeerSyncEngine(
         @Volatile var retryNotBeforeMillis: Long = 0L
         @Volatile var lastSeenAtMillis: Long = 0L
 
-        @Volatile private var latestRemoteSummary: PeerSummary? = null
+        @Volatile private var latestRemoteSummary: RemoteHello? = null
+        @Volatile var requestsDoneSessionId: String? = null
         private val remoteSummarySeq = AtomicLong(0)
         @Volatile private var helloConsumedSeq: Long = 0L
 
-        fun recordHello(summary: PeerSummary) {
+        fun recordHello(summary: RemoteHello) {
             latestRemoteSummary = summary
             remoteSummarySeq.incrementAndGet()
         }
 
         /** Returns the latest HELLO if it hasn't already been acted on this round, else null. */
-        fun takeUnconsumedHello(): PeerSummary? {
+        fun takeUnconsumedHello(): RemoteHello? {
             val seq = remoteSummarySeq.get()
             if (seq <= helloConsumedSeq) return null
             helloConsumedSeq = seq
@@ -141,6 +143,7 @@ class AutoPeerSyncEngine(
 
     data class Stats(val peersSynced: Int, val chunksApplied: Int, val activeSessions: Int)
     data class SyncOutcome(val succeeded: Boolean, val failureCode: String? = null)
+    private data class RemoteHello(val summary: PeerSummary, val sessionId: String?)
     private data class ChunkKey(val datasetId: String, val namespace: String, val chunkId: String, val chunkHash: String)
 
     private val sessions = ConcurrentHashMap<String, PeerSession>()
@@ -277,7 +280,9 @@ class AutoPeerSyncEngine(
             }
 
             val localSummaryJson = localSummaryProvider()
-            if (!sendEnvelope(conn, JSONObject().put("type", "HELLO").put("summary", localSummaryJson))) {
+            val sessionId = UUID.randomUUID().toString()
+            if (!sendEnvelope(conn, JSONObject().put("type", "HELLO").put("summary", localSummaryJson)
+                    .put("session_id", sessionId))) {
                 fail(session, "send_failed")
                 return@coroutineScope
             }
@@ -297,7 +302,7 @@ class AutoPeerSyncEngine(
             }
 
             val localSummary = PeerSummary.fromJson(localSummaryJson)
-            val requests = buildRequestsForMissingData(localSummary, remoteSummary)
+            val requests = buildRequestsForMissingData(localSummary, remoteSummary.summary)
             for (request in requests) {
                 for (chunk in request.chunks) {
                     session.pendingChunks[ChunkKey(request.datasetId, request.namespace, chunk.chunkId, chunk.chunkHash)] = CompletableDeferred()
@@ -310,11 +315,18 @@ class AutoPeerSyncEngine(
                 }
             }
             if (requests.isEmpty()) onLog("nothing to request from $peerId, already in sync")
+            // A peer with no missing data must still serve ALL of our requests.
+            // Sending a large REQUEST may itself take longer than the legacy
+            // receptive window. Bind the end marker to this HELLO so a late
+            // marker from a previous encounter cannot close a new session.
+            if (remoteSummary.sessionId != null && !sendEnvelope(conn,
+                    JSONObject().put("type", "REQUESTS_DONE").put("session_id", sessionId))) {
+                fail(session, "send_failed")
+                return@coroutineScope
+            }
 
-            // Stay connected long enough for our own REQUESTs to resolve
-            // (bounded by requestedChunkTimeoutMillis) and at least
-            // receptiveWindowMillis regardless, so a peer with nothing to
-            // request from *us* still gets a window to ask.
+            // Modern peers explicitly finish their request list. Keep the
+            // original grace window only as compatibility for older HELLOs.
             val completed = coroutineScope {
                 val pending = session.pendingChunks.values.toList()
                 val allRequestedDone = async {
@@ -324,12 +336,17 @@ class AutoPeerSyncEngine(
                         pending.awaitAll().all { it }
                     } ?: false
                 }
-                delay(receptiveWindowMillis)
+                val allServed = async {
+                    if (remoteSummary.sessionId == null) delay(receptiveWindowMillis)
+                    withTimeoutOrNull(300_000L) {
+                        while ((remoteSummary.sessionId != null &&
+                                session.requestsDoneSessionId != remoteSummary.sessionId) ||
+                            session.outgoingRequests.get() > 0) delay(100)
+                        !session.servingFailed
+                    } ?: false
+                }
                 val received = allRequestedDone.await()
-                val served = withTimeoutOrNull(300_000L) {
-                    while (session.outgoingRequests.get() > 0) delay(100)
-                    !session.servingFailed
-                } ?: false
+                val served = allServed.await()
                 received && served
             }
 
@@ -409,7 +426,11 @@ class AutoPeerSyncEngine(
         val identity = envelope.optString("sender_transport_id").takeIf { it.matches(Regex("ble:[0-9a-f]{16}")) }
         val session = sessions.computeIfAbsent(identity ?: peerId) { PeerSession(it) }
         when (envelope.optString("type")) {
-            "HELLO" -> session.recordHello(PeerSummary.fromJson(envelope.getJSONObject("summary")))
+            "HELLO" -> session.recordHello(RemoteHello(
+                PeerSummary.fromJson(envelope.getJSONObject("summary")),
+                envelope.optString("session_id").takeIf { it.isNotEmpty() },
+            ))
+            "REQUESTS_DONE" -> session.requestsDoneSessionId = envelope.optString("session_id").takeIf { it.isNotEmpty() }
             "REQUEST" -> handleRequest(session, envelope.getJSONObject("request"))
             "TRANSFER" -> handleTransfer(session, envelope.getJSONObject("chunk"))
             else -> onLog("unknown envelope type from $peerId: ${envelope.optString("type")}")
