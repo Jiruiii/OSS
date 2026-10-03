@@ -1,0 +1,7 @@
+{
+  "name": "resilientgeo-emic-bridge",
+  "main": "./emic-bridge.mjs",
+  "compatibility_date": "2026-09-28",
+  "workers_dev": true,
+  "placement": { "region": "gcp:asia-east1" }
+}

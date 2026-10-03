@@ -14,14 +14,15 @@ export const DEFAULT_TDX_TOKEN_ENDPOINT = 'https://tdx.transportdata.tw/auth/rea
 export const DEFAULT_TDX_FRESHNESS_SECONDS = 900;
 export const DEFAULT_TDX_CITY_CODES = [
   'Taipei', 'NewTaipei', 'Taoyuan', 'Taichung', 'Tainan', 'Kaohsiung',
-  'Keelung', 'Hsinchu', 'HsinchuCounty', 'MiaoliCounty', 'ChanghuaCounty',
-  'NantouCounty', 'YunlinCounty', 'Chiayi', 'ChiayiCounty', 'PingtungCounty',
-  'YilanCounty', 'HualienCounty', 'TaitungCounty', 'PenghuCounty',
-  'KinmenCounty', 'LienchiangCounty',
+  'Keelung', 'MiaoliCounty', 'ChiayiCounty', 'PingtungCounty',
+  'YilanCounty', 'KinmenCounty',
 ];
-export const DEFAULT_TDX_NATIONWIDE_ENDPOINTS = DEFAULT_TDX_CITY_CODES.map(
-  (city) => `https://tdx.transportdata.tw/api/basic/v1/Traffic/RoadEvent/LiveEvent/City/${city}?$format=JSON`,
-);
+export const DEFAULT_TDX_NATIONWIDE_ENDPOINTS = [
+  ...DEFAULT_TDX_CITY_CODES.map((city) =>
+    `https://tdx.transportdata.tw/api/basic/v1/Traffic/RoadEvent/LiveEvent/City/${city}?$format=JSON`),
+  'https://tdx.transportdata.tw/api/basic/v1/Traffic/RoadEvent/LiveEvent/Highway?$format=JSON',
+  'https://tdx.transportdata.tw/api/basic/v1/Traffic/RoadEvent/LiveEvent/Freeway?$format=JSON',
+];
 
 const RFC3339_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u;
 const SEVERITIES = new Set(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'UNKNOWN']);
@@ -568,12 +569,17 @@ export async function fetchTdxRoadEvents({
   fetchImpl = globalThis.fetch,
   retrievedAt = new Date().toISOString(),
   timeoutMs = 30000,
+  requestIntervalMs = 12500,
+  sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
+  now = Date.now,
 } = {}) {
   if (typeof clientId !== 'string' || clientId.length === 0 || typeof clientSecret !== 'string' || clientSecret.length === 0) {
     throw new TdxCredentialError();
   }
   if (typeof fetchImpl !== 'function') throw new TypeError('fetchImpl must be a function');
   if (!Number.isInteger(timeoutMs) || timeoutMs <= 0) throw new TypeError('timeoutMs must be positive');
+  if (!Number.isFinite(requestIntervalMs) || requestIntervalMs < 0)
+    throw new TypeError('requestIntervalMs must be non-negative');
   assertTimestamp(retrievedAt, 'retrievedAt');
 
   const accessToken = await fetchTdxAccessToken({
@@ -594,6 +600,12 @@ export async function fetchTdxRoadEvents({
   const allowPartial = scope === 'taiwan' && requestedEndpoints.length > 1;
   const results = [];
   const sourceEntries = [];
+  let nextRequestAt = 0;
+  const beforeRequest = async () => {
+    const delay = Math.max(0, nextRequestAt - now());
+    if (delay) await sleep(delay);
+    nextRequestAt = now() + requestIntervalMs;
+  };
   for (const requestedEndpoint of requestedEndpoints) {
     try {
       const result = await requestJson(requestedEndpoint, {
@@ -603,6 +615,7 @@ export async function fetchTdxRoadEvents({
           Authorization: `Bearer ${accessToken}`,
         },
         timeoutMs,
+        beforeRequest, sleep, now,
       });
       const records = eventRecords(result.payload);
       const entry = { endpoint: requestedEndpoint, ...result };
@@ -666,5 +679,5 @@ export async function fetchTdxRoadEvents({
 export async function collectTdxRoadEvents(options = {}) {
   const rawSnapshot = await fetchTdxRoadEvents(options);
   const normalized = normalizeTdxRoadEventsReport(rawSnapshot, options);
-  return { rawSnapshot, ...normalized };
+  return { rawSnapshot, ...normalized, unresolvedCount: normalized.unresolved.length };
 }
